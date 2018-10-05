@@ -1,0 +1,5 @@
+src/ipynb/
+src/.ipynb_checkpoints/
+src/__pycache__/
+
+*.swp
