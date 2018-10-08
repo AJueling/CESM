@@ -21,6 +21,18 @@ def generate_lats_lons(grid_file):
     
     return lats, lons, shift
     
+
+def generate_lats_lons_CESM(grid_file):
+    """
+    genrates lats and lons fields (no shift)
+    """
+    imt,jmt = 3600,2400
+    lats = read_binary_2D_double(grid_file,imt,jmt,1)
+    lons = read_binary_2D_double(grid_file,imt,jmt,2)
+    
+    return lats, lons
+
+
 def shift_field(field,shift):
     """
     shifts a 2D (imt,jmt) field
