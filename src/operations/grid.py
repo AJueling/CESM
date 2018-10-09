@@ -1,5 +1,6 @@
 import numpy as np
-from read_binary import read_binary_2D_double
+import xarray as xr
+from operations.read_binary import read_binary_2D_double
 
 def generate_lats_lons(grid_file):
     """

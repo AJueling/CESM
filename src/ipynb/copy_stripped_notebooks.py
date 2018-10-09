@@ -1,3 +1,5 @@
+""" copies versions of specific notebooks stripped of their output to the analysis folder """
+
 import os
 import sys
 import shutil
@@ -9,6 +11,7 @@ assert os.path.exists(destination)
 
 # copying stripped .ipynb files
 files = ['data_overview',
+         'geometry',
         ]
 for x in files:
     fn = f'{x}.ipynb'
