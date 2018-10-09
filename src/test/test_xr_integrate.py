@@ -57,7 +57,7 @@ class TestXarrayIntegrate(unittest.TestCase):
 #         # could be used to delete files that are created
 #         pass
     
-    def test_xa_vol_int(self):
+    def test_xr_vol_int(self):
         self.assertEqual(xr_integrate.xr_vol_int(self.A, self.B, self.A), 24.)
         self.assertEqual(xr_integrate.xr_vol_int(self.D, self.TAREA, self.DZT),\
                          1.366083344045523e+18)  # vol of the ocean
@@ -66,7 +66,7 @@ class TestXarrayIntegrate(unittest.TestCase):
         
 #     def test_xa_vol_mean(self):
         
-    def test_xa_surf_int(self):
+    def test_xr_surf_int(self):
         self.assertEqual(xr_integrate.xr_surf_int(self.B, self.B), 12.)
         self.assertEqual(xr_integrate.xr_surf_int(self.D[0,:,:], self.TAREA),\
                          360713803999209.06)  # surface of the ocean
