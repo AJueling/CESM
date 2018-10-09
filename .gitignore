@@ -1,6 +1,14 @@
 results/
 src/ipynb/
+
 src/.ipynb_checkpoints/
+src/test/.ipynb_checkpoints/
+src/analysis/.ipynb_checkpoints/
+src/operations/.ipynb_checkpoints/
+
 src/__pycache__/
+src/test/__pycache__/
+src/analysis/__pycache__/
+src/operations/__pycache__/
 
 *.swp

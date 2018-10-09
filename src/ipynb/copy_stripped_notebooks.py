@@ -4,7 +4,7 @@ import shutil
 import io
 from nbstripout import strip_output, read, write, NO_CONVERT
 
-destination = '../'
+destination = '../analysis/'
 assert os.path.exists(destination)
 
 # copying stripped .ipynb files
