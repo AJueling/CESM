@@ -10,7 +10,7 @@ from xr_DataArrays import create_xr_DataArray, generate_xr_DZ, generate_xr_AREA
 from paths import file_ex_ocn_hires, file_ex_ocn_rect
 
 
-class TestXarrayIntegrate(unittest.TestCase):
+class TestXrIntegrate(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
@@ -84,6 +84,11 @@ class TestXarrayIntegrate(unittest.TestCase):
 
 #     def test_find_regional_coord_extent(self):
 #         # create boolean array
+#         pass
+
+#     def 
+#     def test_xr_zonal_mean(self):
+        # zonal means os 1 field should be 1
 #         pass
         
 if __name__ == '__main__':

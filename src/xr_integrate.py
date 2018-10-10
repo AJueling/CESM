@@ -57,7 +57,6 @@ def xr_vol_int_regional(xa, AREA, DZ, MASK):
     AREA_reg = AREA.where(MASK)[jmin:jmax+1,imin:imax+1]
     DZ_reg   = DZ.where(MASK)[:,jmin:jmax+1,imin:imax+1]
     
-    
     integral, int_levels = xr_vol_int(xa_reg, AREA_reg, DZ_reg)
    
     return integral, int_levels
@@ -110,3 +109,62 @@ def xr_surf_int(xa, AREA):
     integral = np.sum(xa*AREA)
     
     return integral.item()
+
+
+
+def xr_zonal_int(xa, AREA, dx, lat_name):
+    """ integral over dx wide latitude bins
+        
+    input:
+    xa          .. 2D xr DataArray
+    AREA        .. 2D xr DataArray
+    dx          .. width of latitude bands
+    lat_name    .. xa/AREA coordinate name of the latitude variable
+    
+    output:
+    xa_zonal_int  .. 1D xr DataArray
+    lat_center  .. np.ndarray with bin centers
+    """
+    
+    assert type(xa)==xr.core.dataarray.DataArray
+    assert type(AREA)==xr.core.dataarray.DataArray
+    assert len(np.shape(xa))==2
+    assert np.shape(xa)==np.shape(AREA)
+    assert dx>(xa[lat_name][-1]-xa[lat_name][0])/len(xa[:,0])
+    
+    lat_bins = np.arange(-90, 90+dx, dx)
+    lat_center = np.arange(-90+dx/2, 90, dx)
+    
+    xa_new = xa*AREA
+    xa_zonal_int = xa_new.groupby_bins(lat_name, lat_bins, labels=lat_center).sum()
+    
+    return xa_zonal_int, lat_center
+
+
+
+def xr_zonal_mean(xa, AREA, dx, lat_name):
+    """ area weighted mean over dx wide latitude bins
+        
+    input:
+    xa          .. 2D xr DataArray
+    AREA        .. 2D xr DataArray
+    dx          .. width of latitude bands
+    lat_name    .. xa/AREA coordinate name of the latitude variable
+    
+    output:
+    xa_zonal_mean .. 1D xr DataArray
+    lat_center  .. np.ndarray with bin centers
+    """
+    
+    assert type(xa)==xr.core.dataarray.DataArray
+    assert type(AREA)==xr.core.dataarray.DataArray
+    assert len(np.shape(xa))==2
+    assert np.shape(xa)==np.shape(AREA)
+    assert dx>180/len(AREA[0,:])
+    
+    xa_zonal_int, lat_center = xr_zonal_int(xa, AREA, dx, lat_name)
+    AREA_zonal_int, lat_center = xr_zonal_int(AREA/AREA, AREA, dx, lat_name)
+    
+    xa_zonal_mean = xa_zonal_int/AREA_zonal_int
+
+    return xa_zonal_mean, lat_center
