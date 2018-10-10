@@ -27,5 +27,9 @@ path_ohc_rene      = '/projects/0/prace_imau/prace_2013081679/rene/CESM/OceanHea
 path_ohc_rene_rect = '/projects/0/prace_imau/prace_2013081679/rene/CESM/OceanHeatContent/Global_0.4'
 
 # example files to use for tests
-file_ex_ocn_hires = f'{path_ocn_rcp}/rcp8.5_co2_f05_t12.pop.h.2000-01.nc' 
-file_ex_ocn_rect  = f'{path_ocn_rcp_rect}/rcp8.5_co2_f05_t12.pop.h.2000-01.interp900x602.nc'
+file_ex_ocn_hires = f'{path_ocn_ctrl}/spinup_pd_maxcores_f05_t12.pop.h.0200-01.nc' 
+file_ex_atm_hires = f'{path_atm_ctrl}/spinup_pd_maxcores_f05_t12.cam2.h0.0200-01.nc'
+
+file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/spinup_pd_maxcores_f05_t12.pop.h.200-01.interp900x602.nc'
+
+file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
