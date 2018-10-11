@@ -126,7 +126,7 @@ def yrly_avg_nc(domain, run, fields):
             ds_out.to_netcdf(path=CESM_filename(domain, run, y, 0, name=name),
                              mode='w')
             
-        if y==IterateOutputCESM(domain, run).year+1:  # for testing
-            break
+#         if y==IterateOutputCESM(domain, run).year+1:  # for testing
+#             break
         
     return

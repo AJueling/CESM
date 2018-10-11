@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 from timeseries import yrly_avg_nc
-opt = sys.argv[1]
+opt = int(sys.argv[1])
 
 if opt==1:
     domain = 'atm'
