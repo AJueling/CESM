@@ -67,9 +67,9 @@ def xr_vol_int(xa, AREA, DZ, levels=False, zonal=False):
                 xa_zonal_int = xr_zonal_int(xa[k,:,:]*DZ[k,:,:], AREA, dx, lat_name)
                 DZ_zonal_int = xr_zonal_int(DZ[k,:,:]          , ONES, dx, lat_name)
                 if k==0:
-                    xa_zonal_level_int = np.zeros((km, len(xa_zonal_int)))
+                    xa_zonal_level_int  = np.zeros((km, len(xa_zonal_int)))
                     xa_zonal_level_mean = np.zeros((km, len(xa_zonal_int)))
-                xa_zonal_level_int[k,:] = xa_zonal_int
+                xa_zonal_level_int[k,:]  = xa_zonal_int
                 xa_zonal_level_mean[k,:] = xa_zonal_int/DZ_zonal_int
             return integral, int_levels, xa_zonal_level_int, xa_zonal_level_mean
 
