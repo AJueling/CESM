@@ -62,12 +62,11 @@ def generate_xr_DZ(case):
     if case=='ocn_hires_fbc' or case=='ocn_hires_pbc':
         dim_names = ('nlat','nlon','z_t')
         file = file_ex_ocn_hires
-        fill=0
-        assert 'dz' in C
+        fill = 0
     elif case=='atm':
         dim_names = ('lat','lon','lev')
         file = file_ex_atm_hires
-        fill=1
+        fill = 1
     else:
         raise ValueError('case argument not known')
     
