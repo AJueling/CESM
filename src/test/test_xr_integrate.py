@@ -9,7 +9,7 @@ from xr_integrate import xr_vol_int , xr_vol_mean , xr_int_along_axis
 from xr_integrate import xr_surf_int, xr_surf_mean
 
 from xr_DataArrays import create_xr_DataArray, generate_xr_DZ, generate_xr_AREA
-from paths import file_ex_ocn_hires, file_ex_ocn_rect
+from paths import file_ex_ocn_ctrl, file_ex_ocn_rect
 
 
 class TestXrIntegrate(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestXrIntegrate(unittest.TestCase):
             
         # 2.1 hires ocean fields
         dim_names = ('nlat','nlon','z_t')
-        cls.D, cls.C, imt, jmt, km = create_xr_DataArray(file_ex_ocn_hires,
+        cls.D, cls.C, imt, jmt, km = create_xr_DataArray(file_ex_ocn_ctrl,
                                                          dim_names,
                                                          n=3,
                                                          fill=1)
@@ -71,6 +71,7 @@ class TestXrIntegrate(unittest.TestCase):
                          24.)
         self.assertTrue(np.all(xr_vol_int(A, B, A, levels=True , zonal=True )[1]==12.))
         self.assertTrue(np.any(xr_vol_int(A, B, A, levels=True, zonal=True)[2]==4.))
+        self.assertTrue(np.any(xr_vol_int(A, B, A, levels=True, zonal=True)[3]==1.))
         
         
         # ocean arrays

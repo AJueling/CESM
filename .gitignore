@@ -9,4 +9,6 @@ src/.ipynb_checkpoints/
 src/test/__pycache__/
 src/test/.ipynb_checkpoints/
 
+doc/cam5_desc.pdf
+
 *.swp

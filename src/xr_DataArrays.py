@@ -2,7 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import file_ex_ocn_hires, file_ex_ocn_rect, file_ex_atm_hires
+from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl
 from constants import R_earth
 
 def create_xr_DataArray(file, dim_names, n=3, fill=0):
@@ -61,11 +61,11 @@ def generate_xr_DZ(case):
     """
     if case=='ocn_hires_fbc' or case=='ocn_hires_pbc':
         dim_names = ('nlat','nlon','z_t')
-        file = file_ex_ocn_hires
+        file = file_ex_ocn_ctrl
         fill = 0
     elif case=='atm':
         dim_names = ('lat','lon','lev')
-        file = file_ex_atm_hires
+        file = file_ex_atm_ctrl
         fill = 1
     else:
         raise ValueError('case argument not known')
@@ -99,11 +99,11 @@ def generate_xr_AREA(case):
     """
     if case=='ocn_hires':
         dim_names = ('nlat','nlon','z_t')
-        file = file_ex_ocn_hires
+        file = file_ex_ocn_ctrl
         k=0  # area at surface
     elif case=='atm':
         dim_names = ('lat','lon','lev')
-        file = file_ex_atm_hires
+        file = file_ex_atm_ctrl
     else:
         raise ValueError('case argument not known')
     AREA, C, imt, jmt, km = create_xr_DataArray(file=file,

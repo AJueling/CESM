@@ -16,7 +16,9 @@ def xr_vol_int(xa, AREA, DZ, levels=False, zonal=False):
     integral            .. float integral
     int_levels          .. integrals of each level
     xa_zonal_int        .. 1D array of vert.+zonally integrated quantity
-    xa_zonal_level_int  .. 2D
+    xa_zonal_level_int  .. 2D (km, lat_bin) *[m^2] (integrated in depth and lon)
+    xa_zonal_level_mean .. 2D (km, lat_bin) *[m^1] 
+                           (weighted by bottom cell depth)
     """
     assert type(xa)==xr.core.dataarray.DataArray
     assert len(np.shape(xa))==3
@@ -59,12 +61,17 @@ def xr_vol_int(xa, AREA, DZ, levels=False, zonal=False):
             return integral, int_levels
         
         if zonal==True:
+            ONES = AREA.copy()
+            ONES[:,:] = 1.
             for k in range(km):
-                xa_zonal_int = xr_zonal_int(xa[k,:,:], AREA, dx, lat_name)
+                xa_zonal_int = xr_zonal_int(xa[k,:,:]*DZ[k,:,:], AREA, dx, lat_name)
+                DZ_zonal_int = xr_zonal_int(DZ[k,:,:]          , ONES, dx, lat_name)
                 if k==0:
                     xa_zonal_level_int = np.zeros((km, len(xa_zonal_int)))
+                    xa_zonal_level_mean = np.zeros((km, len(xa_zonal_int)))
                 xa_zonal_level_int[k,:] = xa_zonal_int
-            return integral, int_levels, xa_zonal_level_int
+                xa_zonal_level_mean[k,:] = xa_zonal_int/DZ_zonal_int
+            return integral, int_levels, xa_zonal_level_int, xa_zonal_level_mean
 
         
         
