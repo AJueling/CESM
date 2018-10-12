@@ -52,9 +52,7 @@ def generate_xr_DZ(case):
     """ builds 3D xr DataArray of cell depths in [m]
     
     input:
-    hpos .. horizontal position
-    vpos .. vertical position
-    pbc  .. partial bottom cells
+    case .. (str) 'ocn_hires_fbc'
     
     output:
     DZT  .. 3D xr DataArray object with depths in [m]
@@ -115,7 +113,7 @@ def generate_xr_AREA(case):
         AREA[:,:] = np.where(C.KMT[:,:]<=k, AREA[:,:], C.TAREA/1e4)
     elif case=='atm':
         dy = C.lat[1].item()-C.lat[0].item()
-        print(dy)
+#         print(dy)
         nx, ny = len(C.lon), len(C.lat)
         lat_N = (C.lat[0]+dy/2)*np.pi/180
         AREA[0 ,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, -np.pi/2)

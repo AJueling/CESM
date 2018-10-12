@@ -44,8 +44,16 @@ def CESM_filename(domain, run, y, m, name=None):
             
     return file
 
+
+# STRINGS
+
 spinup = 'spinup_pd_maxcores_f05_t12'
 rcpstr = 'rcp8.5_co2_f05_t12'
+
+
+# PATHS
+
+path_results = '/home/dijkbio/andre/CESM/results'
 
 # CESM data
 path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
@@ -81,6 +89,9 @@ path_ohc_rene_rect = f'{path_rene}/OceanHeatContent/Global_0.4'
 path_yrly_ctrl = f'{path_samoc}/ctrl'
 path_yrly_rcp  = f'{path_samoc}/rcp'
 
+
+# FILES
+
 # example files to use for tests
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y=200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp', y=2000, m=1)
@@ -89,3 +100,6 @@ file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y=200, m=1)
 file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.200-01.interp900x602.nc'
 
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
+
+file_ex_ocn_TEMP_PD_yrly = f'{path_samoc}/ctrl/ocn_yrly_TEMP_PD_0200.nc'
+file_ex_atm_T_T850_yrly  = f'{path_samoc}/ctrl/atm_yrly_T_T850_0200.nc'
