@@ -6,12 +6,15 @@ import shutil
 import io
 from nbstripout import strip_output, read, write, NO_CONVERT
 
-destination = '../analysis/'
+destination = '../'
 assert os.path.exists(destination)
 
 # copying stripped .ipynb files
 files = ['data_overview',
          'geometry',
+         'GMST',
+         'OHC',
+         'timeseries',
         ]
 for x in files:
     fn = f'{x}.ipynb'
