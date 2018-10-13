@@ -10,11 +10,13 @@ destination = '../'
 assert os.path.exists(destination)
 
 # copying stripped .ipynb files
-files = ['data_overview',
+files = ['currents',
+         'data_overview',
          'geometry',
          'GMST',
          'OHC',
          'timeseries',
+         'winds',
         ]
 for x in files:
     fn = f'{x}.ipynb'
