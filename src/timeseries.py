@@ -40,7 +40,7 @@ class IterateOutputCESM:
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
             if self.domain=='atm':
-                filename = CESM_filename(self.domain, self.run, self.year, self.month, name='T_T850')  
+                filename = CESM_filename(self.domain, self.run, self.year, self.month, name='T_T850_U_V')  
         if os.path.exists(filename)==False:
             self.stop = True
         return filename

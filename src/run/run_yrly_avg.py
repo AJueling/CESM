@@ -6,11 +6,11 @@ opt = int(sys.argv[1])
 if opt==1:
     domain = 'atm'
     run    = 'ctrl'
-    fields = ['T', 'T850']
+    fields = ['T', 'T850', 'U', 'V']
 elif opt==2:
     domain = 'atm'
     run    = 'rcp'
-    fields = ['T', 'T850']
+    fields = ['T', 'T850', 'U', 'V']
 elif opt==3:
     domain = 'ocn'
     run    = 'ctrl'
