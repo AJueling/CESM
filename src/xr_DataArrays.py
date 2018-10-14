@@ -60,22 +60,26 @@ def generate_xr_DZ(case):
     if case=='ocn_hires_fbc' or case=='ocn_hires_pbc':
         dim_names = ('nlat','nlon','z_t')
         file = file_ex_ocn_ctrl
-        fill = 0
+    elif case=='ocn_lowres':
+        dim_names = ('t_lat', 't_lon', 'depth_t')
+        file = file_ex_ocn_rect
     elif case=='atm':
         dim_names = ('lat','lon','lev')
         file = file_ex_atm_ctrl
-        fill = 1
     else:
         raise ValueError('case argument not known')
     
     DZ, C, imt, jmt, km = create_xr_DataArray(file=file,
                                               dim_names=dim_names,
-                                              n=3,
-                                              fill=0)
+                                              n=3, fill=0)
     
     if case=='ocn_hires_fbc':
         for k in range(km):
             DZ[k,:,:] = np.where(C.KMT[:,:]<=k, DZ[k,:,:], C.dz[k]/100)
+    elif case=='ocn_lowres':
+        print(np.shape(DZ))
+        for k in range(km):
+            DZ[k,:,:] = DZ[k,:,:].where(C.PD[k,:,:]>2, C.depth_t[k])
     elif case=='ocn_hires_pbc':
         print('not implemented yet')
     elif case=='atm':
@@ -99,34 +103,52 @@ def generate_xr_AREA(case):
         dim_names = ('nlat','nlon','z_t')
         file = file_ex_ocn_ctrl
         k=0  # area at surface
+    elif case=='ocn_lowres':
+        dim_names = ('t_lat','t_lon','depth_t')
+        file = file_ex_ocn_rect
     elif case=='atm':
         dim_names = ('lat','lon','lev')
         file = file_ex_atm_ctrl
     else:
         raise ValueError('case argument not known')
+        
     AREA, C, imt, jmt, km = create_xr_DataArray(file=file,
                                                 dim_names=dim_names,
-                                                n=2,
-                                                fill=0)
+                                                n=2, fill=0)
     
     if case=='ocn_hires':
-        AREA[:,:] = np.where(C.KMT[:,:]<=k, AREA[:,:], C.TAREA/1e4)
-    elif case=='atm':
-        dy = C.lat[1].item()-C.lat[0].item()
-#         print(dy)
-        nx, ny = len(C.lon), len(C.lat)
-        lat_N = (C.lat[0]+dy/2)*np.pi/180
-        AREA[0 ,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, -np.pi/2)
-        lat_S = (C.lat[-1]-dy/2)*np.pi/180
-        AREA[-1,:] = spher_surf_element(R_earth, 2*np.pi/nx, np.pi/2, lat_S)     
-        for j in range(1, ny-1):
-            lat_S = (C.lat[j]-dy/2)*np.pi/180
-            lat_N = (C.lat[j]+dy/2)*np.pi/180
+        AREA[:,:] = C.TAREA/1e4
+        
+    elif case=='atm' or case=='ocn_lowres':
+        lat, lon = dim_names[0], dim_names[1]
+        dy = C[lat][1].item()-C[lat][0].item()
+        nx, ny = len(C[lon]), len(C[lat])
+        if case=='atm':
+            lat_N = (-90+dy/2)*np.pi/180
+            AREA[0 ,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, -np.pi/2)
+            lat_S = (90-dy/2)*np.pi/180
+            AREA[-1,:] = spher_surf_element(R_earth, 2*np.pi/nx, np.pi/2, lat_S)
+            jmin, jmax = 1, ny-1
+        else:
+            jmin, jmax = 0, ny
+        for j in range(jmin, jmax):
+            lat_S = (C[lat][j]-dy/2)*np.pi/180
+            lat_N = (C[lat][j]+dy/2)*np.pi/180
             AREA[j,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, lat_S)
-        assert np.isclose(np.max(AREA.values),
-                          R_earth**2 * 2*np.pi/nx * np.pi/ny, rtol=1e-2)
+#         assert np.isclose(np.max(AREA.values),\
+#                           R_earth**2 * 2*np.pi/nx * np.pi/ny, rtol=1e-1)
     
     return AREA
+
+
+def generate_xr_HTN(case):
+    if case=='ocn_hires':
+        HTN = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).HTN
+    elif case=='ocn_lowres':
+        HTN, C, imt, jmt, km = create_xr_DataArray(file=file_ex_ocn_rect,
+                                                dim_names=dim_names,
+                                                n=2, fill=0)
+    return HTN
 
     
 def spher_surf_element(r, dtheta, lat_N, lat_S):

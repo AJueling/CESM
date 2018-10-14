@@ -6,8 +6,9 @@ from paths import CESM_filename
 from timeseries import IterateOutputCESM
 
 
-def linear_trend(x):
+def xr_linear_trend(x):
     """ function to compute a linear trend of a timeseries """
+    print(type(x))
     pf = np.polyfit(x.time, x, 1)
     # we need to return a dataarray or else xarray's groupby won't be happy
     return xr.DataArray(pf[0])
@@ -28,7 +29,7 @@ def xr_linear_trends_2D(da, dim_names):
     # stack lat and lon into a single dimension called allpoints
     stacked = da.stack(allpoints=[lat, lon])
     # apply the function over allpoints to calculate the trend at each point
-    trend = stacked.groupby('allpoints').apply(linear_trend)
+    trend = stacked.groupby('allpoints').apply(xr_linear_trend)
     # unstack back to lat lon coordinates
     da_trend = trend.unstack('allpoints')
     return da_trend
@@ -57,7 +58,7 @@ def atm_field_regression(run):
     
     da = xr.open_dataset(first_file, decode_times=False)[field][lev,:,:]
     da = da.expand_dims('time')
-    da_newer = da.assign_coords(time=[first_year])
+#     da_newer = da.assign_coords(time=[first_year])
     for y, m, file in IterateOutputCESM(domain=domain, run=run, tavg=tavg):
         if y>first_year:
             da_new = xr.open_dataset(file, decode_times=False)[field][lev,:,:]

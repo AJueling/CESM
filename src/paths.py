@@ -97,7 +97,7 @@ file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y=200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp', y=2000, m=1)
 file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y=200, m=1)
 
-file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.200-01.interp900x602.nc'
+file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
 
