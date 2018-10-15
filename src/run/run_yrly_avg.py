@@ -11,6 +11,7 @@ elif opt==2:
     domain = 'atm'
     run    = 'rcp'
     fields = ['T', 'T850', 'U', 'V']
+    
 elif opt==3:
     domain = 'ocn'
     run    = 'ctrl'
@@ -20,4 +21,22 @@ elif opt==4:
     run    = 'rcp'
     fields = ['TEMP', 'PD']
     
-yrly_avg_nc(domain=domain, run=run, fields=fields)   
+elif opt==5:
+    domain = 'ocn_rect'
+    run    = 'ctrl'
+    fields = ['TEMP', 'PD']
+elif opt==6:
+    domain = 'ocn_rect'
+    run    = 'rcp'
+    fields = ['TEMP', 'PD']
+elif opt==7:
+    domain = 'ocn_rect'
+    run    = 'ctrl'
+    fields = ['SHF']
+elif opt==8:
+    domain = 'ocn_rect'
+    run    = 'rcp'
+    fields = ['SHF']
+    
+    
+yrly_avg_nc(domain=domain, run=run, fields=fields)

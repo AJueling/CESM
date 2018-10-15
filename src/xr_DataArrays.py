@@ -57,10 +57,12 @@ def generate_xr_DZ(case):
     output:
     DZT  .. 3D xr DataArray object with depths in [m]
     """
+    assert case in ['ocn_hires_fbc', 'ocn_rect', 'atm']
+
     if case=='ocn_hires_fbc' or case=='ocn_hires_pbc':
         dim_names = ('nlat','nlon','z_t')
         file = file_ex_ocn_ctrl
-    elif case=='ocn_lowres':
+    elif case=='ocn_rect':
         dim_names = ('t_lat', 't_lon', 'depth_t')
         file = file_ex_ocn_rect
     elif case=='atm':
@@ -76,10 +78,13 @@ def generate_xr_DZ(case):
     if case=='ocn_hires_fbc':
         for k in range(km):
             DZ[k,:,:] = np.where(C.KMT[:,:]<=k, DZ[k,:,:], C.dz[k]/100)
-    elif case=='ocn_lowres':
-        print(np.shape(DZ))
+            
+    elif case=='ocn_rect':
+#         print(np.shape(DZ))
         for k in range(km):
-            DZ[k,:,:] = DZ[k,:,:].where(C.PD[k,:,:]>2, C.depth_t[k])
+            DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.depth_t[k], DZ[k,:,:])
+        DZ = DZ.rename({'t_lat': 'lat', 't_lon': 'lon'})
+        
     elif case=='ocn_hires_pbc':
         print('not implemented yet')
     elif case=='atm':
@@ -87,7 +92,7 @@ def generate_xr_DZ(case):
         
     return DZ
 
-
+# np.where(x < 5, x, -1)   
 
 def generate_xr_AREA(case):
     """ builds 2D xr DataArray of surface area [m^2]
@@ -99,11 +104,13 @@ def generate_xr_AREA(case):
     output:
     AREA .. 2D xr DataArray [m^2]
     """
+    assert case in ['ocn_hires_fbc', 'ocn_rect', 'atm']
+    
     if case=='ocn_hires':
         dim_names = ('nlat','nlon','z_t')
         file = file_ex_ocn_ctrl
         k=0  # area at surface
-    elif case=='ocn_lowres':
+    elif case=='ocn_rect':
         dim_names = ('t_lat','t_lon','depth_t')
         file = file_ex_ocn_rect
     elif case=='atm':
@@ -119,7 +126,7 @@ def generate_xr_AREA(case):
     if case=='ocn_hires':
         AREA[:,:] = C.TAREA/1e4
         
-    elif case=='atm' or case=='ocn_lowres':
+    elif case in ['atm', 'ocn_rect']:
         lat, lon = dim_names[0], dim_names[1]
         dy = C[lat][1].item()-C[lat][0].item()
         nx, ny = len(C[lon]), len(C[lat])
@@ -131,25 +138,50 @@ def generate_xr_AREA(case):
             jmin, jmax = 1, ny-1
         else:
             jmin, jmax = 0, ny
+            
         for j in range(jmin, jmax):
             lat_S = (C[lat][j]-dy/2)*np.pi/180
             lat_N = (C[lat][j]+dy/2)*np.pi/180
             AREA[j,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, lat_S)
-#         assert np.isclose(np.max(AREA.values),\
-#                           R_earth**2 * 2*np.pi/nx * np.pi/ny, rtol=1e-1)
+#         print(np.max(AREA.values))
+#         print(R_earth**2 * 2*np.pi/nx * np.pi/ny)
+        assert np.isclose(np.max(AREA.values),\
+                          R_earth**2 * 2*np.pi/nx * np.pi/ny, rtol=1)
+
+    if case=='ocn_rect':
+        AREA = AREA.rename({'t_lat': 'lat', 't_lon': 'lon'})
     
     return AREA
 
 
 def generate_xr_HTN(case):
+    """ zonal length of grid cells
+    
+    returns
+    HTN .. 2D xr DataArray
+    """
+    
     if case=='ocn_hires':
         HTN = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).HTN
-    elif case=='ocn_lowres':
+        
+    elif case=='ocn_rect':
+        dim_names = ('t_lat', 't_lon', 'depth_t')
         HTN, C, imt, jmt, km = create_xr_DataArray(file=file_ex_ocn_rect,
                                                 dim_names=dim_names,
                                                 n=2, fill=0)
+        HTN = HTN.rename({'t_lat': 'lat', 't_lon': 'lon'})
+        n_lat, n_lon = len(HTN.lat), len(HTN.lon)
+        for j in range(n_lat):
+            HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
+
     return HTN
 
     
 def spher_surf_element(r, dtheta, lat_N, lat_S):
+    """ surface area of element of sphere """
     return r**2 * dtheta * (np.sin(lat_N)-np.sin(lat_S))
+
+
+def zonal_length(lat, nlon):
+    """ length of zonal 1/nlon segment at latitude lat"""
+    return R_earth * 2*np.pi/nlon * np.cos(lat*np.pi/180)

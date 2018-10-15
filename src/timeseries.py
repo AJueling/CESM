@@ -20,14 +20,16 @@ class IterateOutputCESM:
     >    print(filename)
     """
     
-    def __init__(self, domain, run, tavg):
-        assert domain=='ocn' or domain=='atm'
-        assert run=='rcp' or run=='ctrl'
+    def __init__(self, domain, run, tavg, name=None):
+        assert domain in ['ocn', 'ocn_rect', 'atm']
+        assert run in ['ctrl', 'rcp']
+        assert tavg in ['monthly', 'yrly']
         
         self.domain = domain
         self.run    = run
         self.tavg   = tavg
         self.stop   = False
+        self.name   = name
         
         if tavg=='monthly':  self.month  = 1
         elif tavg=='yrly':   self.month  = 0
@@ -39,8 +41,9 @@ class IterateOutputCESM:
         if self.tavg=='monthly':
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
-            if self.domain=='atm':
-                filename = CESM_filename(self.domain, self.run, self.year, self.month, name='T_T850_U_V')  
+            if self.name==None:
+                raise ValueError('must provide (variables part of) name for yrly file')
+            filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)  
         if os.path.exists(filename)==False:
             self.stop = True
         return filename
@@ -97,8 +100,8 @@ def yrly_avg_nc(domain, run, fields, test=False):
     takes approx. 2 min for high res ocean data for two 3D fields
     takes approx. 4 sec for lower res atm data for one 2D and one 3D field 
     """
-    assert domain=='ocn' or domain=='atm'
-    assert run=='rcp' or run=='ctrl'
+    assert domain in ['ocn', 'ocn_rect', 'atm']
+    assert run in ['ctrl', 'rcp']
     
     name = ''
     n_fields = len(fields)
@@ -108,40 +111,58 @@ def yrly_avg_nc(domain, run, fields, test=False):
             name += '_'
     
     ffield = fields[0]
-    i = -1
+    
+    first_year = IterateOutputCESM(domain=domain, run=run, tavg='monthly').year
     
     for y, m, s in IterateOutputCESM(domain=domain, run=run, tavg='monthly'):
         
-        print(m)
         ds = xr.open_dataset(s, decode_times=False)
+    
+        if domain=='ocn_rect':  # renaming dims/coords
+            ds = ds.rename({'t_lat': 'lat', 't_lon': 'lon'})
         
         if m==1:  # create new xr Dataset
-            i += 1
             dim = len(np.shape(ds[ffield]))
-            if dim==3:  # 2D field
-                ds_out = (ds[ffield][0,:,:]/12).to_dataset()
-            elif dim==4:  # 3D
-                ds_out = (ds[ffield][0,:,:,:]/12).to_dataset()
+            if domain in ['atm', 'ocn']:
+                if dim==3:  # 2D field
+                    ds_out = (ds[ffield][0,:,:]/12).to_dataset()
+                elif dim==4:  # 3D
+                    ds_out = (ds[ffield][0,:,:,:]/12).to_dataset()
+            elif domain=='ocn_rect':
+                if dim==2:  # 2D
+                    ds_out = (ds[ffield][:,:]/12).to_dataset()
+                elif dim==3:  # 3D
+                    ds_out = (ds[ffield][:,:,:]/12).to_dataset()
                 
             for field in fields[1:]:  # add rest of fields
                 dim = len(np.shape(ds[field]))
-                if dim==3:
-                    ds_out[field] = ds[field][0,:,:]/12
-                elif dim==4:
-                    ds_out[field] = ds[field][0,:,:,:]/12
+                if domain in ['atm', 'ocn']:
+                    if dim==3:
+                        ds_out[field] = ds[field][0,:,:]/12
+                    elif dim==4:
+                        ds_out[field] = ds[field][0,:,:,:]/12
+                elif domain=='ocn_rect':
+                    if dim==2:
+                        ds_out[field] = ds[field][:,:]/12
+                    elif dim==3:
+                        ds_out[field] = ds[field][:,:,:]/12
+            
         else:
             for field in fields:
                 dim = len(np.shape(ds[field]))
-                if   dim==3:  ds_out[field][:,:]   += ds[field][0,:,:]/12
-                elif dim==4:  ds_out[field][:,:,:] += ds[field][0,:,:,:]/12
+                if domain in ['atm', 'ocn']:
+                    if   dim==3:  ds_out[field][:,:]   += ds[field][0,:,:]/12
+                    elif dim==4:  ds_out[field][:,:,:] += ds[field][0,:,:,:]/12
+                elif domain=='ocn_rect':
+                    if   dim==2:  ds_out[field][:,:]   += ds[field][:,:]/12
+                    elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
 
-        if m==12 and test==False:  # write to new file
+        if m==12:  # write to new file
             print(y, CESM_filename(domain, run, y, 0))
-            ds_out.to_netcdf(path=CESM_filename(domain, run, y, 0, name=name),
-                             mode='w')
+            filename = CESM_filename(domain=domain, run=run, y=y, m=0, name=name)
+            ds_out.to_netcdf(path=filename, mode='w')
             
-        if test==True and y==IterateOutputCESM(domain, run).year+1:
-            break
+        if test==True and y==first_year+2:  break
     
     return
 

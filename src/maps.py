@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 
-def map_atm_robinson(xr_DataArray, cmap, minv, maxv, label, filename=None):
+def map_robinson(xr_DataArray, cmap, minv, maxv, label, filename=None):
     fig = plt.figure(figsize=(8,5))
     ax  = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
     ax.set_position([.02,.05,.96,.93])
@@ -29,8 +29,8 @@ def map_ocn_robinson(xr_DataArray, cmap, minv, maxv, label, filename=None):
     ax  = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
     ax.set_position([.02,.05,.96,.93])
     cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
-    im = ax.pcolormesh(xr_DataArray.lon,
-                       xr_DataArray.lat,
+    im = ax.pcolormesh(xr_DataArray.TLONG,
+                       xr_DataArray.TLAT,
                        xr_DataArray.values,
                        cmap=cmap,
                        vmin=minv, vmax=maxv,

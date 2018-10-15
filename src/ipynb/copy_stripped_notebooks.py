@@ -15,9 +15,12 @@ files = ['currents',
          'geometry',
          'GMST',
          'OHC',
+         'SHF',
+         'SST',
          'timeseries',
          'winds',
         ]
+
 for x in files:
     fn = f'{x}.ipynb'
     with io.open(fn, 'r', encoding='utf8') as f:
