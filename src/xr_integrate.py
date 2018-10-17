@@ -1,6 +1,114 @@
 import numpy as np
 import xarray as xr
 
+from constants import R_earth
+from xr_DataArrays import dll_from_arb_da
+
+
+def xr_int_global(da, AREA, DZ):
+    """ global volume integral *[m^3] """
+    (z, lat, lon) = dll_from_arb_da(da)    
+    return (da*AREA*DZ).sum(dim=[z, lat, lon])  # 0D
+
+
+
+def xr_int_global_level(da, AREA, DZ):
+    """ global volume integral *[m^3] """
+    (z, lat, lon) = dll_from_arb_da(da)
+    return (da*AREA*DZ).sum(dim=[lat, lon])  # 1D (z)
+
+
+
+def xr_int_vertical(da, DZ):
+    """ vertical integral *[m] """
+    (z, lat, lon) = dll_from_arb_da(da)
+    return (da*DZ).sum(dim=z)  # 2D (lat, lon)
+
+
+def xr_int_zonal(da, AREA, DZ):
+    """ integral along dpeth and zonal coordinates *[m^2] rectangular grid"""
+    (z, lat, lon) = dll_from_arb_da(da)
+    
+    if z=='depth_t':  # rectangular grid
+        int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
+        
+    elif z=='z_t':   # tripolar grid
+        print('tripolar')
+        
+        int_vert = xr_int_vertical(da, DZ)  # 2D
+        # lat. binning
+        int_zonal = xr_zonal_int_bins(int_vert, AREA)
+        
+    return int_zonal
+
+
+def xr_int_zonal_level(da, AREA, dx=1):
+    """ zonal integrals for each level *[m] rectangular grid"""
+    (z, lat, lon) = dll_from_arb_da(da)
+    
+    if z=='depth_t':  # rectangular grid
+        int_zonal_level = (da*HTN).sum(dim=[lon])  # 2D (z, lat)
+        
+    elif z=='z_t':   # tripolar grid
+        print('tripolar')
+        
+        # construct new xr DataArray
+        lat_bins, lat_centers, lat_width = lat_binning(dx)
+        array = np.zeros((len(da[z]),len(lat_centers)))
+        lat_bin_name = f'{lat}_bins'
+        coords = {z: da.coords[z], lat_bin_name: lat_centers}
+        int_zonal_level = xr.DataArray(data=array, coords=coords, dims=(z, lat_bin_name))
+        
+        for k in range(len(da[z])):
+        # lat. binning
+            int_zonal_level[k,:] = xr_zonal_int_bins(da[k,:,:], AREA)
+        
+    return int_zonal_level
+
+
+def xr_zonal_int_bins(da, AREA, dx=1):
+    """ integral over dx wide latitude bins
+        
+    input:
+    xa          .. 2D xr DataArray
+    AREA        .. 2D xr DataArray
+    dx          .. width of latitude bands in degrees
+    lat_name    .. xa/AREA coordinate name of the latitude variable
+    
+    output:
+    xa_zonal_int  .. 1D xr DataArray
+    
+    lat centers can be accessed through xa_zonal_int.coords[f'{lat_name}_bins']
+    """
+    
+    assert type(da)==xr.core.dataarray.DataArray
+    assert type(AREA)==xr.core.dataarray.DataArray
+    assert len(np.shape(da))==2
+    assert np.shape(da)==np.shape(AREA)
+    
+    (z, lat, lon) = dll_from_arb_da(da)
+    
+    # ensure dx is larger than avg grid lat diffs
+    assert dx > (da[lat][-1]-da[lat][0])/len(da[:,0])
+    
+    lat_bins, lat_centers, lat_width = lat_binning(dx)
+    
+    da_new = da*AREA/lat_width
+    da_zonal_int = da_new.groupby_bins(lat, lat_bins, labels=lat_centers).sum(dim=(lat, lon))
+    
+    return da_zonal_int
+
+
+def lat_binning(dx):
+    """ create latitude bins """
+    lat_width = dx*R_earth*np.pi/180
+    lat_bins = np.arange(-90, 90+dx, dx)
+    lat_centers = np.arange(-90+dx/2, 90, dx)
+    return lat_bins, lat_centers, lat_width
+
+
+#####################################################################################
+
 
 def xr_vol_int(xa, AREA, DZ, levels=False, zonal=False):
     """ volume integral of xarray *[m^3]
@@ -220,34 +328,7 @@ def xr_surf_mean(xa, AREA):
 
 
 
-def xr_zonal_int(xa, AREA, dx, lat_name):
-    """ integral over dx wide latitude bins
-        
-    input:
-    xa          .. 2D xr DataArray
-    AREA        .. 2D xr DataArray
-    dx          .. width of latitude bands
-    lat_name    .. xa/AREA coordinate name of the latitude variable
-    
-    output:
-    xa_zonal_int  .. 1D xr DataArray
-    
-    lat centers can be accessed through xa_zonal_int.coords[f'{lat_name}_bins']
-    """
-    
-    assert type(xa)==xr.core.dataarray.DataArray
-    assert type(AREA)==xr.core.dataarray.DataArray
-    assert len(np.shape(xa))==2
-    assert np.shape(xa)==np.shape(AREA)
-    assert dx>(xa[lat_name][-1]-xa[lat_name][0])/len(xa[:,0])
-    
-    lat_bins = np.arange(-90, 90+dx, dx)
-    lat_center = np.arange(-90+dx/2, 90, dx)
-    
-    xa_new = xa*AREA
-    xa_zonal_int = xa_new.groupby_bins(lat_name, lat_bins, labels=lat_center).sum()
-    
-    return xa_zonal_int
+
 
 
 

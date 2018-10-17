@@ -57,8 +57,8 @@ ipython notebooks
 
 ### /src/run/  (scripts and python files to run in parallel)
 
-- 
-- 
+- run_OHC_integrals
+- run_yrly_avg
 
 ### /src/test/  (test suite)
 

@@ -177,11 +177,11 @@ def dll_from_arb_da(da):
     """ finds dimension names from arbitrary xr DataArray via its size"""
     assert type(da)==xr.core.dataarray.DataArray
     shape = np.shape(da)
-    assert shape in [(42,2400,3600), (42,602,900)]
+    assert shape in [(42,2400,3600), (2400,3600), (42,602,900), (602,900)]
     
-    if shape==(42,2400,3600):
+    if shape in [(42,2400,3600), (2400,3600)]:
         dll = depth_lat_lon_names('ocn')
-    elif shape==(42,602,900):
+    elif shape in [(42,602,900), (602,900)]:
         dll = depth_lat_lon_names('ocn_rect')
         
     return dll
