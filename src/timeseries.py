@@ -16,8 +16,8 @@ class IterateOutputCESM:
     automatically detects the last file
     
     example:
-    >for filename in IterateOutputCESM('ctrl'):
-    >    print(filename)
+    >for year, month, filename in IterateOutputCESM('ocn', ctrl', 'monthly'):
+    >    print(year, month, filename)
     """
     
     def __init__(self, domain, run, tavg, name=None):
@@ -97,8 +97,8 @@ def yrly_avg_nc(domain, run, fields, test=False):
     output:
     [writes netCDF file]
     
-    takes approx. 2 min for high res ocean data for two 3D fields
-    takes approx. 4 sec for lower res atm data for one 2D and one 3D field 
+    (takes approx. 2 min for high res ocean data for two 3D fields)
+    (takes approx. 4 sec for lower res atm data for one 2D and one 3D field)
     """
     assert domain in ['ocn', 'ocn_rect', 'atm']
     assert run in ['ctrl', 'rcp']
@@ -117,9 +117,6 @@ def yrly_avg_nc(domain, run, fields, test=False):
     for y, m, s in IterateOutputCESM(domain=domain, run=run, tavg='monthly'):
         
         ds = xr.open_dataset(s, decode_times=False)
-    
-        if domain=='ocn_rect':  # renaming dims/coords
-            ds = ds.rename({'t_lat': 'lat', 't_lon': 'lon'})
         
         if m==1:  # create new xr Dataset
             dim = len(np.shape(ds[ffield]))

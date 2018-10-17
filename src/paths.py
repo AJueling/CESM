@@ -84,8 +84,8 @@ path_run_rcp  = f'{path_CESM}/{rcpstr}/run'
 path_ocn_ctrl = f'{path_CESM}/{spinup}/OUTPUT/ocn/hist/monthly'
 path_atm_ctrl = f'{path_CESM}/{spinup}/OUTPUT/atm/hist/monthly'
 
-path_ocn_rcp  = f'{path_CESM}/rcp8.5_co2_f05_t12/OUTPUT/ocn/hist/monthly'
-path_atm_rcp  = f'{path_CESM}/rcp8.5_co2_f05_t12/OUTPUT/atm/hist/monthly'
+path_ocn_rcp  = f'{path_CESM}/{rcpstr}/OUTPUT/ocn/hist/monthly'
+path_atm_rcp  = f'{path_CESM}/{rcpstr}/OUTPUT/atm/hist/monthly'
 
 # interpolated to rectangular 0.4 deg grid
 path_ocn_ctrl_rect = f'{path_CESM}/{spinup}/OUTPUT/ocn/hist/monthly_rect'
@@ -117,3 +117,6 @@ file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
 
 file_ex_ocn_TEMP_PD_yrly = f'{path_samoc}/ctrl/ocn_yrly_TEMP_PD_0200.nc'
 file_ex_atm_T_T850_yrly  = f'{path_samoc}/ctrl/atm_yrly_T_T850_0200.nc'
+
+
+file_geometry = f'{path_ocn_grid}/dzbc_pbc_s2.0_200709.ieeer8'
