@@ -3,6 +3,7 @@ import xarray as xr
 
 from constants import R_earth
 from xr_DataArrays import dll_from_arb_da
+import matplotlib.pyplot as plt
 
 
 def xr_int_global(da, AREA, DZ):
@@ -24,8 +25,9 @@ def xr_int_vertical(da, DZ):
     (z, lat, lon) = dll_from_arb_da(da)
     return (da*DZ).sum(dim=z)  # 2D (lat, lon)
 
-
-def xr_int_zonal(da, AREA, DZ):
+#############################################################################
+#############################################################################
+def xr_int_zonal(da, HTN, LATS, AREA, DZ):
     """ integral along dpeth and zonal coordinates *[m^2] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
     
@@ -33,44 +35,46 @@ def xr_int_zonal(da, AREA, DZ):
         int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
         
     elif z=='z_t':   # tripolar grid
-        print('tripolar')
-        
+#         print('tripolar')
+
         int_vert = xr_int_vertical(da, DZ)  # 2D
         # lat. binning
-        int_zonal = xr_zonal_int_bins(int_vert, AREA)
-        
+        int_zonal = xr_zonal_int_bins(int_vert, LATS, AREA)
+
     return int_zonal
-
-
-def xr_int_zonal_level(da, AREA, dx=1):
+#############################################################################
+def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
     """ zonal integrals for each level *[m] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
+    
     
     if z=='depth_t':  # rectangular grid
         int_zonal_level = (da*HTN).sum(dim=[lon])  # 2D (z, lat)
         
     elif z=='z_t':   # tripolar grid
-        print('tripolar')
-        
-        # construct new xr DataArray
         lat_bins, lat_centers, lat_width = lat_binning(dx)
-        array = np.zeros((len(da[z]),len(lat_centers)))
-        lat_bin_name = f'{lat}_bins'
+        km = len(da[z])
+        dz = DZ.max(dim=(lon,lat))
+
+        # construct new xr DataArray
+        array = np.zeros((km,len(lat_centers)))
+        lat_bin_name = f'TLAT_bins'
         coords = {z: da.coords[z], lat_bin_name: lat_centers}
         int_zonal_level = xr.DataArray(data=array, coords=coords, dims=(z, lat_bin_name))
-        
-        for k in range(len(da[z])):
-        # lat. binning
-            int_zonal_level[k,:] = xr_zonal_int_bins(da[k,:,:], AREA)
+
+        for k in range(km):
+            da_k = da[k,:,:]*DZ[k,:,:]
+            int_zonal_level[k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
         
     return int_zonal_level
-
-
-def xr_zonal_int_bins(da, AREA, dx=1):
+#############################################################################
+def xr_zonal_int_bins(da, LATS, AREA, dx=1):
     """ integral over dx wide latitude bins
+    integrates da with AREA, then divides by width of zonal strip dx
         
     input:
-    xa          .. 2D xr DataArray
+    da          .. 2D xr DataArray to be "zonally" integrated 
+    LATS        .. 2D xr DataArray latitude values of each cell
     AREA        .. 2D xr DataArray
     dx          .. width of latitude bands in degrees
     lat_name    .. xa/AREA coordinate name of the latitude variable
@@ -88,13 +92,10 @@ def xr_zonal_int_bins(da, AREA, dx=1):
     
     (z, lat, lon) = dll_from_arb_da(da)
     
-    # ensure dx is larger than avg grid lat diffs
-    assert dx > (da[lat][-1]-da[lat][0])/len(da[:,0])
-    
     lat_bins, lat_centers, lat_width = lat_binning(dx)
     
-    da_new = da*AREA/lat_width
-    da_zonal_int = da_new.groupby_bins(lat, lat_bins, labels=lat_centers).sum(dim=(lat, lon))
+    da_new = da*AREA
+    da_zonal_int = da_new.groupby_bins(LATS, lat_bins, labels=lat_centers).sum(dim=f'stacked_{lat}_{lon}')/lat_width
     
     return da_zonal_int
 
@@ -107,6 +108,8 @@ def lat_binning(dx):
     return lat_bins, lat_centers, lat_width
 
 
+#############################################################################
+#############################################################################
 #####################################################################################
 
 

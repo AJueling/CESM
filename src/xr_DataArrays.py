@@ -52,7 +52,7 @@ def create_xr_DataArray(domain, n=3, fill=0):
 
 
 
-def generate_xr_DZ(domain):
+def xr_DZ(domain):
     """ builds 3D xr DataArray of cell depths in [m]
     
     input:
@@ -80,7 +80,7 @@ def generate_xr_DZ(domain):
 
 
 
-def generate_xr_AREA(domain):
+def xr_AREA(domain):
     """ builds 2D xr DataArray of surface area [m^2]
     
     input:
@@ -125,7 +125,7 @@ def generate_xr_AREA(domain):
 
 
 
-def generate_xr_HTN(domain):
+def xr_HTN(domain):
     """ zonal length of grid cells
     
     returns
@@ -148,6 +148,28 @@ def generate_xr_HTN(domain):
             HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
 
     return HTN
+
+
+def xr_LATS(domain):
+    """ latitudes of grid cells
+    
+    returns
+    LATS .. 2D xr DataArray
+    """
+    assert domain in ['ocn']#, 'ocn_rect', 'atm'] 
+    
+    (z, lat, lon) = depth_lat_lon_names(domain)
+    
+    if domain=='ocn':
+        LATS = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).TLAT
+        
+#     elif domain=='ocn_rect':
+#         HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
+#         n_lat, n_lon = len(HTN.lat), len(HTN.lon)
+#         for j in range(n_lat):
+#             HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
+
+    return LATS
 
 
 

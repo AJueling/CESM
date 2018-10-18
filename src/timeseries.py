@@ -9,7 +9,7 @@ from paths import rcpstr, spinup, CESM_filename
 from paths import path_samoc
 from constants import abs_zero
 from xr_integrate import xr_surf_mean, xr_zonal_mean
-from xr_DataArrays import generate_xr_AREA
+from xr_DataArrays import xr_AREA
 
 class IterateOutputCESM:
     """ iterator over all CESM ctrl/rcp filenames
@@ -182,7 +182,7 @@ def GMST_timeseries(run):
     lats = np.arange(-90+dx/2, 90, dx)
     assert len(lats)==nlats
     
-    AREA = generate_xr_AREA('atm')
+    AREA = xr_AREA('atm')
     
     for i, (y, m, file) in enumerate(IterateOutputCESM(domain='atm', run=run, tavg='yrly')):
         ds = xr.open_dataset(file, decode_times=False)
