@@ -9,8 +9,6 @@ from xr_integrate import xr_int_global, xr_int_global_level, xr_int_vertical,\
                          xr_int_zonal, xr_int_zonal_level
 from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_from_arb_da
 
-import matplotlib.pyplot as plt
-
 
 def OHC_integrals(domain, run, mask_nr=0):
     """ Ocean Heat Content integration function
@@ -65,16 +63,18 @@ def OHC_integrals(domain, run, mask_nr=0):
         
         if y==2000 or y==200: break  # for testing only
             
-    ds_new.to_netcdf(path = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc',
-                     mode='w')
+    path_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
+    print(f'output: {path_out}')
+    ds_new.to_netcdf(path=path_out, mode='w')
     
     return ds_new
 
 
+
 def t2ds(da, name, t):
     """ 
-    adds time dimension to xr DataArray, then sets time value to d,
-    and then returns xr DataArray as xr dataset
+    adds time dimension to xr DataArray, then sets time value to t,
+    and then returns xr dataset
     """
     da = da.expand_dims('time')
     da = da.assign_coords(time=[t])

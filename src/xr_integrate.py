@@ -3,7 +3,6 @@ import xarray as xr
 
 from constants import R_earth
 from xr_DataArrays import dll_from_arb_da
-import matplotlib.pyplot as plt
 
 
 def xr_int_global(da, AREA, DZ):
@@ -25,8 +24,8 @@ def xr_int_vertical(da, DZ):
     (z, lat, lon) = dll_from_arb_da(da)
     return (da*DZ).sum(dim=z)  # 2D (lat, lon)
 
-#############################################################################
-#############################################################################
+
+
 def xr_int_zonal(da, HTN, LATS, AREA, DZ):
     """ integral along dpeth and zonal coordinates *[m^2] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
@@ -35,18 +34,16 @@ def xr_int_zonal(da, HTN, LATS, AREA, DZ):
         int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
         
     elif z=='z_t':   # tripolar grid
-#         print('tripolar')
-
         int_vert = xr_int_vertical(da, DZ)  # 2D
-        # lat. binning
         int_zonal = xr_zonal_int_bins(int_vert, LATS, AREA)
 
     return int_zonal
-#############################################################################
+
+
+
 def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
     """ zonal integrals for each level *[m] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
-    
     
     if z=='depth_t':  # rectangular grid
         int_zonal_level = (da*HTN).sum(dim=[lon])  # 2D (z, lat)
@@ -67,7 +64,9 @@ def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
             int_zonal_level[k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
         
     return int_zonal_level
-#############################################################################
+
+
+
 def xr_zonal_int_bins(da, LATS, AREA, dx=1):
     """ integral over dx wide latitude bins
     integrates da with AREA, then divides by width of zonal strip dx
@@ -100,6 +99,7 @@ def xr_zonal_int_bins(da, LATS, AREA, dx=1):
     return da_zonal_int
 
 
+
 def lat_binning(dx):
     """ create latitude bins """
     lat_width = dx*R_earth*np.pi/180
@@ -107,10 +107,6 @@ def lat_binning(dx):
     lat_centers = np.arange(-90+dx/2, 90, dx)
     return lat_bins, lat_centers, lat_width
 
-
-#############################################################################
-#############################################################################
-#####################################################################################
 
 
 def xr_vol_int(xa, AREA, DZ, levels=False, zonal=False):
