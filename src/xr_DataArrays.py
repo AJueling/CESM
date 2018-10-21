@@ -2,7 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_geometry
+from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_geometry, path_results
 from constants import R_earth
 from read_binary import read_binary_2D_double
 
@@ -62,19 +62,28 @@ def xr_DZ(domain):
     DZT    .. 3D xr DataArray object with depths in [m]
     """
     assert domain in ['ocn', 'ocn_rect']
-
-    DZ, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=3, fill=0)
     
-    if domain=='ocn':  # partial bottom cells
-        # read pbc depths
-        PBC = read_binary_2D_double(file_geometry, 3600, 2400, 1)  # [lon, lat]
-        for k in range(km):
-            DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
-            DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
+    file_path = f'{path_results}/geometry/DZT_{domain}.nc'
+    
+    if os.path.exists(file_path):
+        DZ = xr.open_dataarray(file_path)
+        
+    else:
 
-    elif domain=='ocn_rect':
-        for k in range(km):
-            DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.depth_t[k], DZ[k,:,:])
+        DZ, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=3, fill=0)
+
+        if domain=='ocn':  # partial bottom cells
+            # read pbc depths
+            PBC = read_binary_2D_double(file_geometry, 3600, 2400, 1)  # [lon, lat]
+            for k in range(km):
+                DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
+                DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
+
+        elif domain=='ocn_rect':
+            for k in range(km):
+                DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.depth_t[k], DZ[k,:,:])
+        
+        DZ.to_netcdf(file_path)
         
     return DZ
 

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import xarray as xr
 
@@ -31,14 +32,28 @@ def OHC_integrals(domain, run, mask_nr=0):
     assert type(mask_nr)==int
     
     MASK = boolean_mask(domain, mask_nr)
-    DZT  = xr_DZ(domain).where(MASK)
-    AREA = xr_AREA(domain).where(MASK)
-    HTN  = xr_HTN(domain).where(MASK)
-    LATS = xr_LATS(domain).where(MASK)
+    DZT  = xr_DZ(domain)
+    AREA = xr_AREA(domain)
+    HTN  = xr_HTN(domain)
+    LATS = xr_LATS(domain)
     
-    ds_new = xr.Dataset()
+    for k in range(42):
+        DZT[k,:,:]  = DZT[k,:,:].where(MASK)
+    AREA = AREA.where(MASK)
+    HTN  = HTN.where(MASK)
+    LATS = LATS.where(MASK)
+    
+#     ds_new = xr.Dataset()
+    
+    file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
+    if os.path.isfile(file_out):  os.remove(file_out)
+    print(f'output: {file_out}')
+    first_yr = 0
     
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
+        if first_yr==0: 
+            print('first year: ', first_yr)
+            first_yr=y
         print(y, file)
         t   = y*365  # time in days since year 0
         ds  = xr.open_dataset(file, decode_times=False)
@@ -52,6 +67,8 @@ def OHC_integrals(domain, run, mask_nr=0):
         da_z  = xr_int_zonal(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
         da_zl = xr_int_zonal_level(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
 
+        ds.close()
+        
         # xr Datasets
         ds_g  = t2ds(da_g , 'OHC_global'       , t)
         ds_gl = t2ds(da_gl, 'OHC_global_levels', t)
@@ -59,13 +76,15 @@ def OHC_integrals(domain, run, mask_nr=0):
         ds_z  = t2ds(da_z , 'OHC_zonal'        , t)
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels' , t)
         
-        ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl, ds_v])
-        
-        if y==2000 or y==200: break  # for testing only
-            
-    path_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
-    print(f'output: {path_out}')
-    ds_new.to_netcdf(path=path_out, mode='w')
+        if y==first_yr: 
+            ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v])
+        elif y>first_yr:
+            ds_temp = xr.open_dataset(file_out, decode_times=False)
+            ds_new = xr.merge([ds_temp, ds_g, ds_gl, ds_z, ds_zl, ds_v])
+            ds_temp.close()
+        ds_new.to_netcdf(path=file_out, mode='w')
+        ds_new.close()
+#         if y==2001 or y==201: break  # for testing only
     
     return ds_new
 
