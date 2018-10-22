@@ -4,7 +4,7 @@ import xarray as xr
 
 from paths import path_samoc
 from regions import boolean_mask, regions_dict
-from constants import cp_sw
+from constants import cp_sw, rho_sw
 from timeseries import IterateOutputCESM
 from xr_integrate import xr_int_global, xr_int_global_level, xr_int_vertical,\
                          xr_int_zonal, xr_int_zonal_level
@@ -43,20 +43,38 @@ def OHC_integrals(domain, run, mask_nr=0):
     HTN  = HTN.where(MASK)
     LATS = LATS.where(MASK)
     
-#     ds_new = xr.Dataset()
+#     DZT.TLONG  = DZT.TLONG.round(decimals=2)
+#     AREA.TLONG = AREA.TLONG.round(decimals=2)
+    HTN['TLAT']   = HTN['TLAT'].round(decimals=2)
+    HTN['TLONG']  = HTN['TLONG'].round(decimals=2)
+    LATS['TLAT']  = LATS['TLAT'].round(decimals=2)
+    LATS['TLONG'] = LATS['TLONG'].round(decimals=2)
     
-    file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
+    file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{regions_dict[mask_nr]}.nc'
     if os.path.isfile(file_out):  os.remove(file_out)
     print(f'output: {file_out}')
     first_yr = 0
     
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
         if first_yr==0: 
-            print('first year: ', first_yr)
             first_yr=y
+            print('first year: ', first_yr)
         print(y, file)
+#         if y in [2001,2002,2003]: continue
         t   = y*365  # time in days since year 0
         ds  = xr.open_dataset(file, decode_times=False)
+        ds['TLAT'] = ds['TLAT'].round(decimals=2)
+        ds['TLONG'] = ds['TLONG'].round(decimals=2)
+        
+        if ds.PD[0,1000,1000].round(decimals=0)==0:
+            print(ds.PD[0,1000,1000])
+            ds['PD'] = ds['PD']+rho_sw
+        elif ds.PD[0,1000,1000].round(decimals=0)==1:
+            print(ds.PD[0,1000,1000])
+            pass
+        else: 'density is neither close to 0 or 1'
+            
+        
         OHC = ds.TEMP*ds.PD*cp_sw*1000  # [g/cm^3] to [kg/m^3]
         OHC = OHC.where(MASK)
 
@@ -84,6 +102,7 @@ def OHC_integrals(domain, run, mask_nr=0):
             ds_temp.close()
         ds_new.to_netcdf(path=file_out, mode='w')
         ds_new.close()
+        
 #         if y==2001 or y==201: break  # for testing only
     
     return ds_new

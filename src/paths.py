@@ -5,7 +5,7 @@ def CESM_filename(domain, run, y, m, name=None):
     
     input:
     domain   .. (str) 'ocn' or 'atm'
-    run .. (str) 'ctrl' or 'rcp'
+    run      .. (str) 'ctrl' or 'rcp'
     y        .. (int) year
     m        .. (int) month; if 0, then yearly file
     name     .. (str) added to yrly file
@@ -83,9 +83,11 @@ path_run_rcp  = f'{path_CESM}/{rcpstr}/run'
 # then copied to
 path_ocn_ctrl = f'{path_CESM}/{spinup}/OUTPUT/ocn/hist/monthly'
 path_atm_ctrl = f'{path_CESM}/{spinup}/OUTPUT/atm/hist/monthly'
+path_ice_ctrl = f'{path_CESM}/{spinup}/OUTPUT/ice/hist/monthly'
 
 path_ocn_rcp  = f'{path_CESM}/{rcpstr}/OUTPUT/ocn/hist/monthly'
 path_atm_rcp  = f'{path_CESM}/{rcpstr}/OUTPUT/atm/hist/monthly'
+path_ice_rcp  = f'{path_CESM}/{rcpstr}/OUTPUT/ice/hist/monthlies'
 
 # interpolated to rectangular 0.4 deg grid
 path_ocn_ctrl_rect = f'{path_CESM}/{spinup}/OUTPUT/ocn/hist/monthly_rect'
@@ -113,6 +115,10 @@ file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y=200, m=1)
 
 file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
+file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'
+file_ex_ice_yrly = f'{path_ice_rcp}/{rcpstr}.cice.h.avg2000.nc'
+
+# derived data
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
 
 file_ex_ocn_TEMP_PD_yrly = f'{path_samoc}/ctrl/ocn_yrly_TEMP_PD_0200.nc'

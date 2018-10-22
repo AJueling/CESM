@@ -8,10 +8,14 @@ from timeseries import IterateOutputCESM
 
 def xr_linear_trend(x):
     """ function to compute a linear trend of a timeseries """
-#     print(type(x))
-    pf = np.polyfit(x.time, x, 1)
+#     print(type(x))  # DataArray
+#     varx = x.time.values
+#     vary = x.values
+#     idx = np.isfinite(varx) & np.isfinite(vary)
+#     mask = ~np.isnan(varx) & ~np.isnan(vary)
+    pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
     # we need to return a dataarray or else xarray's groupby won't be happy
-    return xr.DataArray(pf[0])
+    return xr.DataArray(pf[1])
 
 
 

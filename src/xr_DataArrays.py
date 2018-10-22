@@ -223,7 +223,7 @@ def example_file(domain):
     """ example of output file for a given domain """
     assert domain in ['ocn', 'ocn_rect', 'atm']
 
-    if domain=='ocn':         file = file_ex_ocn_ctrl
+    if   domain=='ocn':       file = file_ex_ocn_ctrl
     elif domain=='ocn_rect':  file = file_ex_ocn_rect
     elif domain=='atm':       file = file_ex_atm_ctrl
     
