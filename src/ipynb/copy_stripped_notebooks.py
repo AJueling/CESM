@@ -20,6 +20,7 @@ files = ['CICE',
          'SHF',
          'SST',
          'timeseries',
+         'TOA',
          'winds',
         ]
 

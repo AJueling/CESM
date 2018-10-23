@@ -155,8 +155,8 @@ def yrly_avg_nc(domain, run, fields, test=False):
                     elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
 
         if m==12:  # write to new file
-            print(y, CESM_filename(domain, run, y, 0))
             filename = CESM_filename(domain=domain, run=run, y=y, m=0, name=name)
+            print(y, CESM_filename(domain, run, y, 0))
             ds_out.to_netcdf(path=filename, mode='w')
             
         if test==True and y==first_year+2:  break

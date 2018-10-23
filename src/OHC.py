@@ -2,6 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
+from grid import create_dz_mean
 from paths import path_samoc
 from regions import boolean_mask, regions_dict
 from constants import cp_sw, rho_sw
@@ -9,6 +10,7 @@ from timeseries import IterateOutputCESM
 from xr_integrate import xr_int_global, xr_int_global_level, xr_int_vertical,\
                          xr_int_zonal, xr_int_zonal_level
 from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_from_arb_da
+from xr_regression import xr_linear_trend
 
 
 def OHC_integrals(domain, run, mask_nr=0):
@@ -119,3 +121,11 @@ def t2ds(da, name, t):
     ds = da.to_dataset(name=name)
     
     return ds
+
+
+
+def trend_global_levels(ds):
+    """ trend of OHC per level as [J/m/y] """
+    dz_mean = create_dz_mean(domain='ocn')
+    
+    return xr_linear_trend(ds.OHC_global_levels/dz_mean)*365

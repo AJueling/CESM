@@ -10,6 +10,6 @@ module load Miniconda3
 source activate CESM
 
 
-(python run_OHC_integrals.py rcp 11) &
+(python run_OHC_integrals.py ctrl 1) &
 
 wait
