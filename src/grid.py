@@ -2,7 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import path_results
+from paths import path_results, file_ex_ocn_ctrl
 from read_binary import read_binary_2D_double
 from xr_DataArrays import xr_DZ
 
@@ -62,3 +62,25 @@ def create_dz_mean(domain):
         dz_mean.to_netcdf(fn)
         
     return dz_mean
+
+
+def create_tdepth(domain):
+    """
+    input:
+    domain .. 'ocn'
+    
+    output:
+    tdepth .. np array
+    """
+    assert domain=='ocn'
+    
+    fn = f'{path_results}/geometry/tdepth.csv'
+    if os.path.exists(fn):
+        tdepth = np.genfromtxt(fn, delimiter=',')
+    else:
+        ds = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False)
+        tdepth = ds.z_t.values/1e2
+        np.savetxt(fn, tdepth, delimiter=',')
+        
+    return tdepth
+    

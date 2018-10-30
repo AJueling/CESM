@@ -21,7 +21,7 @@ class IterateOutputCESM:
     """
     
     def __init__(self, domain, run, tavg, name=None):
-        assert domain in ['ocn', 'ocn_rect', 'atm']
+        assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
         assert run in ['ctrl', 'rcp']
         assert tavg in ['monthly', 'yrly']
         
@@ -100,7 +100,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
     (takes approx. 2 min for high res ocean data for two 3D fields)
     (takes approx. 4 sec for lower res atm data for one 2D and one 3D field)
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm']
+    assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
     assert run in ['ctrl', 'rcp']
     
     name = ''
@@ -120,7 +120,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
         
         if m==1:  # create new xr Dataset
             dim = len(np.shape(ds[ffield]))
-            if domain in ['atm', 'ocn']:
+            if domain in ['atm', 'ocn', 'ice']:
                 if dim==3:  # 2D field
                     ds_out = (ds[ffield][0,:,:]/12).to_dataset()
                 elif dim==4:  # 3D
@@ -133,7 +133,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
                 
             for field in fields[1:]:  # add rest of fields
                 dim = len(np.shape(ds[field]))
-                if domain in ['atm', 'ocn']:
+                if domain in ['atm', 'ocn', 'ice']:
                     if dim==3:
                         ds_out[field] = ds[field][0,:,:]/12
                     elif dim==4:
@@ -147,7 +147,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
         else:
             for field in fields:
                 dim = len(np.shape(ds[field]))
-                if domain in ['atm', 'ocn']:
+                if domain in ['atm', 'ocn', 'ice']:
                     if   dim==3:  ds_out[field][:,:]   += ds[field][0,:,:]/12
                     elif dim==4:  ds_out[field][:,:,:] += ds[field][0,:,:,:]/12
                 elif domain=='ocn_rect':

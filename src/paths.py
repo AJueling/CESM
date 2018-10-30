@@ -13,7 +13,7 @@ def CESM_filename(domain, run, y, m, name=None):
     output:
     file     .. (str) filename
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm']
+    assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
     assert run in ['ctrl', 'rcp']
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int)
     assert m>=0 and m<13
@@ -55,6 +55,18 @@ def CESM_filename(domain, run, y, m, name=None):
                 file = f'{path_yrly_rcp}/atm_yrly_{name}_{y:04}.nc'
             else:
                 file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
+                
+    elif domain=='ice':
+        if run=='ctrl':
+            if m==0:
+                file = f'{path_yrly_ctrl}/ice_yrly_{name}_{y:04}.nc'
+            else:
+                file = f'{path_ice_ctrl}/{spinup}.cice.h.{time}.nc'
+        elif run=='rcp':
+            if m==0:
+                file = f'{path_yrly_rcp}/ice_yrly_{name}_{y:04}.nc'
+            else:
+                file = f'{path_ice_rcp}/{rcpstr}.cice.h.{time}.nc'
             
     return file
 
