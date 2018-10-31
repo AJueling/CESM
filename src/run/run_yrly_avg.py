@@ -38,5 +38,14 @@ elif opt==8:
     run    = 'rcp'
     fields = ['SHF']
     
+elif opt==9:
+    domain = 'ocn'
+    run    = 'ctrl'
+    fields = ['UVEL', 'VVEL']
+elif opt==10:
+    domain = 'ocn'
+    run    = 'rcp'
+    fields = ['UVEL', 'VVEL']
+    
     
 yrly_avg_nc(domain=domain, run=run, fields=fields)

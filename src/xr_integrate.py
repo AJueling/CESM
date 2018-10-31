@@ -327,10 +327,6 @@ def xr_surf_mean(xa, AREA):
 
 
 
-
-
-
-
 def xr_zonal_mean(xa, AREA, dx, lat_name):
     """ area weighted mean over dx wide latitude bins
         
@@ -350,9 +346,9 @@ def xr_zonal_mean(xa, AREA, dx, lat_name):
     assert np.shape(xa)==np.shape(AREA)
     assert dx>180/len(AREA[0,:])
     
-    xa_zonal_int = xr_zonal_int(xa, AREA, dx, lat_name)
+    xa_zonal_int   = xr_zonal_int(xa, AREA, dx, lat_name)
     AREA_zonal_int = xr_zonal_int(AREA/AREA, AREA, dx, lat_name)
     
-    xa_zonal_mean = xa_zonal_int/AREA_zonal_int
+    xa_zonal_mean  = xa_zonal_int/AREA_zonal_int
 
     return xa_zonal_mean

@@ -2,7 +2,8 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_ex_ice_rcp, file_geometry, path_results
+from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_ex_ice_rcp, file_geometry
+from paths import path_samoc, path_results
 from constants import R_earth
 from read_binary import read_binary_2D_double
 
@@ -52,7 +53,7 @@ def create_xr_DataArray(domain, n=3, fill=0):
 
 
 
-def xr_DZ(domain):
+def xr_DZ(domain, grid='T'):
     """ builds 3D xr DataArray of cell depths in [m]
     
     input:
@@ -63,8 +64,9 @@ def xr_DZ(domain):
     """
     assert domain in ['ocn', 'ocn_rect']
     
-    file_path = f'{path_results}/geometry/DZT_{domain}.nc'
-    
+    if grid=='U':  file_path = f'{path_samoc}/geometry/DZU_{domain}.nc'
+    else:          file_path = f'{path_samoc}/geometry/DZT_{domain}.nc'
+        
     if os.path.exists(file_path):
         DZ = xr.open_dataarray(file_path)
         
@@ -72,13 +74,23 @@ def xr_DZ(domain):
 
         DZ, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=3, fill=0)
 
+        if grid=='U': DZU = DZ.copy()
+            
         if domain=='ocn':  # partial bottom cells
             # read pbc depths
             PBC = read_binary_2D_double(file_geometry, 3600, 2400, 1)  # [lon, lat]
-            for k in range(km):
-                DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
-                DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
-
+            
+            if grid=='U':
+                for k in range(km):
+                    DZ[k,:,:] = np.where(C.KMU[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
+                    # technically there should be the 
+            else:  # T-grid
+                for k in range(km):
+                    DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
+                    DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
+               
+                
+                                
         elif domain=='ocn_rect':
             for k in range(km):
                 DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.depth_t[k], DZ[k,:,:])
@@ -123,8 +135,6 @@ def xr_AREA(domain):
             lat_S = (C[lat][j]-dy/2)*np.pi/180
             lat_N = (C[lat][j]+dy/2)*np.pi/180
             AREA[j,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, lat_S)
-#         print(np.max(AREA.values))
-#         print(R_earth**2 * 2*np.pi/nx * np.pi/ny)
 
         # ensure calculated area max is within 1 order of magnitude of a naive cell area
         assert np.isclose(np.log10(np.max(AREA.values)),\
@@ -243,3 +253,34 @@ def spher_surf_element(r, dtheta, lat_N, lat_S):
 def zonal_length(lat, nlon):
     """ length of zonal 1/nlon segment at latitude lat"""
     return R_earth * 2*np.pi/nlon * np.cos(lat*np.pi/180)
+
+
+
+def xr_DXU(domain):
+    """ U-cell zonal length """
+    assert domain=='ocn'
+    fn = f'{path_samoc}/geometry/DXU.nc'
+    
+    if os.path.exists(fn)==True:
+        da = xr.open_dataarray(fn)
+    else:
+        f = example_file(domain)
+        da = xr.open_dataset(f, decode_times=False).DXU/1e2
+        da.to_netcdf(fn)
+    
+    return da
+
+
+def xr_DYU(domain):
+    """ U-cell zonal length """
+    assert domain=='ocn'
+    fn = f'{path_samoc}/geometry/DYU.nc'
+    
+    if os.path.exists(fn)==True:
+        da = xr.open_dataarray(fn)
+    else:
+        f = example_file(domain)
+        da = xr.open_dataset(f, decode_times=False).DYU/1e2
+        da.to_netcdf(fn)
+    
+    return da

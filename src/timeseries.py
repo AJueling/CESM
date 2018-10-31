@@ -6,7 +6,7 @@ from paths import path_ocn_ctrl, path_ocn_rcp
 from paths import path_atm_ctrl, path_atm_rcp
 from paths import path_yrly_ctrl, path_yrly_rcp
 from paths import rcpstr, spinup, CESM_filename
-from paths import path_samoc
+from paths import path_samoc, path_results
 from constants import abs_zero
 from xr_integrate import xr_surf_mean, xr_zonal_mean
 from xr_DataArrays import xr_AREA
@@ -177,14 +177,14 @@ def GMST_timeseries(run):
     
     dx = 1
     nlats = int(180/dx)
-    ny = len(IterateOutputCESM(domain='atm', run=run, tavg='yrly'))
-    years = np.arange(ny) + IterateOutputCESM(domain='atm', run=run, tavg='yrly').year
+    ny = len(IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V'))
+    years = np.arange(ny) + IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V').year
     lats = np.arange(-90+dx/2, 90, dx)
     assert len(lats)==nlats
     
     AREA = xr_AREA('atm')
     
-    for i, (y, m, file) in enumerate(IterateOutputCESM(domain='atm', run=run, tavg='yrly')):
+    for i, (y, m, file) in enumerate(IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V')):
         ds = xr.open_dataset(file, decode_times=False)
         if i==0:
             ds_new = xr.Dataset()
@@ -201,6 +201,6 @@ def GMST_timeseries(run):
         ds_new['GMST'][i]      = xr_surf_mean(ds['T'][-1,:,:], AREA=AREA) + abs_zero
         ds_new['T_zonal'][i,:] = xr_zonal_mean(ds['T'][-1,:,:], AREA=AREA, dx=1, lat_name='lat') + abs_zero
         
-    ds_new.to_netcdf(path=f'{path_samoc}/{run}/GMST.nc', mode='w')
+    ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
     
     return ds_new
