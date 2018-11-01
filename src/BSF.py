@@ -1,7 +1,8 @@
 import numpy as np
 import xarray as xr
 
-from regions import Drake_Passage
+from regions import Drake_Passage, boolean_mask, DP_transport
+from xr_DataArrays import xr_DYU, xr_DZ
 
 
 def calculate_BSF(ds):
@@ -10,12 +11,13 @@ def calculate_BSF(ds):
     input:
     ds  .. xr Dataset
     """
-    assert 'DYU' in ds
     assert 'UVEL' in ds
-    assert 'REGION_MASK' in ds
     
+    DYU = xr_DYU('ocn')
     DZU = xr_DZ('ocn', grid='U')
-    BSF = (ds.DYU*ds.UVEL[0,:,:,:]*DZU).where(ds.REGION_MASK>0).sum(dim='z_t')/1e4
+    GLOBAL_MASK = boolean_mask('ocn', 0)
+    
+    BSF = (((ds.UVEL*DZU).sum(dim='z_t'))*DYU).where(GLOBAL_MASK)/1e4
     for j in np.arange(1,2400):
         BSF[j,:] += BSF[j-1,:]
         
@@ -28,5 +30,5 @@ def DP_transport(BSF):
     input:
     BSF .. 
     """
-    DPT = BSF.sel(Drake_Passage)[-1] - BSF.sel(Drake_Passage)[0]
+    DPT = BSF.sel(DP_transport) #- BSF.sel(Drake_Passage)[0]
     return DPT

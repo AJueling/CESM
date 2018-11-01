@@ -5,13 +5,18 @@ import xarray as xr
 
 from xr_DataArrays import example_file
 
+ocn_file = example_file('ocn')
+
 SOM_area_rect = {'lat': slice(-50,-35), 'lon': slice(0,50)}
 
 WGKP_area = {'nlat': slice(0,603), 'nlon': slice(750,1900)}
 
-sinking_area = {'nlat': slice(250,350), 'nlon': slice(1100,1200)}
+sinking_area = {'nlat': slice(283,353), 'nlon': slice(1130,1210)}
 
 Drake_Passage = {'nlat':slice(268,513), 'nlon':410}
+
+DP_transport = {'nlat':512, 'nlon':410}
+
 
 regions_dict = {-14: 'Caspian_Sea',
                 -13: 'Black_Sea',
@@ -72,3 +77,14 @@ def Atlantic_mask(domain):
     ATLANTIC_MASK = combine_mask(ds.REGION_MASK, [6,8,9])
     
     return ATLANTIC_MASK
+
+
+# def find_array_idx(array, val):
+#     """ index of nearest value in array to val 
+    
+#     input:
+#     array .. array like
+#     value .. value to be approximately in array
+#     """
+#     idx = (np.abs(array - val)).argmin()
+#     return idx
