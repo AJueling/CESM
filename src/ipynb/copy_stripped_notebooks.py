@@ -19,6 +19,7 @@ files = ['BSF',
          'MOC',
          'MXL',
          'OHC',
+         'OSNAP'
          'SHF',
          'SST',
          'timeseries',
