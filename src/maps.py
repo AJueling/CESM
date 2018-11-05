@@ -2,6 +2,7 @@ import numpy as np
 import cartopy
 import cartopy.crs as ccrs
 import matplotlib as mpl
+import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
 
 
@@ -41,11 +42,15 @@ def map_robinson(xr_DataArray, domain, cmap, minv, maxv, label, filename=None):
                            transform=ccrs.PlateCarree() )
         ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='black', facecolor='w')
     
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False)
+    gl.ylocator = mticker.FixedLocator([-90, -60, -30, 0, 30, 60, 90])
+    gl.xlocator = mticker.FixedLocator([-180, -120, -60, 0, 60, 120, 180])
+    
     cbar = fig.colorbar(im, cax=cax, extend='both', **kw)
     cbar.ax.tick_params(labelsize=14)
     label = cbar.set_label(label, size=16)
     if filename!=None: plt.savefig(filename)
-    return fig
+#     return fig
 
 
 def map_ocn_robinson(xr_DataArray, cmap, minv, maxv, label, filename=None, grid='T'):
