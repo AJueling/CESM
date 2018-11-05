@@ -1,7 +1,8 @@
 import numpy as np
 import xarray as xr
 
-from regions import Drake_Passage, boolean_mask, DP_transport
+from regions import Drake_Passage, DP_North, WG_center
+from timeseries import round_tlat_tlong
 from xr_DataArrays import xr_DYU, xr_DZ
 
 
@@ -14,10 +15,18 @@ def calculate_BSF(ds):
     assert 'UVEL' in ds
     
     DYU = xr_DYU('ocn')
-    DZU = xr_DZ('ocn', grid='U')
-    GLOBAL_MASK = boolean_mask('ocn', 0)
+    # remocing unnecessary TLAT/TLONG because they are not always exactly equal
+    # (due to rounding errors) and hence lead to Error messages
+    DYU = DYU.drop(['TLAT', 'TLONG'])
     
-    BSF = (((ds.UVEL*DZU).sum(dim='z_t'))*DYU).where(GLOBAL_MASK)/1e4
+    DZU = xr_DZ('ocn', grid='U')
+    
+    UVEL = ds.UVEL/1e2  # [cm] to [m]
+    if 'TLAT'  in UVEL.coords:  UVEL = UVEL.drop('TLAT')
+    if 'TLONG' in UVEL.coords:  UVEL = UVEL.drop('TLONG')
+    
+    
+    BSF = (((UVEL*DZU).sum(dim='z_t'))*DYU)
     for j in np.arange(1,2400):
         BSF[j,:] += BSF[j-1,:]
         
@@ -28,7 +37,17 @@ def DP_transport(BSF):
     """ Drake Passage transport  [m^3/s]
     
     input:
-    BSF .. 
+    BSF .. xr DataArray
     """
-    DPT = BSF.sel(DP_transport) #- BSF.sel(Drake_Passage)[0]
+    DPT = BSF.sel(DP_North)
     return DPT
+
+
+def WG_transport(BSF):
+    """ Weddell Gyre transport [m^3/s]
+    
+    input:
+    BSF .. xr DataArray
+    """
+    WGT = BSF.sel(WG_center)
+    return WGT

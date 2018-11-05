@@ -257,7 +257,7 @@ def zonal_length(lat, nlon):
 
 
 def xr_DXU(domain):
-    """ U-cell zonal length """
+    """ U-cell zonal length [m] """
     assert domain=='ocn'
     fn = f'{path_samoc}/geometry/DXU.nc'
     
@@ -272,7 +272,7 @@ def xr_DXU(domain):
 
 
 def xr_DYU(domain):
-    """ U-cell zonal length """
+    """ U-cell zonal length [m] """
     assert domain=='ocn'
     fn = f'{path_samoc}/geometry/DYU.nc'
     

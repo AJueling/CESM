@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -t 3:00:00
-#SBATCH -N 1 --ntasks-per-node=2
+#SBATCH -N 1 --ntasks-per-node=1
 #SBATCH -p normal
 
 (

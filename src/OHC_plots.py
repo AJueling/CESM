@@ -82,3 +82,9 @@ def plot_levels_trend(das, run):
     plt.tight_layout()
     plt.savefig(f'{path_results}/OHC/OHC_global_levels_regional_{run}')
     
+
+    
+def Hovmoeller_global_depth(ds):
+    """ plots full depth / surface detail Hovmoeller diagrams of OHC(z) """
+    
+    

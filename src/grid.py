@@ -83,4 +83,15 @@ def create_tdepth(domain):
         np.savetxt(fn, tdepth, delimiter=',')
         
     return tdepth
+
+
+def find_array_idx(array, val):
+    """ index of nearest value in array to val 
+    
+    input:
+    array .. array like
+    value .. value to be approximately in array
+    """
+    idx = (np.abs(array - val)).argmin()
+    return idx
     

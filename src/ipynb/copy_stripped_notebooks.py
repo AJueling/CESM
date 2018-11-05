@@ -12,19 +12,19 @@ assert os.path.exists(destination)
 # copying stripped .ipynb files
 files = ['BSF',
          'CICE',
-         'currents',
+         'CURRENTS',
          'data_overview',
          'geometry',
          'GMST',
          'MOC',
          'MXL',
          'OHC',
-         'OSNAP'
+         'OSNAP',
          'SHF',
          'SST',
          'timeseries',
          'TOA',
-         'winds',
+         'WIND',
         ]
 
 for x in files:

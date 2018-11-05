@@ -15,7 +15,9 @@ sinking_area = {'nlat': slice(283,353), 'nlon': slice(1130,1210)}
 
 Drake_Passage = {'nlat':slice(268,513), 'nlon':410}
 
-DP_transport = {'nlat':512, 'nlon':410}
+DP_North = {'nlat':512, 'nlon':410}   # []
+
+WG_center = {'nlat':321, 'nlon':877}  # [64.9S,337.8E]
 
 
 regions_dict = {-14: 'Caspian_Sea',
@@ -77,14 +79,3 @@ def Atlantic_mask(domain):
     ATLANTIC_MASK = combine_mask(ds.REGION_MASK, [6,8,9])
     
     return ATLANTIC_MASK
-
-
-# def find_array_idx(array, val):
-#     """ index of nearest value in array to val 
-    
-#     input:
-#     array .. array like
-#     value .. value to be approximately in array
-#     """
-#     idx = (np.abs(array - val)).argmin()
-#     return idx

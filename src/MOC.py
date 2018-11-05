@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from grid import create_tdepth
+from grid import create_tdepth, find_array_idx
 from paths import file_ex_ocn_ctrl
 from regions import combine_mask, Atlantic_mask
 from xr_DataArrays import xr_DZ, xr_DXU
@@ -18,11 +18,11 @@ def calculate_AMOC(ds):
     """
     assert 'VVEL' in ds
     
-    DXU = xr_DXU('ocn')
-    DZU = xr_DZ('ocn', grid='U')
-    ATLANTIC_MASK = Atlantic_mask('ocn')
+    DXU = xr_DXU('ocn')                   # [m]
+    DZU = xr_DZ('ocn', grid='U')          # [m]
+    ATLANTIC_MASK = Atlantic_mask('ocn')  # boolean
     
-    AMOC = (ds.VVEL*DXU*DZU).where(ATLANTIC_MASK).sum(dim='nlon')/1e2
+    AMOC = (ds.VVEL*DXU*DZU).where(ATLANTIC_MASK).sum(dim='nlon')/1e2  # [m^3/s]
     for k in np.arange(1,42):
         AMOC[k,:] += AMOC[k-1,:]
     
@@ -38,16 +38,6 @@ def approx_lats(domain):
     return lats
 
 
-def find_array_idx(array, val):
-    """ index of nearest value in array to val 
-    
-    input:
-    array .. array like
-    value .. value to be approximately in array
-    """
-    idx = (np.abs(array - val)).argmin()
-    return idx
-
 
 def AMOC_max(AMOC):
     """ AMOC maximum at 26 deg N, 1000 m """
@@ -59,11 +49,10 @@ def AMOC_max(AMOC):
     return AMOC.isel({'z_t':z1000, 'nlat':j26})
 
 
+
 def plot_AMOC(AMOC):
     lats    = approx_lats('ocn')
     tdepths = create_tdepth('ocn')
     j26   = find_array_idx(lats, 26)
     z1000 = find_array_idx(tdepths, 1000)
-    
-    
     return

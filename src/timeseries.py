@@ -118,6 +118,8 @@ def yrly_avg_nc(domain, run, fields, test=False):
         
         ds = xr.open_dataset(s, decode_times=False)
         
+        if domain=='ocn':  ds = round_tlat_tlong(ds)
+        
         if m==1:  # create new xr Dataset
             dim = len(np.shape(ds[ffield]))
             if domain in ['atm', 'ocn', 'ice']:
@@ -144,7 +146,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
                     elif dim==3:
                         ds_out[field] = ds[field][:,:,:]/12
             
-        else:
+        else:  # add subsequent monthly values
             for field in fields:
                 dim = len(np.shape(ds[field]))
                 if domain in ['atm', 'ocn', 'ice']:
@@ -169,10 +171,10 @@ def GMST_timeseries(run):
     """ builds a timesries of the GMST and saves it to a netCDF
     
     input:
-    run .. (str) ctrl or cp
+    run    .. (str) ctrl or cp
     
     output:
-    ds_new  .. xr Dataset containing GMST and T_zonal
+    ds_new .. xr Dataset containing GMST and T_zonal
     """
     
     dx = 1
@@ -204,3 +206,19 @@ def GMST_timeseries(run):
     ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
     
     return ds_new
+
+
+
+def round_tlat_tlong(ds):
+    """
+    T-coordinate fields of some nc files are off by 1e-14
+    this results in errors, hence the rounding here
+    
+    input:
+    ds .. xr DataArray/Dataset with coordinates 
+    """
+    assert 'TLAT' in ds.coords
+    assert 'TLONG' in ds.coords
+    ds.TLAT  = np.around(ds.TLAT , decimals=6)
+    ds.TLONG = np.around(ds.TLONG, decimals=6)
+    return ds
