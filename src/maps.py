@@ -6,7 +6,7 @@ import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
 
 
-def map_robinson(xr_DataArray, domain, cmap, minv, maxv, label, filename=None):
+def map_robinson(xa, domain, cmap, minv, maxv, label, filename=None):
     
     assert domain in ['atm', 'ocn_T', 'ocn_U']
     
@@ -16,27 +16,27 @@ def map_robinson(xr_DataArray, domain, cmap, minv, maxv, label, filename=None):
     cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
     
     if domain=='atm':
-        im = ax.pcolormesh(xr_DataArray.lon,
-                           xr_DataArray.lat,
-                           xr_DataArray.values,
+        im = ax.pcolormesh(xa.lon,
+                           xa.lat,
+                           xa.values,
                            cmap=cmap,
                            vmin=minv, vmax=maxv,
                            transform=ccrs.PlateCarree() )
         ax.coastlines()
         
     elif domain=='ocn_T':
-        im = ax.pcolormesh(xr_DataArray.TLONG,
-                           xr_DataArray.TLAT,
-                           xr_DataArray.values,
+        im = ax.pcolormesh(xa.TLONG,
+                           xa.TLAT,
+                           xa.values,
                            cmap=cmap,
                            vmin=minv, vmax=maxv,
                            transform=ccrs.PlateCarree() )
-        ax.coastlines()
+        ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='black', facecolor='w')
         
     elif domain=='ocn_U':
-        im = ax.pcolormesh(xr_DataArray.ULONG,
-                           xr_DataArray.ULAT,
-                           xr_DataArray.values,
+        im = ax.pcolormesh(xa.ULONG,
+                           xa.ULAT,
+                           xa.values,
                            cmap=cmap,
                            vmin=minv, vmax=maxv,
                            transform=ccrs.PlateCarree() )
@@ -50,7 +50,7 @@ def map_robinson(xr_DataArray, domain, cmap, minv, maxv, label, filename=None):
     cbar.ax.tick_params(labelsize=14)
     label = cbar.set_label(label, size=16)
     if filename!=None: plt.savefig(filename)
-#     return fig
+    return fig, ax
 
 
 def map_ocn_robinson(xr_DataArray, cmap, minv, maxv, label, filename=None, grid='T'):

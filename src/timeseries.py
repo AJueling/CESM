@@ -115,11 +115,12 @@ def yrly_avg_nc(domain, run, fields, test=False):
     first_year = IterateOutputCESM(domain=domain, run=run, tavg='monthly').year
     
     for y, m, s in IterateOutputCESM(domain=domain, run=run, tavg='monthly'):
+        if m==1:
+            new_filename = CESM_filename(domain=domain, run=run, y=y, m=0, name=name)
+        if os.path.exists(new_filename):  continue
         
         ds = xr.open_dataset(s, decode_times=False)
-        
-        if domain=='ocn':  ds = round_tlat_tlong(ds)
-        
+                
         if m==1:  # create new xr Dataset
             dim = len(np.shape(ds[ffield]))
             if domain in ['atm', 'ocn', 'ice']:
@@ -157,68 +158,10 @@ def yrly_avg_nc(domain, run, fields, test=False):
                     elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
 
         if m==12:  # write to new file
-            filename = CESM_filename(domain=domain, run=run, y=y, m=0, name=name)
-            print(y, CESM_filename(domain, run, y, 0))
-            ds_out.to_netcdf(path=filename, mode='w')
+            print(y, new_filename)
+            ds_out.to_netcdf(path=new_filename, mode='w')
             
         if test==True and y==first_year+2:  break
+    print('done!')
     
     return
-
-
-
-def GMST_timeseries(run):
-    """ builds a timesries of the GMST and saves it to a netCDF
-    
-    input:
-    run    .. (str) ctrl or cp
-    
-    output:
-    ds_new .. xr Dataset containing GMST and T_zonal
-    """
-    
-    dx = 1
-    nlats = int(180/dx)
-    ny = len(IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V'))
-    years = np.arange(ny) + IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V').year
-    lats = np.arange(-90+dx/2, 90, dx)
-    assert len(lats)==nlats
-    
-    AREA = xr_AREA('atm')
-    
-    for i, (y, m, file) in enumerate(IterateOutputCESM(domain='atm', run=run, tavg='yrly', name='T_T850_U_V')):
-        ds = xr.open_dataset(file, decode_times=False)
-        if i==0:
-            ds_new = xr.Dataset()
-            
-            da1 = xr.DataArray(data=np.zeros((ny)),
-                               coords={'year': years},
-                               dims=('year'))
-            da2 = xr.DataArray(data=np.zeros((ny, nlats)),
-                               coords={'year': years, 'lat_bins': lats},
-                               dims=('year', 'lat_bins'))
-            ds_new['GMST']    = da1
-            ds_new['T_zonal'] = da2
-            
-        ds_new['GMST'][i]      = xr_surf_mean(ds['T'][-1,:,:], AREA=AREA) + abs_zero
-        ds_new['T_zonal'][i,:] = xr_zonal_mean(ds['T'][-1,:,:], AREA=AREA, dx=1, lat_name='lat') + abs_zero
-        
-    ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
-    
-    return ds_new
-
-
-
-def round_tlat_tlong(ds):
-    """
-    T-coordinate fields of some nc files are off by 1e-14
-    this results in errors, hence the rounding here
-    
-    input:
-    ds .. xr DataArray/Dataset with coordinates 
-    """
-    assert 'TLAT' in ds.coords
-    assert 'TLONG' in ds.coords
-    ds.TLAT  = np.around(ds.TLAT , decimals=6)
-    ds.TLONG = np.around(ds.TLONG, decimals=6)
-    return ds

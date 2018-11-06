@@ -27,14 +27,14 @@ def xr_int_vertical(da, DZ):
 
 
 def xr_int_zonal(da, HTN, LATS, AREA, DZ):
-    """ integral along dpeth and zonal coordinates *[m^2] rectangular grid"""
+    """ integral along depth and zonal coordinates *[m^2] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
     
     if z=='depth_t':  # rectangular grid
         int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
         
     elif z=='z_t':   # tripolar grid
-        int_vert = xr_int_vertical(da, DZ)  # 2D
+        int_vert  = xr_int_vertical(da, DZ)  # 2D
         int_zonal = xr_zonal_int_bins(int_vert, LATS, AREA)
 
     return int_zonal
@@ -193,7 +193,7 @@ def xr_int_along_axis(xa, DZ, axis):
     output:
     int  .. 2D xr DataArray of integrated quantitity
     """
-    assert type(axis)==np.dtype(int)
+    assert type(axis)==np.dtype(int) or axis in xa.dims
     assert np.shape(xa)==np.shape(DZ)
     assert axis<=len(np.shape(xa))
     

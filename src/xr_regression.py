@@ -2,19 +2,16 @@
 
 import xarray as xr
 import numpy as np
-from paths import CESM_filename
+
+# from numba import jit
+from constants import imt, jmt, km
+from paths import CESM_filename, file_ex_ocn_ctrl
 from timeseries import IterateOutputCESM
 
-
+# @jit(nopython=True)
 def xr_linear_trend(x):
     """ function to compute a linear trend of a timeseries """
-#     print(type(x))  # DataArray
-#     varx = x.time.values
-#     vary = x.values
-#     idx = np.isfinite(varx) & np.isfinite(vary)
-#     mask = ~np.isnan(varx) & ~np.isnan(vary)
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
-    # we need to return a dataarray or else xarray's groupby won't be happy
     return xr.DataArray(pf[1])
 
 
@@ -40,39 +37,34 @@ def xr_linear_trends_2D(da, dim_names):
 
 
 
-def atm_field_regression(run):
-    """ calculates the surface temperature trends
+def ocn_field_regression(xa):
+    """ calculates the trends of ocean fields
     
     input:
-    run      .. (str) ctrl or rcp
+    xa      .. xr DataArray
     
     output:
     da_trend .. 2D xr DataArray with linear trends
     
-    (takes about 4:30 minutes)
+    (takes about 40 seconds)
     """
     
-    field = 'T'
-    lev = -1
+    assert type(xa)==xr.core.dataarray.DataArray
+    assert len(xa.values.shape)==3
+    assert xa.values.shape[1:]==(jmt,imt)
     
-    domain = 'atm'
-    tavg   = 'yrly'
-    first_year = IterateOutputCESM(domain=domain, run=run, tavg=tavg).year
-    first_file = CESM_filename(domain=domain, run=run, y=first_year, m=0, name='T_T850')
+    MASK = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
+    xa   = xa.where(MASK>0).fillna(-9999)
     
-    da = xr.open_dataset(first_file, decode_times=False)[field][lev,:,:]
-    da = da.expand_dims('time')
-#     da_newer = da.assign_coords(time=[first_year])
-    for y, m, file in IterateOutputCESM(domain=domain, run=run, tavg=tavg):
-        if y>first_year:
-            da_new = xr.open_dataset(file, decode_times=False)[field][lev,:,:]
-            da = xr.concat([da, da_new], dim='time')
-            print(y)
+    xa_trend = xa[0,:,:].copy()
+    Nt = xa.values.shape[0]
+    A = xa.values.reshape((Nt, imt*jmt))
     
-    da_trend = xr_linear_trends_2D(da, ('lat', 'lon'))
-    da_trend = da_trend*365*100  # change from [K/day] to [K/century]
+    xa_lin = np.polyfit(np.arange(0,Nt), A, 1)[0,:]  # selected only slope; [unit/year]
+    xa_trend.values = xa_lin.reshape((jmt,imt))
+    xa_trend = xa_trend.where(MASK>0)
     
-    return da_trend
+    return xa_trend
 
 
 

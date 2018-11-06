@@ -19,6 +19,10 @@ DP_North = {'nlat':512, 'nlon':410}   # []
 
 WG_center = {'nlat':321, 'nlon':877}  # [64.9S,337.8E]
 
+Nino12 = {'nlat':slice(1081,1181), 'nlon':slice(200,300)}
+
+Nino34 = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}
+
 
 regions_dict = {-14: 'Caspian_Sea',
                 -13: 'Black_Sea',

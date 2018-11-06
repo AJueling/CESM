@@ -1,3 +1,8 @@
+""" model grid constants """
+
+imt, jmt, km = 3600, 2400, 42    # POP high resolution grid dimensions
+
+
 """ physical constants (SI units) """
 
 g                 = 9.81         # [m s^-2]
