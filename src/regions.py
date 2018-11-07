@@ -23,6 +23,8 @@ Nino12 = {'nlat':slice(1081,1181), 'nlon':slice(200,300)}
 
 Nino34 = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}
 
+Uwind_eq_Pa = {'lat':slice(-6,6), 'lon':slice(180,200)}
+
 
 regions_dict = {-14: 'Caspian_Sea',
                 -13: 'Black_Sea',

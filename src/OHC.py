@@ -5,7 +5,7 @@ import xarray as xr
 from grid import create_dz_mean
 from paths import path_samoc
 from regions import boolean_mask, regions_dict
-from constants import cp_sw, rho_sw
+from constants import cp_sw, rho_sw, km
 from timeseries import IterateOutputCESM
 from xr_integrate import xr_int_global, xr_int_global_level, xr_int_vertical,\
                          xr_int_zonal, xr_int_zonal_level
@@ -129,3 +129,39 @@ def trend_global_levels(ds):
     dz_mean = create_dz_mean(domain='ocn')
     
     return xr_linear_trend(ds.OHC_global_levels/dz_mean)*365
+
+
+
+def OHC_detrend_levels(da, detrend='lin'):
+    """ """
+    assert detrend in ['lin', 'quad']
+    assert 'time' in da.coords
+    
+    dz_mean = create_dz_mean(domain='ocn')
+    n = len(da.time)
+    times = np.arange(n)
+    levels_trend = np.zeros((n, km))
+    
+    if detrend=='lin':
+        lfit_par  = np.zeros((2, km))
+        for k in range(km):
+            lfit_par[:,k] = np.polyfit(times, da[:,k]/dz_mean[k], 1)
+
+        lin_fit  = np.zeros((n, km))
+        for t in range(n):
+            lin_fit[t,:]  = lfit_par[0,:]*t + lfit_par[1,:]
+
+        levels_trend = ((da[:,:]/dz_mean - lin_fit ))
+
+    elif detrend=='quad':
+        qfit_par = np.zeros((3, km))
+        for k in range(km):
+            qfit_par[:,k] = np.polyfit(times, da[:,k]/dz_mean[k], 2)
+        
+        quad_fit = np.zeros((n, km))
+        for t in range(n):
+            quad_fit[t,:] = qfit_par[0,:]*t**2 + qfit_par[1,:]*t + qfit_par[2,:]
+        
+        levels_trend = ((da[:,:]/dz_mean - quad_fit))
+
+    return levels_trend
