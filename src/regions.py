@@ -7,7 +7,7 @@ from xr_DataArrays import example_file
 
 ocn_file = example_file('ocn')
 
-SOM_area_rect = {'lat': slice(-50,-35), 'lon': slice(0,50)}
+# 'ocn' locations
 
 WGKP_area = {'nlat': slice(0,603), 'nlon': slice(750,1900)}
 
@@ -22,6 +22,10 @@ WG_center = {'nlat':321, 'nlon':877}  # [64.9S,337.8E]
 Nino12 = {'nlat':slice(1081,1181), 'nlon':slice(200,300)}
 
 Nino34 = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}
+
+# 'ocn_rect' location
+
+SOM_area_rect = {'lat': slice(-50,-35), 'lon': slice(0,50)}
 
 Uwind_eq_Pa = {'lat':slice(-6,6), 'lon':slice(180,200)}
 

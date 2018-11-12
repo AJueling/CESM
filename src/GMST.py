@@ -51,9 +51,37 @@ def GMST_timeseries(run):
             
         ds_new['GMST'][i]      = (ds['T'][-1,:,:]*AREA).sum(dim=('lat','lon'))/AREA_total
         ds_new['T_zonal'][i,:] = (ds['T'][-1,:,:]*AREA).sum(dim='lon')/AREA_lat
-        
-    for field in ['GMST', 'T_zonal']:  # [K] to [degC]
+    
+    # [K] to [degC]
+    for field in ['GMST', 'T_zonal']:  
         ds_new[field] = ds_new[field] + abs_zero
+
+    # rolling linear trends
+    for n in [5, 10, 15, 30]:
+        ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                            coords={'year': years},
+                                            dims=('year'))
+        ds_new[f'trend_{n}'][:] = np.nan
+        for t in range(ny-n):
+            ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
+
+    # fits
+    ds_new[f'lin_fit_pars']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                        coords={},
+                                        dims=())
+    ds_new[f'quad_fit_pars'] = xr.DataArray(data=np.empty((2))),
+                                        coords={},
+                                        dims=())
+    ds_new[f'lin_fit']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                        coords={'year': years},
+                                        dims=('year'))
+    ds_new[f'quad_fit'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                        coords={'year': years},
+                                        dims=('year'))
+    lin_fit  = np.polyfit(np.arange(ny), gmst_ctrl.GMST, 1)
+    quad_fit = np.polyfit(np.arange(ny), gmst_ctrl.GMST, 2)
+    
+    for t in range(N):
         
     ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
     

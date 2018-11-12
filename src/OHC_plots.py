@@ -32,9 +32,32 @@ def plot_global_integrals(dss, run):
     plt.legend(fontsize=16)
     plt.savefig(f'{path_results}/OHC/OHC_global_integrals_regional_{run}')
     
+    
+def plot_global_integrals_diff(dss, run):
+    """
+    
+    input:
+    dss .. list of datasets
+    """
+    n = len(dss)
+    assert n<=6
+    assert run in ['rcp', 'ctrl']
+    
+    f = plt.figure(figsize=(8,5))
+    ax = f.add_axes([0.13,0.13,.85,.85])
+    plt.tick_params(labelsize=14)
+    plt.axhline(0, c='k', lw=.5)
+    for i, ds in enumerate(dss):
+#         plt.plot((ds.OHC_global-ds.OHC_global.shift(time=1))/1e21, c=colors[i], lw=.5)
+        plt.plot((ds.OHC_global-ds.OHC_global.shift(time=1)).rolling({'time': 5}).mean()/1e21, c=colors[i], label=f'{labels[i]}', lw=2)
+    plt.text(.9,.9, f'{run.upper()}', transform=ax.transAxes, fontsize=16)
+#     plt.legend(fontsize=16, ncol=2)
+    plt.xlabel('time [years]', fontsize=16)
+    plt.ylabel(f'5yr r.m. yearly $\Delta$OHC [ZJ]', fontsize=16)
+    plt.savefig(f'{path_results}/OHC/OHC_global_integrals_regional_diff_{run}')
 
     
-def plot_global_integrals_detrended(dss, run):
+def plot_global_integrals_detr(dss, run):
     """
     
     input:
