@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH -t 5:00:00
-#SBATCH -N 26 --ntasks-per-node=1
+#SBATCH -t 9:00:00
+#SBATCH -N 13 --ntasks-per-node=2
 #SBATCH -p normal
 
 cd /home/dijkbio/andre/CESM/src/run

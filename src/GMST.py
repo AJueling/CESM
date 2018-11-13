@@ -2,10 +2,11 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import path_results
+from paths import path_results, CESM_filename
 from constants import abs_zero
 from timeseries import IterateOutputCESM
 from xr_DataArrays import xr_AREA
+from xr_regression import xr_linear_trends_2D
 
 
 
@@ -66,22 +67,21 @@ def GMST_timeseries(run):
             ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
 
     # fits
-    ds_new[f'lin_fit_pars']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                        coords={},
-                                        dims=())
-    ds_new[f'quad_fit_pars'] = xr.DataArray(data=np.empty((2))),
-                                        coords={},
-                                        dims=())
-    ds_new[f'lin_fit']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                        coords={'year': years},
-                                        dims=('year'))
-    ds_new[f'quad_fit'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                        coords={'year': years},
-                                        dims=('year'))
-    lin_fit  = np.polyfit(np.arange(ny), gmst_ctrl.GMST, 1)
-    quad_fit = np.polyfit(np.arange(ny), gmst_ctrl.GMST, 2)
+    lfit = np.polyfit(np.arange(ny), ds_new.GMST, 1)
+    qfit = np.polyfit(np.arange(ny), ds_new.GMST, 2)
     
-    for t in range(N):
+    ds_new[f'lin_fit']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                       coords={'year': years},
+                                       dims=('year'),
+                                       attrs={'lin_fit_params':lfit})
+    ds_new[f'quad_fit'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                       coords={'year': years},
+                                       dims=('year'),
+                                       attrs={'quad_fit_params':qfit})
+
+    for t in range(ny):
+        ds_new[f'lin_fit'][t]  =                lfit[0]*t + lfit[1]
+        ds_new[f'quad_fit'][t] = qfit[0]*t**2 + qfit[1]*t + qfit[2]
         
     ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
     

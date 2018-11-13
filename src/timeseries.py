@@ -35,7 +35,9 @@ class IterateOutputCESM:
         elif tavg=='yrly':   self.month  = 0
         
         if run=='rcp':     self.year  = 2000
-        elif run=='ctrl':  self.year  = 100
+        elif run=='ctrl':
+            if domain=='atm':  self.year  = 120
+            else: self.year = 100
             
     def file(self):
         if self.tavg=='monthly':
@@ -102,6 +104,9 @@ def yrly_avg_nc(domain, run, fields, test=False):
     """
     assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
     assert run in ['ctrl', 'rcp']
+    
+    print(f'yearly averaging of {run} {domain}')
+    for field in fields:  print(f'   {field}')
     
     name = ''
     n_fields = len(fields)
