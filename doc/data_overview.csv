@@ -1,0 +1,9 @@
+﻿,domain,derived fields,routine,,ipynb,py,results
+CESM output: CTRL+RCP simulations,ocn,UVEL_VVEL,yrly tavg,,"MOC, BSF, CURRENTS",,
+,,TEMP_PD,yrly tavg,,"OHC, SST",,
+,,SHF,yrly tavg,,"SHF, TOA",,
+,,,,,,,
+,atm,T_T850_U_V,yrly tavg,,"GMST, WINDS",,
+,,FSNT_FLNT,yrly tavg,,,,
+,,,,,,,
+,ice,,,,CICE,,
