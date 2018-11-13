@@ -35,7 +35,7 @@ class IterateOutputCESM:
         elif tavg=='yrly':   self.month  = 0
         
         if run=='rcp':     self.year  = 2000
-        elif run=='ctrl':  self.year  = 200
+        elif run=='ctrl':  self.year  = 100
             
     def file(self):
         if self.tavg=='monthly':
