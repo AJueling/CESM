@@ -31,13 +31,11 @@ class IterateOutputCESM:
         self.stop   = False
         self.name   = name
         
-        if tavg=='monthly':  self.month  = 1
-        elif tavg=='yrly':   self.month  = 0
+        if tavg=='monthly':  self.month = 1
+        elif tavg=='yrly':   self.month = 0
         
-        if run=='rcp':     self.year  = 2000
-        elif run=='ctrl':
-            if domain=='atm':  self.year  = 120
-            else: self.year = 100
+        if run=='rcp':       self.year  = 2000
+        elif run=='ctrl':    self.year  = 100
             
     def file(self):
         if self.tavg=='monthly':
