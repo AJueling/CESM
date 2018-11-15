@@ -110,14 +110,19 @@ def OHC_integrals(domain, run, mask_nr=0):
     return ds_new
 
 
+def t2da(da, t):
+    """adds time dimension to xr DataArray, then sets time value to t"""
+    da = da.expand_dims('time')
+    da = da.assign_coords(time=[t])
+    return da
+
 
 def t2ds(da, name, t):
     """ 
     adds time dimension to xr DataArray, then sets time value to t,
-    and then returns xr dataset
+    and then returns as array in xr dataset
     """
-    da = da.expand_dims('time')
-    da = da.assign_coords(time=[t])
+    da = t2da(da, t)
     ds = da.to_dataset(name=name)
     
     return ds
@@ -165,3 +170,19 @@ def OHC_detrend_levels(da, detrend='lin'):
         levels_trend = ((da[:,:]/dz_mean - quad_fit))
 
     return levels_trend
+
+
+def OHC_vert_diff_mean_rm(ds, run):
+
+    assert run in ['ctrl', 'rcp']
+    assert 'OHC_vertical' in ds
+    
+    OHC_vert_diff = ds.OHC_vertical-ds.OHC_vertical.shift(time=1)
+    
+    OHC_vert_diff_mean = OHC_vert_diff.mean(dim='time')  # 1 min
+    OHC_vert_diff_rm   = OHC_vert_diff.rolling({'time':10}, center=True).mean(dim='time')
+
+    OHC_vert_diff_mean.to_netcdf(f'{path_samoc}/OHC/OHC_vert_diff_mean_{run}.nc' )
+    OHC_vert_diff_rm  .to_netcdf(f'{path_samoc}/OHC/OHC_vert_diff_rm_{run}.nc'  )
+
+    return

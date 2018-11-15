@@ -9,6 +9,7 @@ src/.ipynb_checkpoints/
 src/test/__pycache__/
 src/test/.ipynb_checkpoints/
 src/run/*.out
+src/run/run.sh
 
 doc/cam5_desc.pdf
 doc/CESM1.04_user_guide.pdf
