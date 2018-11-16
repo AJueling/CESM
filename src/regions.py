@@ -8,26 +8,20 @@ from xr_DataArrays import example_file
 ocn_file = example_file('ocn')
 
 # 'ocn' locations
+Drake_Passage = {'nlat':slice( 268, 513), 'nlon':410             }
+DP_North      = {'nlat':512             , 'nlon':410             }
+Nino12        = {'nlat':slice(1081,1181), 'nlon':slice( 200, 300)}  # Niño 1+2 (0-10S, 90W-80W)
+Nino34        = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}  # Niño 3.4 (5N-5S, 170W-120W)
+sinking_area  = {'nlat':slice( 283, 353), 'nlon':slice(1130,1210)}
+SOM_area      = {'nlat':slice( 603, 808), 'nlon':slice( 600,1100)}  # (50S-35S, 0E-50W)
+WGKP_area     = {'nlat':slice(   0, 603), 'nlon':slice( 750,1900)}
+WG_center     = {'nlat':321             , 'nlon':877             }  # [64.9S,337.8E]
 
-WGKP_area = {'nlat': slice(0,603), 'nlon': slice(750,1900)}
-
-sinking_area = {'nlat': slice(283,353), 'nlon': slice(1130,1210)}
-
-Drake_Passage = {'nlat':slice(268,513), 'nlon':410}
-
-DP_North = {'nlat':512, 'nlon':410}   # []
-
-WG_center = {'nlat':321, 'nlon':877}  # [64.9S,337.8E]
-
-Nino12 = {'nlat':slice(1081,1181), 'nlon':slice(200,300)}
-
-Nino34 = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}
-
-# 'ocn_rect' location
-
+# 'ocn_rect' locations
 SOM_area_rect = {'lat': slice(-50,-35), 'lon': slice(0,50)}
 
-Uwind_eq_Pa = {'lat':slice(-6,6), 'lon':slice(180,200)}
+# 'atm' locations
+Uwind_eq_Pa   = {'lat':slice(-6,6), 'lon':slice(180,200)}
 
 
 regions_dict = {-14: 'Caspian_Sea',

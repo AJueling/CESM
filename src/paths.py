@@ -82,7 +82,7 @@ rcpstr = 'rcp8.5_co2_f05_t12'
 path_results = '/home/dijkbio/andre/CESM/results'
 
 # CESM data
-path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
+path_CESM  = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
 path_samoc = '/projects/0/samoc/andre/CESM'
 
 # grid
