@@ -45,22 +45,12 @@ def OHC_integrals(domain, run, mask_nr=0):
     HTN  = HTN.where(MASK)
     LATS = LATS.where(MASK)
     
-#     DZT.TLONG  = DZT.TLONG.round(decimals=2)
-#     AREA.TLONG = AREA.TLONG.round(decimals=2)
     HTN['TLAT']   = HTN['TLAT'].round(decimals=2)
     HTN['TLONG']  = HTN['TLONG'].round(decimals=2)
     LATS['TLAT']  = LATS['TLAT'].round(decimals=2)
     LATS['TLONG'] = LATS['TLONG'].round(decimals=2)
     
-    file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{regions_dict[mask_nr]}.nc'
-    if os.path.isfile(file_out):  os.remove(file_out)
-    print(f'output: {file_out}')
-    first_yr = 0
-    
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
-        if first_yr==0: 
-            first_yr=y
-            print('first year: ', first_yr)
         print(y, file)
         t   = y*365  # time in days since year 0, for consistency with CESM date output
         ds  = xr.open_dataset(file, decode_times=False)
@@ -99,18 +89,26 @@ def OHC_integrals(domain, run, mask_nr=0):
         ds_z  = t2ds(da_z , 'OHC_zonal'              , t)
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels'       , t)
         
-        if y==first_yr: 
-            ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
-        elif y>first_yr:
-            ds_temp = xr.open_dataset(file_out, decode_times=False)
-            ds_new = xr.merge([ds_temp, ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
-            ds_temp.close()
+        
+        file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
+        print(f'output: {file_out}')
+        
+        ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
         ds_new.to_netcdf(path=file_out, mode='w')
         ds_new.close()
         
-#         if y==2001 or y==201: break  # for testing only
+        if y==2001 or y==101: break  # for testing only
     
-    return ds_new
+    # combining yearly files
+    file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
+#    if os.path.isfile(file_out):  os.remove(file_out)
+    combined = xr.open_mfdataset(f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_*.nc',
+                                 concat_dim='time',
+                                 autoclose=True,
+                                 coords='minimal')
+    combined.to_netcdf(f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc')
+    
+    return
 
 
 

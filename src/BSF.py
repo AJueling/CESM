@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 
 from regions import Drake_Passage, DP_North, WG_center
-from timeseries import round_tlat_tlong
+# from timeseries import round_tlat_tlong
 from xr_DataArrays import xr_DYU, xr_DZ
 
 
@@ -24,7 +24,6 @@ def calculate_BSF(ds):
     UVEL = ds.UVEL/1e2  # [cm] to [m]
     if 'TLAT'  in UVEL.coords:  UVEL = UVEL.drop('TLAT')
     if 'TLONG' in UVEL.coords:  UVEL = UVEL.drop('TLONG')
-    
     
     BSF = (((UVEL*DZU).sum(dim='z_t'))*DYU)
     for j in np.arange(1,2400):
