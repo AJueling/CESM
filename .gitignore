@@ -13,6 +13,7 @@ src/run/run.sh
 
 doc/cam5_desc.pdf
 doc/CESM1.04_user_guide.pdf
+doc/~$*.ods
 
 *.swp
 *.pyc
