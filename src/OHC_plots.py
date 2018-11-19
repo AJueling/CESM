@@ -53,7 +53,7 @@ def plot_global_integrals_diff(dss, run):
     for i, ds in enumerate(dss):
 #         plt.plot((ds.OHC_global-ds.OHC_global.shift(time=1))/1e21, c=colors[i], lw=.5)
         plt.plot(ds.time/365,
-                 (ds.OHC_global-ds.OHC_global.shift(time=1)).rolling({'time':10}).mean()/1e21,
+                 (ds.OHC_global-ds.OHC_global.shift(time=1)).rolling({'time':10}, center=True).mean()/1e21,
                  c=colors[i], label=f'{labels[i]}', lw=lws[i])
     plt.text(.5,.9, f'{run.upper()}', ha='center', transform=ax.transAxes, fontsize=16)
     plt.text(.98,.02, '10 year running mean', ha='right', transform=ax.transAxes, fontsize=14)
@@ -81,7 +81,7 @@ def plot_global_integrals_detr(dss, run):
         qf = np.polyfit(ds.time , ds.OHC_global, 2)
         detr = ds.OHC_global - (qf[0]*ds.time**2 + qf[1]*ds.time + qf[2])
         plt.plot(ds.time/365,
-                 (detr.rolling({'time':10}).mean())/1e21,
+                 (detr.rolling({'time':10}, center=True).mean())/1e21,
                  c=colors[i], label=f'{labels[i]}', lw=lws[i])
     plt.text(.5,.9, f'{run.upper()}', ha='center', transform=ax.transAxes, fontsize=16)
     plt.text(.98,.02, '10 year running mean', ha='right', transform=ax.transAxes, fontsize=14)
@@ -129,12 +129,11 @@ def Hovmoeller_global_depth(ds, detrend='lin', fn=None):
     dz_mean = create_dz_mean(domain='ocn')
 
     n = len(ds.OHC_global_levels.time)
-    times = np.arange(n)
     
     levels_trend = OHC_detrend_levels(ds.OHC_global_levels, detrend=detrend)
 
-    X       , Y         = np.meshgrid(times, -tdepth/1e3)   # full depth
-    X_detail, Y_detail  = np.meshgrid(times, -tdepth[:20])  # ca. upper 600 m
+    X       , Y         = np.meshgrid(ds.time/365, -tdepth/1e3)   # full depth
+    X_detail, Y_detail  = np.meshgrid(ds.time/365, -tdepth[:20])  # ca. upper 600 m
     
     f, ax = plt.subplots(2, 1, figsize=(8,5), sharex=True)
 
@@ -161,10 +160,9 @@ def Hovmoeller_basins_depth(dss, detrend='lin', fn=None):
     assert len(dss)==4
     
     n = len(dss[0].OHC_global_levels.time)
-    times = np.arange(n)
     
     names = ['Southern', 'Atlantic', 'Pacific', 'Indian']
-    X, Y  = np.meshgrid(times, -tdepth[:20])  # ca. upper 600 m
+    X, Y  = np.meshgrid(dss[0].time/365, -tdepth[:20])  # ca. upper 600 m
     
     f, ax = plt.subplots(4, 1, figsize=(8,8), sharex=True)
     maxv=.1
