@@ -1,0 +1,3 @@
+[diff "odt"]
+    textconv = odt2txt
+    binary = true
