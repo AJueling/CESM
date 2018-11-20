@@ -10,6 +10,7 @@ ocn_file = example_file('ocn')
 # 'ocn' locations
 Drake_Passage = {'nlat':slice( 268, 513), 'nlon':410             }
 DP_North      = {'nlat':512             , 'nlon':410             }
+global_ocean  = {'nlat':slice(   0,2400), 'nlon':slice(   0,3600)}  # global ocean
 Nino12        = {'nlat':slice(1081,1181), 'nlon':slice( 200, 300)}  # Niño 1+2 (0-10S, 90W-80W)
 Nino34        = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}  # Niño 3.4 (5N-5S, 170W-120W)
 sinking_area  = {'nlat':slice( 283, 353), 'nlon':slice(1130,1210)}

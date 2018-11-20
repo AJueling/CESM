@@ -24,11 +24,9 @@ def GMST_timeseries(run):
     tavg   = 'yrly'
     name   = 'T_T850_U_V'
     
-    iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
-    ny       = len(iterator)
-    iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
-    first_yr = iterator.year
-    years    = np.arange(ny) + first_yr
+    ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
+    first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+    years    = (np.arange(ny) + first_yr)*365  # this is consistent with CESM output
         
     AREA       = xr_AREA('atm')
     AREA_lat   = AREA.sum(dim='lon')
@@ -44,11 +42,11 @@ def GMST_timeseries(run):
             lats = ds.lat.values
             ds_new = xr.Dataset()
             ds_new['GMST']    = xr.DataArray(data=np.zeros((ny)),
-                                             coords={'year': years},
-                                             dims=('year'))
+                                             coords={'time': years},
+                                             dims=('time'))
             ds_new['T_zonal'] = xr.DataArray(data=np.zeros((ny, len(lats))), 
-                                             coords={'year': years, 'lat': lats},
-                                             dims=('year', 'lat'))
+                                             coords={'time': years, 'lat': lats},
+                                             dims=('time', 'lat'))
             
         ds_new['GMST'][i]      = (ds['T'][-1,:,:]*AREA).sum(dim=('lat','lon'))/AREA_total
         ds_new['T_zonal'][i,:] = (ds['T'][-1,:,:]*AREA).sum(dim='lon')/AREA_lat
@@ -59,9 +57,9 @@ def GMST_timeseries(run):
 
     # rolling linear trends
     for n in [5, 10, 15, 30]:
-        ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                            coords={'year': years},
-                                            dims=('year'))
+        ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
+                                            coords={'time': years},
+                                            dims=('time'))
         ds_new[f'trend_{n}'][:] = np.nan
         for t in range(ny-n):
             ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
@@ -71,12 +69,12 @@ def GMST_timeseries(run):
     qfit = np.polyfit(np.arange(ny), ds_new.GMST, 2)
     
     ds_new[f'lin_fit']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                       coords={'year': years},
-                                       dims=('year'),
+                                       coords={'time': years},
+                                       dims=('time'),
                                        attrs={'lin_fit_params':lfit})
     ds_new[f'quad_fit'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
-                                       coords={'year': years},
-                                       dims=('year'),
+                                       coords={'time': years},
+                                       dims=('time'),
                                        attrs={'quad_fit_params':qfit})
 
     for t in range(ny):
@@ -107,7 +105,7 @@ def GMST_regression(run):
     domain = 'atm'
     tavg   = 'yrly'
     name   = 'T_T850_U_V'
-    first_year = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+    first_year = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).time
     first_file = CESM_filename(domain=domain, run=run, y=first_year, m=0, name=name)
     
     da = xr.open_dataset(first_file, decode_times=False)[field][lev,:,:]
@@ -122,3 +120,15 @@ def GMST_regression(run):
     da_trend = da_trend*365*100  # change from [K/day] to [K/century]
     
     return da_trend
+
+
+def atm_heat_content(ds, dp, AREA):
+    """ calculate total atmoshperic heat content """
+    assert 'T' in ds
+    assert 'lat' in ds.coords
+    assert 'lat' in AREA.coords
+    assert 'lon' in ds.coords
+    assert 'lon' in AREA.coords
+    assert 'lev' in ds.coords
+    assert 'lev' in dp.coords
+    return (AREA*dp*ds['T']*cp_air).sum()
