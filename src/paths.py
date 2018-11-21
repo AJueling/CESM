@@ -120,6 +120,8 @@ path_yrly_rcp  = f'{path_samoc}/rcp'
 
 # FILES
 
+grid_file  = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.ieeer8'
+
 # example files to use for tests
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y=200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp', y=2000, m=1)

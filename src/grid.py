@@ -2,7 +2,8 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import path_results, file_ex_ocn_ctrl
+from paths import path_results, file_ex_ocn_ctrl, grid_file
+from constants import imt, jmt
 from read_binary import read_binary_2D_double
 from xr_DataArrays import xr_DZ
 
@@ -27,15 +28,16 @@ def generate_lats_lons(grid_file):
     return lats, lons, shift
     
 
-def generate_lats_lons_CESM(grid_file):
+def generate_lats_lons(domain):
     """
     genrates lats and lons fields (no shift)
     """
-    imt,jmt = 3600,2400
+    assert domain in ['ocn']
     lats = read_binary_2D_double(grid_file,imt,jmt,1)
     lons = read_binary_2D_double(grid_file,imt,jmt,2)
-    
-    return lats, lons
+    lats = lats.T*180/np.pi  # rad to deg
+    lons = np.roll(lons*180/np.pi+180, int(imt/2), axis=0).T  # rad to deg; same 
+    return lats, lons 
 
 
 def shift_field(field,shift):

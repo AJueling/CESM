@@ -97,7 +97,7 @@ def OHC_integrals(domain, run, mask_nr=0):
         ds_new.to_netcdf(path=file_out, mode='w')
         ds_new.close()
         
-        if y==2002 or y==102: break  # for testing only
+#         if y==2002 or y==102: break  # for testing only
     
     # combining yearly files
     file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
