@@ -118,18 +118,15 @@ def xr_AREA(domain):
     if domain in ['ocn', 'ice']:  # TAREA of cells are written out
         AREA[:,:] = C.TAREA/1e4
         
-    elif domain in ['atm', 'ocn_rect']:  # rectangular grids, area is calculated
+    elif domain=='atm':  # regular, rectangular grids
         (z, lat, lon) = depth_lat_lon_names(domain)
         dy = C[lat][1].item()-C[lat][0].item()
         nx, ny = len(C[lon]), len(C[lat])
-        if domain=='atm':
-            lat_N = (-90+dy/2)*np.pi/180
-            AREA[0 ,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, -np.pi/2)
-            lat_S = (90-dy/2)*np.pi/180
-            AREA[-1,:] = spher_surf_element(R_earth, 2*np.pi/nx, np.pi/2, lat_S)
-            jmin, jmax = 1, ny-1
-        else:
-            jmin, jmax = 0, ny
+        lat_N = (-90+dy/2)*np.pi/180
+        AREA[0 ,:] = spher_surf_element(R_earth, 2*np.pi/nx, lat_N, -np.pi/2)
+        lat_S = (90-dy/2)*np.pi/180
+        AREA[-1,:] = spher_surf_element(R_earth, 2*np.pi/nx, np.pi/2, lat_S)
+        jmin, jmax = 1, ny-1
             
         for j in range(jmin, jmax):
             lat_S = (C[lat][j]-dy/2)*np.pi/180
@@ -139,6 +136,14 @@ def xr_AREA(domain):
         # ensure calculated area max is within 1 order of magnitude of a naive cell area
         assert np.isclose(np.log10(np.max(AREA.values)),\
                           np.log10(R_earth**2 * 2*np.pi/nx * np.pi/ny), rtol=1)
+    
+    elif domain=='ocn_rect':  # rect grid with different lat.-diffs.
+        ds = xr.open_dataset(file_ex_ocn_rect, decode_times=False)
+        nx = len(ds.t_lon)
+        for j, l in enumerate(ds.t_lat[:-1]):
+            AREA[j,:] = spher_surf_element(R_earth, 2*np.pi/nx, ds.t_lat[j+1]*np.pi/180, ds.t_lat[j]*np.pi/180)
+            
+        
     
     return AREA
 

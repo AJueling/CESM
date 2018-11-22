@@ -8,6 +8,7 @@ from xr_DataArrays import example_file
 ocn_file = example_file('ocn')
 
 # 'ocn' locations
+AMO_area      = {'nlat':slice(1081,1858), 'nlon':slice( 500,1100)}  # North Atlantic (0-60N, 0-80W)
 Drake_Passage = {'nlat':slice( 268, 513), 'nlon':410             }
 DP_North      = {'nlat':512             , 'nlon':410             }
 global_ocean  = {'nlat':slice(   0,2400), 'nlon':slice(   0,3600)}  # global ocean
@@ -15,11 +16,13 @@ Nino12        = {'nlat':slice(1081,1181), 'nlon':slice( 200, 300)}  # Niño 1+2 
 Nino34        = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}  # Niño 3.4 (5N-5S, 170W-120W)
 sinking_area  = {'nlat':slice( 283, 353), 'nlon':slice(1130,1210)}
 SOM_area      = {'nlat':slice( 603, 808), 'nlon':slice( 600,1100)}  # (50S-35S, 0E-50W)
+T_exT_area    = {'nlat':slice( 427,1858)                         }  # tropic + extratropics (60S-60N)
 WGKP_area     = {'nlat':slice(   0, 603), 'nlon':slice( 750,1900)}
 WG_center     = {'nlat':321             , 'nlon':877             }  # [64.9S,337.8E]
 
 # 'ocn_rect' locations
-SOM_area_rect = {'lat': slice(-50,-35), 'lon': slice(0,50)}
+# SOM_area_rect = {  'lat': slice(-50,-35),   'lon': slice(0,50)}
+gl_ocean_rect = {'t_lat': slice(-80, 90), 't_lon': slice(0,360)}
 
 # 'atm' locations
 Uwind_eq_Pa   = {'lat':slice(-6,6), 'lon':slice(180,200)}
@@ -47,16 +50,22 @@ regions_dict = {-14: 'Caspian_Sea',
 
 def boolean_mask(domain, mask_nr):
     """ 3D boolean xr DataArray """
-    assert domain=='ocn'
+    assert domain in ['ocn', 'ocn_rect']
     
     file  = example_file(domain)
-    RMASK = xr.open_dataset(file, decode_times=False).REGION_MASK
     
-    if mask_nr==0:  # global ocean
-        MASK = np.where(RMASK>0, 1, 0)
-    else:
-        MASK = np.where(RMASK==mask_nr, 1, 0)
+    if domain=='ocn':
+        RMASK = xr.open_dataset(file, decode_times=False).REGION_MASK
+        if mask_nr==0:  # global ocean
+            MASK = np.where(RMASK>0, 1, 0)
+        else:
+            MASK = np.where(RMASK==mask_nr, 1, 0)
     
+    elif domain=='ocn_rect':
+        assert mask_nr==0
+        RMASK = xr.open_dataset(file, decode_times=False).TEMP[0,:,:]
+        MASK = np.where(RMASK>-2, 1, 0)
+        
     return MASK
 
 

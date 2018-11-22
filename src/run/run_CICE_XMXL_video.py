@@ -25,5 +25,7 @@ if __name__=="__main__":
         aice = xr.open_dataset(ice_file, decode_times=False).aice[0,:,:]
         XMXL = xr.open_dataset(ocn_file, decode_times=False).XMXL[0,:,:]
         CICE_XMXL_plots(aice=aice, XMXL=XMXL, lons=lons, lats=lats, MASK=MASK, run=run, i=i)
+        aice.close()
+        XMXL.close()
         
     print(f'\n\nfinished at\n{datetime.datetime.now()}')

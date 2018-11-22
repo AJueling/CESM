@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
 from mpl_toolkits.axes_grid1 import AxesGrid
+from matplotlib.colors import LinearSegmentedColormap
+
 
 def shifted_color_map(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
     '''
@@ -55,3 +58,47 @@ def shifted_color_map(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap')
     plt.register_cmap(cmap=newcmap)
 
     return newcmap
+
+
+def discrete_cmap(N, base_cmap=None):
+    """Create an N-bin discrete colormap from the specified input map"""
+
+    # Note that if base_cmap is a string or None, you can simply do
+    #    return plt.cm.get_cmap(base_cmap, N)
+    # The following works for string, None, or a colormap instance:
+
+    base = plt.cm.get_cmap(base_cmap)
+    color_list = base(np.linspace(0, 1, N))
+    cmap_name = base.name + str(N)
+    return base.from_list(cmap_name, color_list, N)
+
+
+
+
+def grayscale_cmap(cmap):
+    """Return a grayscale version of the given colormap"""
+    cmap = plt.cm.get_cmap(cmap)
+    colors = cmap(np.arange(cmap.N))
+    
+    # convert RGBA to perceived grayscale luminance
+    # cf. http://alienryderflex.com/hsp.html
+    RGB_weight = [0.299, 0.587, 0.114]
+    luminance = np.sqrt(np.dot(colors[:, :3] ** 2, RGB_weight))
+    colors[:, :3] = luminance[:, np.newaxis]
+        
+    return LinearSegmentedColormap.from_list(cmap.name + "_gray", colors, cmap.N)
+    
+
+
+def view_colormap(cmap):
+    """Plot a colormap with its grayscale equivalent"""
+    cmap = plt.cm.get_cmap(cmap)
+    colors = cmap(np.arange(cmap.N))
+    
+    cmap = grayscale_cmap(cmap)
+    grayscale = cmap(np.arange(cmap.N))
+    
+    fig, ax = plt.subplots(2, figsize=(6, 2),
+                           subplot_kw=dict(xticks=[], yticks=[]))
+    ax[0].imshow([colors], extent=[0, 10, 0, 1])
+    ax[1].imshow([grayscale], extent=[0, 10, 0, 1])

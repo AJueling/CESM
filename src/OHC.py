@@ -51,7 +51,14 @@ def OHC_integrals(domain, run, mask_nr=0):
     LATS['TLONG'] = LATS['TLONG'].round(decimals=2)
     
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
+        file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
+
+        os.path.exists(file_out):
+            # should check here if all the fields exist
+            continue
+        
         print(y, file)
+        
         t   = y*365  # time in days since year 0, for consistency with CESM date output
         ds  = xr.open_dataset(file, decode_times=False)
         ds['TLAT'] = ds['TLAT'].round(decimals=2)
@@ -90,7 +97,6 @@ def OHC_integrals(domain, run, mask_nr=0):
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels'       , t)
         
         
-        file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
         print(f'output: {file_out}')
         
         ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
