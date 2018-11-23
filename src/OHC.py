@@ -53,14 +53,14 @@ def OHC_integrals(domain, run, mask_nr=0):
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
         file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
 
-        os.path.exists(file_out):
+        if os.path.exists(file_out):
             # should check here if all the fields exist
             continue
         
         print(y, file)
         
         t   = y*365  # time in days since year 0, for consistency with CESM date output
-        ds  = xr.open_dataset(file, decode_times=False)
+        ds  = xr.open_dataset(file, decode_times=False).drop(['ULONG', 'ULAT'])
         ds['TLAT'] = ds['TLAT'].round(decimals=2)
         ds['TLONG'] = ds['TLONG'].round(decimals=2)
         

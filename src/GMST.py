@@ -1,6 +1,11 @@
 import os
+import csv
+import io
 import numpy as np
 import xarray as xr
+import urllib.request
+import datetime
+
 
 from paths import path_results, CESM_filename
 from constants import abs_zero
@@ -55,14 +60,15 @@ def GMST_timeseries(run):
     for field in ['GMST', 'T_zonal']:  
         ds_new[field] = ds_new[field] + abs_zero
 
-    # rolling linear trends
-    for n in [5, 10, 15, 30]:
-        ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
-                                            coords={'time': years},
-                                            dims=('time'))
-        ds_new[f'trend_{n}'][:] = np.nan
-        for t in range(ny-n):
-            ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
+    # rolling linear trends [degC/yr]
+    ds_new = rolling_lin_trends(ds=ds_new, ny=ny, years=years)
+#     for n in [5, 10, 15, 30]:
+#         ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
+#                                             coords={'time': years},
+#                                             dims=('time'))
+#         ds_new[f'trend_{n}'][:] = np.nan
+#         for t in range(ny-n):
+#             ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
 
     # fits
     lfit = np.polyfit(np.arange(ny), ds_new.GMST, 1)
@@ -123,7 +129,7 @@ def GMST_regression(run):
 
 
 def atm_heat_content(ds, dp, AREA):
-    """ calculate total atmoshperic heat content """
+    """ calculate total atmoshperic heat content [Joule] """
     assert 'T' in ds
     assert 'lat' in ds.coords
     assert 'lat' in AREA.coords
@@ -132,3 +138,48 @@ def atm_heat_content(ds, dp, AREA):
     assert 'lev' in ds.coords
     assert 'lev' in dp.coords
     return (AREA*dp*ds['T']*cp_air).sum()
+
+
+
+def rolling_lin_trends(ds, ny, years):
+    """[degC/yr]"""
+    for n in [5, 10, 15, 30]:
+        ds[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
+                                            coords={'time': years},
+                                            dims=('time'))
+        ds[f'trend_{n}'][:] = np.nan
+        for t in range(ny-n):
+            ds[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds['GMST'][t:t+n],1)[0]
+    return ds
+
+
+# ==============================================================================
+# Observational records
+# ==============================================================================
+
+url_GISTEMP = "https://data.giss.nasa.gov/gistemp/tabledata_v3/GLB.Ts+dSST.csv"
+url_HadCRUT = "http://climexp.knmi.nl/data/tsihadcrut4_ns_avg.txt"
+
+
+def GMST_GISTEMP():
+    """ loads GISTEMP data and returns it as an xr Dataset """
+    years = []
+    gmsts = []
+    webpage = urllib.request.urlopen(url_GISTEMP)
+    datareader = csv.reader(io.TextIOWrapper(webpage))
+    for i, row in enumerate(datareader):
+        if i>1 and i<140:  # 2018 data not available yet
+            years.append(float(row[ 0]))
+            gmsts.append(float(row[13]))
+    attributes = {'source':url_GISTEMP, 'downloaded':f'{datetime.datetime.now()}'}
+    GISTEMP = xr.DataArray(data=gmsts, coords={'time': years}, dims=('time'), attrs=attributes)
+    GISTEMP = GISTEMP.to_dataset(name='GMST')
+    rolling_lin_trends(ds=GISTEMP, ny=len(GISTEMP.time), years=GISTEMP.time)
+    
+    GISTEMP.to_netcdf(f'{path_results}/GMST/GISTEMP.nc')
+    return GISTEMP
+
+    
+def GMST_HadCRUT():
+    
+    return
