@@ -2,12 +2,17 @@ import numpy as np
 import xarray as xr
 import cmocean
 import seaborn as sns
+import cmocean
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from OHC import OHC_detrend_levels
+from maps import map_eq_earth
 from grid import create_tdepth, create_dz_mean
-from paths import path_results
-from constants import km
+from paths import path_results, path_samoc
+from plotting import discrete_cmap, shifted_color_map
+from constants import km, spy
+from xr_regression import ocn_field_regression
 
 tdepth = create_tdepth(domain='ocn')
 colors = ['k', 'C0', 'C1', 'C2', 'C3', 'C4']
@@ -185,4 +190,78 @@ def Hovmoeller_basins_depth(dss, detrend='lin', fn=None):
     if fn!=None:  plt.savefig(fn)
         
 
+def OHC_vert_video(run):
+    domain = 'ocn_T'
 
+    if run=='ctrl':
+        first_year = 100
+        nt = 180
+        ds = xr.open_dataset(f'{path_samoc}/OHC/OHC_integrals_Global_Ocean_ctrl.nc'  , decode_times=False)
+        # something is still wrong in CTRL year 205
+#         for ds in [ctrl]:#, ctrl_A, ctrl_P, ctrl_I, ctrl_S]:
+        for field in ['OHC_global', 'OHC_global_levels', 'OHC_zonal', 'OHC_zonal_levels']:
+            ds[field][105] = (ds[field].sel({'time':204*365}) +
+                                           ds[field].sel({'time':206*365}) )/2
+        OHC_vt   = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_c2.nc'    , decode_times=False)
+        OHC_vt_a = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_a_c2.nc'  , decode_times=False)
+        OHC_vt_b = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_b_c2.nc'  , decode_times=False)
+
+    elif run=='rcp':
+        first_year = 200
+        nt = 80
+        ds = xr.open_dataset(f'{path_samoc}/OHC/OHC_integrals_Global_Ocean_rcp.nc'   , decode_times=False)
+        OHC_vt   = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_rcp.nc'   , decode_times=False)
+        OHC_vt_a = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_a_rcp.nc' , decode_times=False)
+        OHC_vt_b = xr.open_dataarray(f'{path_samoc}/OHC/OHC_trend_vert_int_b_rcp.nc' , decode_times=False)
+
+    vert_trends = [OHC_vt, OHC_vt_a, OHC_vt_b]
+    names1 = ['full_depth', 'above_100m', 'below_100m']
+    names2 = ['full depth', 'above 100m', 'below 100m']
+    names3 = [f'full\ndepth', f'above\n100m', f'below\n100m']
+
+    for t in range(nt-10):
+        dss = [ds.OHC_vertical[t:t+10,:,:],
+               ds.OHC_vertical_above_100m[t:t+10,:,:],
+               ds.OHC_vertical_below_100m[t:t+10,:,:]]
+
+        for i, xa in enumerate(dss):
+            text2  = names3[i]
+            
+            text1 = f'{t+first_year}-{t+first_year+10}'
+            label = r'10 year OHC trend [W/m$^2$]'
+            if i in [0,2]:
+                minv  = -3
+                maxv  = 9
+                nc    = 12
+            else:
+                minv  = -2
+                maxv  = 6
+                nc    = 8
+            cmap  = discrete_cmap(nc, shifted_color_map(cmocean.cm.balance, 
+                                                        start=.33, midpoint=0.5,
+                                                        stop=1., name='shrunk'))
+            xa1 = ocn_field_regression(xa)/spy
+            fn = f'{path_results}/OHC/OHC-video/OHC_trend_vert_int_{names1[i]}_map_{run}_{t}'
+            f, ax = map_eq_earth(xa=xa1, domain=domain, cmap=cmap, minv=minv, maxv=maxv,
+                                 label=label, filename=fn, text1=text1, text2=text2)
+
+            # anomaly from long term trend
+            text1 = f'({t+first_year}-{t+first_year+10})-\n<RCP>'
+            label = r'10 year OHC trend anomaly [W/m$^2$]'
+            if i in [0,2]:  # full depth, below 100 m
+                minv   = -10
+                maxv   = 10
+                nc = 20
+            else:           # above 100 m
+                minv   = -5
+                maxv   = 5
+                nc = 10
+            cmap   = discrete_cmap(nc, cmocean.cm.curl)
+            xa2 = xa1 - vert_trends[i]
+            fn = f'{path_results}/OHC/OHC-video/OHC_trend_vert_int_{names1[i]}_anom_map_{run}_{t}'
+            f, ax = map_eq_earth(xa=xa2, domain=domain, cmap=cmap, minv=minv, maxv=maxv,
+                                 label=label, filename=fn, text1=text1, text2=text2)
+            
+            plt.close('all')
+            
+            

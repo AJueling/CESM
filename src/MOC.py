@@ -3,30 +3,24 @@ import xarray as xr
 
 from grid import create_tdepth, find_array_idx
 from paths import file_ex_ocn_ctrl
-from regions import combine_mask, Atlantic_mask
 from xr_DataArrays import xr_DZ, xr_DXU
 
 
-def calculate_AMOC(ds):
+def calculate_MOC(ds, DXU, DZU, MASK):
     """ Atlantic Meridional Overturning circulation 
     
     input:
     ds   .. xr Dataset of CESM output
     
     output:
-    AMOC .. 2D xr DataArray
+    MOC .. 2D xr DataArray
     """
     assert 'VVEL' in ds
-    
-    DXU = xr_DXU('ocn')                   # [m]
-    DZU = xr_DZ('ocn', grid='U')          # [m]
-    ATLANTIC_MASK = Atlantic_mask('ocn')  # boolean
-    
-    AMOC = (ds.VVEL*DXU*DZU).where(ATLANTIC_MASK).sum(dim='nlon')/1e2  # [m^3/s]
+    MOC = (ds.VVEL*DXU*DZU).where(MASK).sum(dim='nlon')/1e2  # [m^3/s]
     for k in np.arange(1,42):
-        AMOC[k,:] += AMOC[k-1,:]
+        MOC[k,:] += MOC[k-1,:]
     
-    return AMOC
+    return MOC
 
 
 def approx_lats(domain):

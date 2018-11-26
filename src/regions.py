@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 
 from xr_DataArrays import example_file
+from paths import file_ex_ocn_rect
 
 ocn_file = example_file('ocn')
 
@@ -93,3 +94,17 @@ def Atlantic_mask(domain):
     ATLANTIC_MASK = combine_mask(ds.REGION_MASK, [6,8,9])
     
     return ATLANTIC_MASK
+
+
+def NPacific_mask_rect():
+    """ boolean Pacific mask """
+    TEMP = xr.open_dataset(file_ex_ocn_rect, decode_times=False).TEMP[0,:,:]
+    MASK1 = (TEMP/TEMP).where(TEMP>0, 0)
+    MASK1 = MASK1.where(MASK1.t_lat>0  , 0)
+    MASK1 = MASK1.where(MASK1.t_lat<66 , 0)
+    MASK1 = MASK1.where(MASK1.t_lon>100, 0)
+    MASK1 = MASK1.where(MASK1.t_lon<300, 0)
+    MASK2 = MASK1.where(MASK1.t_lon>250, 0)
+    MASK1 = MASK1.where(MASK1.t_lon<250, 0)
+    MASK2 = MASK2.where(2.1*MASK2.t_lat+MASK2.t_lon<300, 0)
+    return MASK1+MASK2

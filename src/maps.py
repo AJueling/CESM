@@ -6,7 +6,7 @@ import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
 
 
-def map_robinson(xa, domain, cmap, minv, maxv, label, filename=None):
+def map_robinson(xa, domain, cmap, minv, maxv, label, filename=None, text1=None, text2=None):
     
     assert domain in ['atm', 'ocn_T', 'ocn_U']
     
@@ -53,7 +53,7 @@ def map_robinson(xa, domain, cmap, minv, maxv, label, filename=None):
     return fig, ax
 
 
-def map_eq_earth(xa, domain, cmap, minv, maxv, label, filename=None):
+def map_eq_earth(xa, domain, cmap, minv, maxv, label, filename=None, text1=None, text2=None):
     
     assert domain in ['atm', 'ocn_T', 'ocn_U']
     
@@ -88,6 +88,11 @@ def map_eq_earth(xa, domain, cmap, minv, maxv, label, filename=None):
                            vmin=minv, vmax=maxv,
                            transform=ccrs.PlateCarree() )
         ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='black', facecolor='w')
+    
+    if text1!=None:
+        ax.text(0, 1, text1, ha='left' , va='top', transform=ax.transAxes, fontsize=16)
+    if text2!=None:
+        ax.text(1, 1, text2, ha='right', va='top', transform=ax.transAxes, fontsize=16)
     
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False)
     gl.ylocator = mticker.FixedLocator([-90, -60, -30, 0, 30, 60, 90])
