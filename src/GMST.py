@@ -176,10 +176,22 @@ def GMST_GISTEMP():
     GISTEMP = GISTEMP.to_dataset(name='GMST')
     rolling_lin_trends(ds=GISTEMP, ny=len(GISTEMP.time), years=GISTEMP.time)
     
-    GISTEMP.to_netcdf(f'{path_results}/GMST/GISTEMP.nc')
+#     GISTEMP.to_netcdf(f'{path_results}/GMST/GISTEMP.nc')
     return GISTEMP
 
     
 def GMST_HadCRUT():
     
     return
+
+
+def Hiatuses(run, offset=0):
+    if run=='ctrl':
+        hiatuses = [[ 135+offset, 148+offset],
+                    [ 166+offset, 178+offset],
+                    [ 193+offset, 202+offset],
+                    [ 240+offset, 250+offset]]
+    elif run=='rcp':
+        hiatuses = [[2010+offset,2020+offset],
+                    [2027+offset,2038+offset]]
+    return hiatuses

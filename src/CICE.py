@@ -59,6 +59,8 @@ def CICE_XMXL_plots(aice, XMXL, lons, lats, MASK, run, i):
     
     f.savefig(filename)
     
-    copyfile(filename, f'{path_results}/CICE/CICE_XMXL_video/CICE_XMXL_{run}_no_{i:04d}')
+    copyfile(filename, f'{path_results}/CICE/CICE_XMXL_video/CICE_XMXL_{run}_no_{i:04d}.png')
+    
+    plt.close('all')
     
     return
