@@ -65,6 +65,16 @@ def CESM_filename(domain, run, y, m, name=None):
                 file = f'{path_yrly_rcp}/atm_yrly_{name}_{y:04}.nc'
             else:
                 file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
+        elif run=='lpd':
+            if m==0:
+                file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
+            else:
+                print('monthly files ares not available for lpd run!')
+        elif run=='lpi':
+            if m==0:
+                print('yearly averaged not yet implemented')
+            else:
+                file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
                 
     elif domain=='ice':
         if run=='ctrl':
@@ -123,6 +133,7 @@ path_atm_lpd  = f'{path_lpd}/OUTPUT/atm/hist/yearly'
 path_ice_lpd  = f'{path_lpd}/OUTPUT/ice/hist'
 
 path_ocn_lpi  = f'{path_lpi}/OUTPUT/ocn/hist/monthly'
+path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist'
 
 
 # interpolated to rectangular 0.4 deg grid
@@ -149,12 +160,14 @@ grid_file  = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.ieee
 # example files to use for tests
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
-file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y=   1, m=2)
-file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=   1, m=1)
+file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
+file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 
 file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
-file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y=200, m=1)
+file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y= 200, m=1)
+file_ex_atm_lpd  = CESM_filename(domain='atm', run='lpd' , y= 200, m=0)
+file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=1600, m=1)
 
 file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'
 file_ex_ice_yrly = f'{path_ice_rcp}/{rcpstr}.cice.h.avg2000.nc'
