@@ -1,0 +1,3 @@
+module load ffmpeg
+
+ffmpeg -framerate 8 -start_number 278 -i SOM_plots_ann_spaeqd_%03d.png -r 8 -qscale:v 0 SOM_spaeqd.avi

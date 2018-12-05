@@ -22,7 +22,7 @@ class IterateOutputCESM:
     
     def __init__(self, domain, run, tavg, name=None):
         assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
-        assert run in ['ctrl', 'rcp']
+        assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
         assert tavg in ['monthly', 'yrly']
         
         self.domain = domain
@@ -34,8 +34,10 @@ class IterateOutputCESM:
         if tavg=='monthly':  self.month = 1
         elif tavg=='yrly':   self.month = 0
         
-        if run=='rcp':       self.year  = 2000
-        elif run=='ctrl':    self.year  = 100
+        if run=='ctrl':   self.year  =  100
+        elif run=='rcp':  self.year  = 2000
+        elif run=='lpd':  self.year  =  154
+        elif run=='lpi':  self.year  = 1600   
             
     def file(self):
         if self.tavg=='monthly':
@@ -58,11 +60,13 @@ class IterateOutputCESM:
             
         while os.path.exists(self.file()):
             self.month += 1
-            if self.tavg=='monthly':  length +=1
+            if self.tavg=='monthly':
+                length +=1
             if self.month==13:
                 self.month = 1
                 self.year +=1
-                if self.tavg=='yrly':  length +=1
+                if self.tavg=='yrly':
+                    length +=1
         return length
 
     def __next__(self):

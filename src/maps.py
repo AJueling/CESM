@@ -101,7 +101,7 @@ def map_eq_earth(xa, domain, cmap, minv, maxv, label, filename=None, text1=None,
     cbar = fig.colorbar(im, cax=cax, extend='both', **kw)
     cbar.ax.tick_params(labelsize=14)
     label = cbar.set_label(label, size=16)
-    if filename!=None: plt.savefig(filename)
+    if filename!=None: plt.savefig(filename, dpi=100)
     return fig, ax
 
 
