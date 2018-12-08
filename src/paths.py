@@ -69,10 +69,10 @@ def CESM_filename(domain, run, y, m, name=None):
             if m==0:
                 file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
             else:
-                print('monthly files ares not available for lpd run!')
+                raise ValueError('monthly files are not available for lpd run!')
         elif run=='lpi':
             if m==0:
-                print('yearly averaged not yet implemented')
+                raise ValueError('yearly averaged not yet implemented')
             else:
                 file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
                 
@@ -167,7 +167,7 @@ file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.
 
 file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y= 200, m=1)
 file_ex_atm_lpd  = CESM_filename(domain='atm', run='lpd' , y= 200, m=0)
-file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=1600, m=1)
+file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=3000, m=1)
 
 file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'
 file_ex_ice_yrly = f'{path_ice_rcp}/{rcpstr}.cice.h.avg2000.nc'

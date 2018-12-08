@@ -24,27 +24,37 @@ def GMST_timeseries(run):
     output:
     ds_new .. xr Dataset containing GMST and T_zonal
     """
-    
     domain = 'atm'
     tavg   = 'yrly'
-    name   = 'T_T850_U_V'
     
-    ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
-    first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+    if run in ['ctrl', 'rcp']:
+        AREA     = xr_AREA('atm')
+        name     = 'T_T850_U_V'
+        ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
+        first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+        iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
+    elif run in ['lpd', 'lpi']:
+        AREA     = xr_AREA('atm_low')
+        ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg))
+        first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg).year
+        iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg)
+
     years    = (np.arange(ny) + first_yr)*365  # this is consistent with CESM output
         
-    AREA       = xr_AREA('atm')
     AREA_lat   = AREA.sum(dim='lon')
     AREA_total = AREA.sum(dim=('lat','lon'))
     
-    iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
+    
     for i, (y, m, file) in enumerate(iterator):
         print(y)
         assert os.path.exists(file)
-        ds = xr.open_dataset(file, decode_times=False)
+        if run in ['ctrl', 'rcp']:
+            da = xr.open_dataset(file, decode_times=False)['T'][-1,:,:]
+        elif run in ['lpd']:
+            da = xr.open_dataset(file, decode_times=False)['T'][0,-1,:,:]
         
         if i==0:  # create new xr Dataset
-            lats = ds.lat.values
+            lats = da.lat.values
             ds_new = xr.Dataset()
             ds_new['GMST']    = xr.DataArray(data=np.zeros((ny)),
                                              coords={'time': years},
@@ -53,8 +63,8 @@ def GMST_timeseries(run):
                                              coords={'time': years, 'lat': lats},
                                              dims=('time', 'lat'))
             
-        ds_new['GMST'][i]      = (ds['T'][-1,:,:]*AREA).sum(dim=('lat','lon'))/AREA_total
-        ds_new['T_zonal'][i,:] = (ds['T'][-1,:,:]*AREA).sum(dim='lon')/AREA_lat
+        ds_new['GMST'][i]      = (da*AREA).sum(dim=('lat','lon'))/AREA_total
+        ds_new['T_zonal'][i,:] = (da*AREA).sum(dim='lon')/AREA_lat
     
     # [K] to [degC]
     for field in ['GMST', 'T_zonal']:  
@@ -62,13 +72,6 @@ def GMST_timeseries(run):
 
     # rolling linear trends [degC/yr]
     ds_new = rolling_lin_trends(ds=ds_new, ny=ny, years=years)
-#     for n in [5, 10, 15, 30]:
-#         ds_new[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
-#                                             coords={'time': years},
-#                                             dims=('time'))
-#         ds_new[f'trend_{n}'][:] = np.nan
-#         for t in range(ny-n):
-#             ds_new[f'trend_{n}'][int(np.floor(n/2))+t] = np.polyfit(np.arange(n), ds_new['GMST'][t:t+n],1)[0]
 
     # fits
     lfit = np.polyfit(np.arange(ny), ds_new.GMST, 1)
@@ -142,7 +145,7 @@ def atm_heat_content(ds, dp, AREA):
 
 
 def rolling_lin_trends(ds, ny, years):
-    """[degC/yr]"""
+    """linear trends for various window sizes [degC/yr]"""
     for n in [5, 10, 15, 30]:
         ds[f'trend_{n}'] = xr.DataArray(data=np.empty((ny)),
                                             coords={'time': years},

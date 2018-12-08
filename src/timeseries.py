@@ -36,16 +36,20 @@ class IterateOutputCESM:
         
         if run=='ctrl':   self.year  =  100
         elif run=='rcp':  self.year  = 2000
-        elif run=='lpd':  self.year  =  154
+        elif run=='lpd':  self.year  =  149
         elif run=='lpi':  self.year  = 1600   
             
     def file(self):
         if self.tavg=='monthly':
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
-            if self.name==None:
-                raise ValueError('must provide (variables part of) name for yrly file')
-            filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)  
+            if self.run in ['ctrl', 'rcp']:
+                if self.name==None:
+                    raise ValueError('must provide (variables part of) name for yrly file')
+                filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
+            elif self.run in ['lpd', 'lpi']:
+                filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=self.month, name=None)
+#                 print(filename, self.month)
         if os.path.exists(filename)==False:
             self.stop = True
         return filename
@@ -59,14 +63,25 @@ class IterateOutputCESM:
         month  = self.month
             
         while os.path.exists(self.file()):
-            self.month += 1
+#             self.month += 1
+#             if self.tavg=='monthly':
+#                 length +=1
+#             if self.month==13:
+#                 self.month = 1
+#                 self.year +=1
+#                 if self.tavg=='yrly':
+#                     length +=1
             if self.tavg=='monthly':
+                self.month += 1
                 length +=1
-            if self.month==13:
-                self.month = 1
+                if self.month==13:
+                    self.month = 1
+                    self.year +=1
+            elif self.tavg=='yrly':
                 self.year +=1
-                if self.tavg=='yrly':
-                    length +=1
+                length +=1
+
+
         return length
 
     def __next__(self):
