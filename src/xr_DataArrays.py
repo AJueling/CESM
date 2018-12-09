@@ -2,7 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_ex_ice_rcp, file_ex_atm_lpd 
+from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl, file_ex_ice_rcp, file_ex_atm_lpd, file_ex_ocn_lpd
 from paths import path_samoc, path_results, file_geometry
 from constants import R_earth
 from read_binary import read_binary_2D_double
@@ -111,11 +111,11 @@ def xr_AREA(domain):
     output:
     AREA .. 2D xr DataArray [m^2]
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm', 'atm_low', 'ice']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'atm_low', 'ice']
     
     AREA, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
     
-    if domain in ['ocn', 'ice']:  # TAREA of cells are written out
+    if domain in ['ocn', 'ocn_low', 'ice']:  # TAREA of cells are written out
         AREA[:,:] = C.TAREA/1e4
         
     elif domain in ['atm', 'atm_low']:  # regular, rectangular grids
@@ -207,9 +207,9 @@ def depth_lat_lon_names(domain):
     output:
     ddl    .. tuple of strings of depth, lat, lon dimension names
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm', 'ice', 'atm_low']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'ice', 'atm_low']
     
-    if domain=='ocn':
+    if domain in ['ocn', 'ocn_low']:
         dll = ('z_t', 'nlat', 'nlon')
     elif domain=='ocn_rect':
         dll = ('depth_t', 't_lat', 't_lon')
@@ -238,13 +238,14 @@ def dll_from_arb_da(da):
 
 def example_file(domain):
     """ example of output file for a given domain """
-    assert domain in ['ocn', 'ocn_rect', 'atm', 'ice', 'atm_low']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'ice', 'atm_low']
 
     if   domain=='ocn':       file = file_ex_ocn_ctrl
+    elif domain=='ocn_low':   file = file_ex_ocn_lpd
     elif domain=='ocn_rect':  file = file_ex_ocn_rect
     elif domain=='atm':       file = file_ex_atm_ctrl
-    elif domain=='ice':       file = file_ex_ice_rcp
     elif domain=='atm_low':   file = file_ex_atm_lpd
+    elif domain=='ice':       file = file_ex_ice_rcp
     
     assert os.path.exists(file)==True
     

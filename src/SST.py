@@ -6,8 +6,10 @@ def SST_index(xa_SST, AREA, index_loc, AREA_index, MASK, dims=('nlat', 'nlon')):
     """ calculates the average SST over an area, possibly as a time series """
     assert type(xa_SST)==xr.core.dataarray.DataArray
     assert type(AREA)==xr.core.dataarray.DataArray
-    assert type(index_loc)==dict
-    index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
+    if type(index_loc)==dict:
+        index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
+    if index_loc==None:
+        index = (xa_SST*AREA).where(MASK).sum(dim=dims)/AREA_index
     return index
 
 

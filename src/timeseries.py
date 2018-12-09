@@ -36,20 +36,24 @@ class IterateOutputCESM:
         
         if run=='ctrl':   self.year  =  100
         elif run=='rcp':  self.year  = 2000
-        elif run=='lpd':  self.year  =  149
-        elif run=='lpi':  self.year  = 1600   
+        elif run=='lpd':  self.year  =  154
+        elif run=='lpi':  self.year  = 1600 # 1600 for ocn data 
             
     def file(self):
         if self.tavg=='monthly':
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
-            if self.run in ['ctrl', 'rcp']:
+            if self.domain=='ocn':
                 if self.name==None:
                     raise ValueError('must provide (variables part of) name for yrly file')
-                filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
-            elif self.run in ['lpd', 'lpi']:
-                filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=self.month, name=None)
-#                 print(filename, self.month)
+                else:
+                    filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
+            elif self.domain=='atm':
+                if self.run in ['ctrl', 'rcp']:
+                    filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
+                elif self.run in ['lpd', 'lpi']:  # yrly files are written out already
+                    if self.name!=None:  print("name is ignored, as yearly files existed already")
+                    filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=self.month, name=None)
         if os.path.exists(filename)==False:
             self.stop = True
         return filename
@@ -120,7 +124,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
     (takes approx. 4 sec for lower res atm data for one 2D and one 3D field)
     """
     assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
-    assert run in ['ctrl', 'rcp']
+    assert run in ['ctrl', 'rcp', 'lpd' ,'lpi']
     
     print(f'yearly averaging of {run} {domain}')
     for field in fields:  print(f'   {field}')

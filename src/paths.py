@@ -33,12 +33,14 @@ def CESM_filename(domain, run, y, m, name=None):
                 file = f'{path_ocn_rcp}/{rcpstr}.pop.h.{time}.nc'
         elif run=='lpd':
             if m==0:
-                print('yearly averaged not yet implemented')
+                file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
+#                 print('yearly averaged not yet implemented')
             else:
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
         elif run=='lpi':
             if m==0:
-                print('yearly averaged not yet implemented')
+                file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
+#                 print('yearly averaged not yet implemented')
             else:
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
                 
@@ -151,7 +153,8 @@ path_ohc_rene_rect = f'{path_rene}/OceanHeatContent/Global_0.4'
 # yearly files
 path_yrly_ctrl = f'{path_samoc}/ctrl'
 path_yrly_rcp  = f'{path_samoc}/rcp'
-
+path_yrly_lpd  = f'{path_samoc}/lpd'
+path_yrly_lpi  = f'{path_samoc}/lpi'
 
 # FILES
 
