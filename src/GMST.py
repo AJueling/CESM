@@ -26,29 +26,27 @@ def GMST_timeseries(run):
     """
     domain = 'atm'
     tavg   = 'yrly'
+    name   = 'T_T850_U_V'
     
-    if run in ['ctrl', 'rcp']:
-        AREA     = xr_AREA('atm')
-        name     = 'T_T850_U_V'
-        ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
-        first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
-        iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
-    elif run in ['lpd', 'lpi']:
-        AREA     = xr_AREA('atm_low')
-        ny       = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg))
-        first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg).year
-        iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg)
+    if run in ['ctrl', 'rcp']:   AREA = xr_AREA('atm')
+    elif run=='lpi':             AREA = xr_AREA('atm_f19')
+    elif run=='lpd':             AREA = xr_AREA('atm_f09')
 
-    years    = (np.arange(ny) + first_yr)*365  # this is consistent with CESM output
-        
     AREA_lat   = AREA.sum(dim='lon')
     AREA_total = AREA.sum(dim=('lat','lon'))
-    
+        
+        
+    if run in ['lpd']:  name = None
+
+    ny   = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
+    first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+    iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
+    years    = (np.arange(ny) + first_yr)*365  # this is consistent with CESM output
     
     for i, (y, m, file) in enumerate(iterator):
         print(y)
         assert os.path.exists(file)
-        if run in ['ctrl', 'rcp']:
+        if run in ['ctrl', 'rcp', 'lpi']:
             da = xr.open_dataset(file, decode_times=False)['T'][-1,:,:]
         elif run in ['lpd']:
             da = xr.open_dataset(file, decode_times=False)['T'][0,-1,:,:]

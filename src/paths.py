@@ -74,7 +74,8 @@ def CESM_filename(domain, run, y, m, name=None):
                 raise ValueError('monthly files are not available for lpd run!')
         elif run=='lpi':
             if m==0:
-                raise ValueError('yearly averaged not yet implemented')
+                file = f'{path_yrly_lpi}/atm_yrly_{name}_{y:04}.nc'
+#                 raise ValueError('yearly averaged not yet implemented')
             else:
                 file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
                 

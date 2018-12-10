@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
+import scipy.signal as signal
 
 from paths import path_ocn_ctrl, path_ocn_rcp
 from paths import path_atm_ctrl, path_atm_rcp
@@ -10,6 +11,7 @@ from paths import path_samoc, path_results
 from constants import abs_zero
 from xr_integrate import xr_surf_mean, xr_zonal_mean
 from xr_DataArrays import xr_AREA
+
 
 class IterateOutputCESM:
     """ iterator over all CESM ctrl/rcp filenames
@@ -37,7 +39,9 @@ class IterateOutputCESM:
         if run=='ctrl':   self.year  =  100
         elif run=='rcp':  self.year  = 2000
         elif run=='lpd':  self.year  =  154
-        elif run=='lpi':  self.year  = 1600 # 1600 for ocn data 
+        elif run=='lpi':  
+            if domain=='ocn': self.year  = 1600
+            if domain=='atm': self.year  = 2876
             
     def file(self):
         if self.tavg=='monthly':
@@ -49,9 +53,9 @@ class IterateOutputCESM:
                 else:
                     filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
             elif self.domain=='atm':
-                if self.run in ['ctrl', 'rcp']:
+                if self.run in ['ctrl', 'rcp', 'lpi']:
                     filename = CESM_filename(self.domain, self.run, self.year, self.month, self.name)
-                elif self.run in ['lpd', 'lpi']:  # yrly files are written out already
+                elif self.run in ['lpd']:  # yrly files are written out already
                     if self.name!=None:  print("name is ignored, as yearly files existed already")
                     filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=self.month, name=None)
         if os.path.exists(filename)==False:
@@ -191,3 +195,14 @@ def yrly_avg_nc(domain, run, fields, test=False):
     print('done!')
     
     return
+
+
+
+def lowpass(ts, period):
+    # First, design the Buterworth filter
+    N  = 2    # Filter order
+    Wn = 1/period#0.1#025 # Cutoff frequency
+    B, A = signal.butter(N, Wn, output='ba')
+
+    # Second, apply the filter
+    return signal.filtfilt(B, A, ts)

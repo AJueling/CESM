@@ -9,7 +9,7 @@ from paths import file_ex_ocn_rect
 ocn_file = example_file('ocn')
 
 # 'ocn' locations
-AMO_area      = {'nlat':slice(1081,1858), 'nlon':slice( 500,1100)}  # North Atlantic (0-60N, 0-80W)
+# AMO_area      = {'nlat':slice(1081,1858), 'nlon':slice( 500,1100)}  # North Atlantic (0-60N, 0-80W)
 Drake_Passage = {'nlat':slice( 268, 513), 'nlon':410             }
 DP_North      = {'nlat':512             , 'nlon':410             }
 global_ocean  = {'nlat':slice(   0,2400), 'nlon':slice(   0,3600)}  # global ocean
@@ -17,7 +17,7 @@ Nino12        = {'nlat':slice(1081,1181), 'nlon':slice( 200, 300)}  # Niño 1+2 
 Nino34        = {'nlat':slice(1131,1232), 'nlon':slice(3000,3500)}  # Niño 3.4 (5N-5S, 170W-120W)
 sinking_area  = {'nlat':slice( 283, 353), 'nlon':slice(1130,1210)}
 SOM_area      = {'nlat':slice( 603, 808), 'nlon':slice( 600,1100)}  # (50S-35S, 0E-50W)
-TexT_area     = {'nlat':slice( 427,1858)                         }  # tropic + extratropics (60S-60N)
+# TexT_area     = {'nlat':slice( 427,1858)                         }  # tropic + extratropics (60S-60N)
 WGKP_area     = {'nlat':slice(   0, 603), 'nlon':slice( 750,1900)}
 WG_center     = {'nlat':321             , 'nlon':877             }  # [64.9S,337.8E]
 
@@ -26,10 +26,10 @@ WG_center     = {'nlat':321             , 'nlon':877             }  # [64.9S,337
 gl_ocean_rect = {'t_lat': slice(-80, 90), 't_lon': slice(0,360)}
 
 # 'ocn_low' location
-AMO_area_low  = {'nlat':slice( 187, 353), 'nlon':slice( 284,35)}  # North Atlantic (0-60N, 0-80W)
+# AMO_area_low  = {'nlat':slice( 187, 353), 'nlon':slice( 284,35)}  # North Atlantic (0-60N, 0-80W)
 Nino12_low    = {'nlat':slice( 149, 187), 'nlon':slice( 275, 284)}  # Niño 1+2 (0-10S, 90W-80W)
 Nino34_low    = {'nlat':slice( 168, 205), 'nlon':slice( 204, 248)}  # Niño 3.4 (5N-5S, 170W-120W)
-TexT_area_low = {'nlat':slice(  36, 353)                         }  # tropic + extratropics (60S-60N)
+# TexT_area_low = {'nlat':slice(  36, 353)                         }  # tropic + extratropics (60S-60N)
 
 # 'atm' locations
 Uwind_eq_Pa   = {'lat':slice(-6,6), 'lon':slice(180,200)}
@@ -115,9 +115,21 @@ def NPacific_mask_rect():
     MASK2 = MASK2.where(2.1*MASK2.t_lat+MASK2.t_lon<300, 0)
     return MASK1+MASK2
 
-def NAtlantic_mask_low():
-    file = example_file('ocn_low')
+def AMO_mask(domain):
+    file = example_file(domain)
     TLAT = xr.open_dataset(file, decode_times=False).TLAT
-    MASK = boolean_mask('ocn_low', mask_nr=6)
-    MASK = np.where(TLAT>0, MASK, 0)
+    if domain=='ocn_low':
+        MASK = boolean_mask(domain, mask_nr=6)
+    elif domain=='ocn':
+        MASK = Atlantic_mask(domain)
+    MASK = np.where(TLAT> 0, MASK, 0)
+    MASK = np.where(TLAT<60, MASK, 0)
+    return MASK
+
+def TexT_mask(domain):
+    file = example_file(domain)
+    TLAT = xr.open_dataset(file, decode_times=False).TLAT
+    MASK = boolean_mask(domain, mask_nr=0)
+    MASK = np.where(TLAT>-60, MASK, 0)
+    MASK = np.where(TLAT< 60, MASK, 0)
     return MASK
