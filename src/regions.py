@@ -30,6 +30,7 @@ gl_ocean_rect = {'t_lat': slice(-80, 90), 't_lon': slice(0,360)}
 Nino12_low    = {'nlat':slice( 149, 187), 'nlon':slice( 275, 284)}  # Niño 1+2 (0-10S, 90W-80W)
 Nino34_low    = {'nlat':slice( 168, 205), 'nlon':slice( 204, 248)}  # Niño 3.4 (5N-5S, 170W-120W)
 # TexT_area_low = {'nlat':slice(  36, 353)                         }  # tropic + extratropics (60S-60N)
+SOM_area_low  = {'nlat':slice( 603, 808), 'nlon':slice( 600,1100)}  # 
 
 # 'atm' locations
 Uwind_eq_Pa   = {'lat':slice(-6,6), 'lon':slice(180,200)}
@@ -132,4 +133,15 @@ def TexT_mask(domain):
     MASK = boolean_mask(domain, mask_nr=0)
     MASK = np.where(TLAT>-60, MASK, 0)
     MASK = np.where(TLAT< 60, MASK, 0)
+    return MASK
+
+def SOM_mask(domain):
+#     (50S-35S, 0E-50W)
+    file  = example_file(domain)
+    TLAT  = xr.open_dataset(file, decode_times=False).TLAT
+    TLONG = xr.open_dataset(file, decode_times=False).TLONG
+    MASK = boolean_mask(domain, mask_nr=0)
+    MASK = np.where(TLAT >-50, MASK, 0)
+    MASK = np.where(TLAT <-35, MASK, 0)
+    MASK = np.where(TLONG>310, MASK, 0)
     return MASK
