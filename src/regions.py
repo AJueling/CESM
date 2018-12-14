@@ -136,7 +136,7 @@ def TexT_mask(domain):
     return MASK
 
 def SOM_mask(domain):
-#     (50S-35S, 0E-50W)
+    # (50S-35S, 0E-50W)
     file  = example_file(domain)
     TLAT  = xr.open_dataset(file, decode_times=False).TLAT
     TLONG = xr.open_dataset(file, decode_times=False).TLONG
@@ -144,4 +144,31 @@ def SOM_mask(domain):
     MASK = np.where(TLAT >-50, MASK, 0)
     MASK = np.where(TLAT <-35, MASK, 0)
     MASK = np.where(TLONG>310, MASK, 0)
+    return MASK
+
+
+def TPI_masks(domain, region_nr):
+
+    file  = example_file(domain)
+    TLAT  = xr.open_dataset(file, decode_times=False).TLAT
+    TLONG = xr.open_dataset(file, decode_times=False).TLONG
+    MASK = boolean_mask(domain, mask_nr=0)
+    if region_nr==1:
+        # (25N-45N, 140E-145W)
+        MASK = np.where(TLAT > 25, MASK, 0)
+        MASK = np.where(TLAT < 45, MASK, 0)
+        MASK = np.where(TLONG>140, MASK, 0)
+        MASK = np.where(TLONG>215, MASK, 0)
+    elif region_nr==2:
+        # (10S-10N, 170E-90W)
+        MASK = np.where(TLAT >-10, MASK, 0)
+        MASK = np.where(TLAT < 10, MASK, 0)
+        MASK = np.where(TLONG>170, MASK, 0)
+        MASK = np.where(TLONG>270, MASK, 0)
+    elif region_nr==3:
+        # (50S-15S, 150E-160W)
+        MASK = np.where(TLAT >-50, MASK, 0)
+        MASK = np.where(TLAT <-15, MASK, 0)
+        MASK = np.where(TLONG>150, MASK, 0)
+        MASK = np.where(TLONG>200, MASK, 0)
     return MASK

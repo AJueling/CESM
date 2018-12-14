@@ -13,7 +13,7 @@ def CESM_filename(domain, run, y, m, name=None):
     output:
     file     .. (str) filename
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
+    assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int)
     assert m>=0 and m<13
@@ -55,6 +55,18 @@ def CESM_filename(domain, run, y, m, name=None):
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
             else:
                 file = f'{path_ocn_rcp_rect}/{rcpstr}.pop.h.{time}.interp900x602.nc'
+                
+    elif domain=='ocn_low':
+        if run=='lpd':
+            if m==0:  # yearly files
+                file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
+            else:
+                file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
+        elif run=='lpi':
+            if m==0:
+                file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
+            else:
+                file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
     
     elif domain=='atm':
         if run=='ctrl':
@@ -170,6 +182,7 @@ file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
 file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y= 200, m=1)
+file_ex_atm_rcp  = CESM_filename(domain='atm', run='rcp' , y=2000, m=1)
 file_ex_atm_lpd  = CESM_filename(domain='atm', run='lpd' , y= 200, m=0)
 file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=3000, m=1)
 
