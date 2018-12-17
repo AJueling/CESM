@@ -201,10 +201,31 @@ def yrly_avg_nc(domain, run, fields, test=False):
 
 
 def lowpass(ts, period):
-    # First, design the Buterworth filter
-    N  = 2    # Filter order
-    Wn = 1/period#0.1#025 # Cutoff frequency
+    N  = 2         # Filter order
+    Wn = 1/period  # Cutoff frequency
     B, A = signal.butter(N, Wn, output='ba')
+    filtered = signal.filtfilt(B, A, ts, padlen=N-1, padtype='constant')
+    
+    if type(ts)==xr.core.dataarray.DataArray:
+        ts_new = ts.copy()
+        ts_new.values = filtered
+    else:
+        ts_new = filtered
+    
+    return ts_new
 
-    # Second, apply the filter
-    return signal.filtfilt(B, A, ts)
+
+
+def chebychev(ts, period):
+    N, rp = 6, 1  # N=6 was used in Henley et al. (2015), rp is low to minimize ripples
+    Wn = 1/period
+    B, A = signal.cheby1(N, rp, Wn)
+    filtered = signal.filtfilt(B, A, ts, padlen=N-1, padtype='constant')
+    
+    if type(ts)==xr.core.dataarray.DataArray:
+        ts_new = ts.copy()
+        ts_new.values = filtered
+    else:
+        ts_new = filtered
+    
+    return ts_new

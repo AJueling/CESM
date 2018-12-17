@@ -4,6 +4,9 @@ import xarray as xr
 import datetime
 
 from eofs.xarray import Eof
+
+from paths import path_samoc, path_results
+
 from timeseries import IterateOutputCESM
 from regions import boolean_mask, TPI_masks
 from xr_DataArrays import xr_AREA

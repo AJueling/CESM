@@ -112,7 +112,7 @@ def GMST_regression(run):
     domain = 'atm'
     tavg   = 'yrly'
     name   = 'T_T850_U_V'
-    first_year = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).time
+    first_year = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
     first_file = CESM_filename(domain=domain, run=run, y=first_year, m=0, name=name)
     
     da = xr.open_dataset(first_file, decode_times=False)[field][lev,:,:]
