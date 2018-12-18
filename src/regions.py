@@ -172,3 +172,11 @@ def TPI_masks(domain, region_nr):
         MASK = np.where(TLONG>150, MASK, 0)
         MASK = np.where(TLONG>200, MASK, 0)
     return MASK
+
+def SST_index_bounds(name):
+    if name=='TPI1':   boounds = (140,215, 25, 45)
+    elif name=='TPI2': boounds = (170,270,-10, 10)
+    elif name=='TPI3': boounds = (150,200,-50,-15)
+    elif name=='SOM':  boounds = (310,360,-50,-35)
+    elif name=='AMO':  boounds = (280,360,  0, 60)
+    return bounds

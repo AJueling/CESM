@@ -2,13 +2,23 @@
 
 import xarray as xr
 import numpy as np
+import scipy as sp
+import datetime
 
 # from numba import jit
-from constants import imt, jmt, km
 from paths import CESM_filename, file_ex_ocn_ctrl
+from regions import boolean_mask
+from constants import imt, jmt, km
 from timeseries import IterateOutputCESM
 
 # @jit(nopython=True)
+def xr_lintrend(x):
+    """ linear trend timeseries of a timeseries """
+    pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+    lf = pf[1]*x.time + pf[0]
+    return lf
+
+
 def xr_linear_trend(x):
     """ function to compute a linear trend of a timeseries """
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
@@ -37,7 +47,7 @@ def xr_linear_trends_2D(da, dim_names):
 
 
 
-def ocn_field_regression(xa):
+def ocn_field_regression(xa, run):
     """ calculates the trends of ocean fields
     
     input:
@@ -48,23 +58,32 @@ def ocn_field_regression(xa):
     
     (takes about 40 seconds)
     """
+    print(f'started at\n{datetime.datetime.now()}')
     
     assert type(xa)==xr.core.dataarray.DataArray
     assert len(xa.values.shape)==3
-    assert xa.values.shape[1:]==(jmt,imt)
+#     assert xa.values.shape[1:]==(jmt,imt)
     
-    MASK = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
+    if run in ['ctrl', 'rcp']:
+        MASK = boolean_mask('ocn'     , 0)
+    elif run in ['lpi', 'lpd']:
+        MASK = boolean_mask('ocn_low' , 0)
+    (jm, im) = MASK.shape
     xa   = xa.where(MASK>0).fillna(-9999)
     
-    xa_trend = xa[0,:,:].copy()
+    xa_slope  = xa[0,:,:].copy()
+    xa_interc = xa[0,:,:].copy()
     Nt = xa.values.shape[0]
-    A = xa.values.reshape((Nt, imt*jmt))
+    A = xa.values.reshape((Nt, im*jm))
     
-    xa_lin = np.polyfit(np.arange(0,Nt), A, 1)[0,:]  # selected only slope; [unit/year]
-    xa_trend.values = xa_lin.reshape((jmt,imt))
-    xa_trend = xa_trend.where(MASK>0)
+    xa_lin = np.polyfit(xa.time, A, 1)  
+    xa_slope.values = xa_lin[0,:].reshape((jm,im))  # slope; [xa unit/time]
+    xa_slope = xa_slope.where(MASK>0)
     
-    return xa_trend
+    xa_interc.values = xa_lin[1,:].reshape((jm,im))  # intercept; [xa unit]
+    xa_interc = xa_interc.where(MASK>0)
+    
+    return xa_slope, xa_interc
 
 
 
@@ -197,8 +216,8 @@ def lag_linregress_3D(x, y, lagx=0, lagy=0):
     tstats = cor*np.sqrt(n-2)/np.sqrt(1-cor**2)
     stderr = slope/tstats
     
-    from scipy.stats import t
-    pval   = t.sf(tstats, n-2)*2
+#     from scipy.stats import t
+    pval   = sp.stats.t.sf(tstats, n-2)*2
     pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
 
     cov.name       = 'cov'
