@@ -1,0 +1,13 @@
+climate indices
+
+- NOAA overview:
+    https://www.esrl.noaa.gov/psd/data/climateindices/list/#PDO
+
+
+SAT observational datasets:
+
+- GISTEMP:
+    https://data.giss.nasa.gov/gistemp/
+
+- HadCRUT4 data
+    http://hadobs.metoffice.com/hadcrut4/index.html
