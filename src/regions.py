@@ -174,9 +174,9 @@ def TPI_masks(domain, region_nr):
     return MASK
 
 def SST_index_bounds(name):
-    if name=='TPI1':   boounds = (140,215, 25, 45)
-    elif name=='TPI2': boounds = (170,270,-10, 10)
-    elif name=='TPI3': boounds = (150,200,-50,-15)
-    elif name=='SOM':  boounds = (310,360,-50,-35)
-    elif name=='AMO':  boounds = (280,360,  0, 60)
+    if name=='TPI1':   bounds = (140,215, 25, 45)
+    elif name=='TPI2': bounds = (170,270,-10, 10)
+    elif name=='TPI3': bounds = (150,200,-50,-15)
+    elif name=='SOM':  bounds = (310,360,-50,-35)
+    elif name=='AMO':  bounds = (280,360,  0, 60)
     return bounds
