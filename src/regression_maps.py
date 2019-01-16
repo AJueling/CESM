@@ -55,14 +55,10 @@ def SST_regr_standard(index):
         index_filt_detr_lpi  = chebychev(TPI_lpi , 13) - xr_lintrend(chebychev(TPI_lpi ,13))
 
     elif index=='SOM':
-        SOM_ctrl = xr.open_dataarray(f'{path_results}/SST/SOM_index_ctrl.nc', decode_times=False)
-        SOM_rcp  = xr.open_dataarray(f'{path_results}/SST/SOM_index_rcp.nc' , decode_times=False)
-        SOM_lpd  = xr.open_dataarray(f'{path_results}/SST/SOM_index_lpd.nc' , decode_times=False)
-        SOM_lpi  = xr.open_dataarray(f'{path_results}/SST/SOM_index_lpi.nc' , decode_times=False)
-        index_filt_detr_ctrl = chebychev(SOM_ctrl, 13) - xr_lintrend(chebychev(SOM_ctrl,13))
-        index_filt_detr_rcp  = chebychev(SOM_rcp , 13) - xr_lintrend(chebychev(SOM_rcp ,13))
-        index_filt_detr_lpd  = chebychev(SOM_lpd , 13) - xr_lintrend(chebychev(SOM_lpd ,13))
-        index_filt_detr_lpi  = chebychev(SOM_lpi , 13) - xr_lintrend(chebychev(SOM_lpi ,13))
+        index_filt_detr_ctrl = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_ctrl.nc', decode_times=False)
+        index_filt_detr_rcp  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_rcp.nc' , decode_times=False)
+        index_filt_detr_lpd  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)
+        index_filt_detr_lpi  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpi.nc' , decode_times=False)
         
     ds_ctrl = lag_linregress_3D(index_filt_detr_ctrl, SST_yrly_detr_ctrl)
     ds_rcp  = lag_linregress_3D(index_filt_detr_rcp , SST_yrly_detr_rcp )
@@ -99,13 +95,9 @@ def SST_regr_lpd(index):
         index_filt_detr_lpd_412    = chebychev(TPI_lpd_412  , 13) - xr_lintrend(chebychev(TPI_lpd_412  , 13))
         
     elif index=='SOM':
-        SOM_lpd_200_1  = xr.open_dataarray(f'{path_results}/SST/SOM_index_lpd.nc' , decode_times=False)[:200] 
-        SOM_lpd_200_2  = xr.open_dataarray(f'{path_results}/SST/SOM_index_lpd.nc' , decode_times=False)[-200:]
-        SOM_lpd_412    = xr.open_dataarray(f'{path_results}/SST/SOM_index_lpd.nc' , decode_times=False)[:]    
-        index_filt_detr_lpd_200_1  = chebychev(SOM_lpd_200_1, 13) - xr_lintrend(chebychev(SOM_lpd_200_1, 13))
-        index_filt_detr_lpd_200_2  = chebychev(SOM_lpd_200_2, 13) - xr_lintrend(chebychev(SOM_lpd_200_2, 13))
-        index_filt_detr_lpd_412    = chebychev(SOM_lpd_412  , 13) - xr_lintrend(chebychev(SOM_lpd_412  , 13))
-        
+        index_filt_detr_lpd_200_1  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)[:200] 
+        index_filt_detr_lpd_200_2  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)[-200:]
+        index_filt_detr_lpd_412    = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)[:]    
         
     ds_lpd_200_1  = lag_linregress_3D(index_filt_detr_lpd_200_1, SST_yrly_detr_lpd[:200] )
     ds_lpd_200_2  = lag_linregress_3D(index_filt_detr_lpd_200_2, SST_yrly_detr_lpd[-200:])
@@ -138,12 +130,9 @@ def SST_regr_lpi(index):
         index_filt_detr_lpi_1480   = chebychev(TPI_lpi_1480 , 13) - xr_lintrend(chebychev(TPI_lpi_1480 , 13))
     
     elif index=='SOM':
-        SOM_lpi_800_1  = xr.open_dataarray(f'{path_results}/SST/SOM_lpi.nc' , decode_times=False)[:800] 
-        SOM_lpi_800_2  = xr.open_dataarray(f'{path_results}/SST/SOM_lpi.nc' , decode_times=False)[-800:]
-        SOM_lpi_1480   = xr.open_dataarray(f'{path_results}/SST/SOM_lpi.nc' , decode_times=False)[:]    
-        index_filt_detr_lpi_800_1  = chebychev(SOM_lpi_800_1, 13) - xr_lintrend(chebychev(SOM_lpi_800_1, 13))
-        index_filt_detr_lpi_800_2  = chebychev(SOM_lpi_800_2, 13) - xr_lintrend(chebychev(SOM_lpi_800_2, 13))
-        index_filt_detr_lpi_1480   = chebychev(SOM_lpi_1480 , 13) - xr_lintrend(chebychev(SOM_lpi_1480 , 13))
+        index_filt_detr_lpi_800_1 = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_lpi.nc' , decode_times=False)[:800] 
+        index_filt_detr_lpi_800_2 = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_lpi.nc' , decode_times=False)[-800:]
+        index_filt_detr_lpi_1480  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_lpi.nc' , decode_times=False)[:]
         
     ds_lpi_800_1  = lag_linregress_3D(index_filt_detr_lpi_800_1, SST_yrly_detr_lpi[:800] )
     ds_lpi_800_2  = lag_linregress_3D(index_filt_detr_lpi_800_2, SST_yrly_detr_lpi[-800:])
