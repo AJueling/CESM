@@ -26,9 +26,11 @@ from xr_regression import xr_lintrend, lag_linregress_3D
 
 
 def SST_regr_standard(index):
+    """ SST regression for a given SST index
+    uses 100 years of RCP run, (last) 200 years of CTRL, LPD, LPI runs
     """
-    selects last 200 years of data if there are more than 200 years
-    """
+    assert index in ['AMO', 'TPI', 'SOM']
+    
     SST_yrly_detr_ctrl = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_ctrl.nc', decode_times=False)
     SST_yrly_detr_rcp  = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_rcp.nc' , decode_times=False)
     SST_yrly_detr_lpd  = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_lpd.nc' , decode_times=False)[-200:,:,:]
@@ -69,12 +71,13 @@ def SST_regr_standard(index):
     ds_rcp .to_netcdf(f'{path_results}/SST/{index}_regr_rcp.nc' )
     ds_lpd .to_netcdf(f'{path_results}/SST/{index}_regr_lpd.nc' )
     ds_lpi .to_netcdf(f'{path_results}/SST/{index}_regr_lpi.nc' )
+    
     return
 
 
 def SST_regr_lpd(index):
     """
-    selects last 200 years of data if there are more than 200 years
+    as SST_regr_standard but then for first and last 200 years, as well as full 412 years of LPD run
     """
     SST_yrly_detr_lpd  = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_lpd.nc' , decode_times=False)
     
@@ -110,6 +113,7 @@ def SST_regr_lpd(index):
     
 def SST_regr_lpi(index):
     """
+    as SST_regr_standard, but then for first and last 800 years, as well as full 1480 years of LPI data
     """
     SST_yrly_detr_lpi  = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_lpi.nc' , decode_times=False)
     

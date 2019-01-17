@@ -28,12 +28,18 @@ def xr_int_vertical(da, DZ):
 
 def xr_int_zonal(da, HTN, LATS, AREA, DZ):
     """ integral along depth and zonal coordinates *[m^2] rectangular grid"""
+    shape = np.shape(da)
+    assert shape[-2:]==np.shape(HTN)[-2:]
+    assert shape[-2:]==np.shape(DZ)[-2:]
     (z, lat, lon) = dll_from_arb_da(da)
     
-    if z=='depth_t':  # rectangular grid
+    if shape[-1] in [900, 320]:  # rectangular `ocn_low` or `ocn_rect` grid
+        print(np.shape(da))
+        print(np.shape(HTN))
+        print(np.shape(DZ))
         int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
         
-    elif z=='z_t':   # tripolar grid
+    elif shape[-1]==3600:        # tripolar grid
         int_vert  = xr_int_vertical(da, DZ)  # 2D
         int_zonal = xr_zonal_int_bins(int_vert, LATS, AREA)
 
@@ -44,24 +50,28 @@ def xr_int_zonal(da, HTN, LATS, AREA, DZ):
 def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
     """ zonal integrals for each level *[m] rectangular grid"""
     (z, lat, lon) = dll_from_arb_da(da)
+    shape = np.shape(da)
+    assert shape[-2:]==np.shape(HTN)[-2:]
+    assert shape[-2:]==np.shape(DZ)[-2:]
     
-    if z=='depth_t':  # rectangular grid
+    if shape[-1] in [900, 320]:  # rectangular grid
         int_zonal_level = (da*HTN).sum(dim=[lon])  # 2D (z, lat)
         
-    elif z=='z_t':   # tripolar grid
+    elif shape[-1]==3600:        # tripolar grid
         lat_bins, lat_centers, lat_width = lat_binning(dx)
         km = len(da[z])
         dz = DZ.max(dim=(lon,lat))
 
         # construct new xr DataArray
-        array = np.zeros((km,len(lat_centers)))
+        array = np.zeros((len(da.coords['time']), km, len(lat_centers)))
         lat_bin_name = f'TLAT_bins'
-        coords = {z: da.coords[z], lat_bin_name: lat_centers}
-        int_zonal_level = xr.DataArray(data=array, coords=coords, dims=(z, lat_bin_name))
+        coords = {'time': da.coords['time'], z: da.coords[z], lat_bin_name: lat_centers}
+        int_zonal_level = xr.DataArray(data=array, coords=coords, dims=('time', z, lat_bin_name))
 
         for k in range(km):
-            da_k = da[k,:,:]*DZ[k,:,:]
-            int_zonal_level[k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
+            da_k = (da[:,k,:,:]*DZ[k,:,:]).drop('z_t')
+            print(k, da_k.coords, dz.coords)
+            int_zonal_level[:,k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
         
     return int_zonal_level
 
@@ -86,8 +96,7 @@ def xr_zonal_int_bins(da, LATS, AREA, dx=1):
     
     assert type(da)==xr.core.dataarray.DataArray
     assert type(AREA)==xr.core.dataarray.DataArray
-    assert len(np.shape(da))==2
-    assert np.shape(da)==np.shape(AREA)
+    assert np.shape(da)[-2:]==np.shape(AREA)
     
     (z, lat, lon) = dll_from_arb_da(da)
     

@@ -1,6 +1,10 @@
 import os
+import sys
 import numpy as np
 import xarray as xr
+import datetime
+
+from dask.distributed import Client, LocalCluster
 
 from grid import create_dz_mean
 from paths import path_samoc
@@ -13,56 +17,61 @@ from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_from_arb_da
 from xr_regression import xr_linear_trend
 
 
-def OHC_integrals(domain, run, mask_nr=0):
+def OHC_integrals(run, mask_nr=0):
     """ Ocean Heat Content integration function
     uses either:
     'ocn':      high res. tripolar gridded yrly averaged TEMP/PD fields
     'ocn_rect': low res. yrly averaged ocn_rect TEMP/PD fields
     
     input:
-    domain .. (str)
-    run    .. (str) 
+    run     .. (str)
+    mask_nr .. (int)
     
     output:
-    ds_new .. xr Dataset
+    ds_new  .. xr Dataset
     
     (ocn:      takes about 45 seconds per year: 70 yrs approx 55 mins)
     (ocn_rect: takes about  3 seconds per year: 70 yrs approx 3 mins)
     """
-    assert domain in ['ocn', 'ocn_rect']
-    assert run in ['ctrl', 'rcp']
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     assert type(mask_nr)==int
+    assert mask_nr>=0 and mask_nr<13
     
-    MASK = boolean_mask(domain, mask_nr)
-    DZT  = xr_DZ(domain)
+    if run in ['ctrl', 'rcp']:
+        domain = 'ocn'
+    elif run in ['lpd', 'lpi']:
+        domain = 'ocn_low'
+    
+    # geometry
+    DZT  = xr_DZ(domain)  
     AREA = xr_AREA(domain)
-    HTN  = xr_HTN(domain)
+    HTN  = xr_HTN(domain) 
     LATS = xr_LATS(domain)
     
+    round_tlatlon(HTN)
+    round_tlatlon(LATS)
+    
+    MASK = boolean_mask(domain, mask_nr)
     for k in range(42):
         DZT[k,:,:]  = DZT[k,:,:].where(MASK)
     AREA = AREA.where(MASK)
     HTN  = HTN.where(MASK)
     LATS = LATS.where(MASK)
-    
-    HTN['TLAT']   = HTN['TLAT'].round(decimals=2)
-    HTN['TLONG']  = HTN['TLONG'].round(decimals=2)
-    LATS['TLAT']  = LATS['TLAT'].round(decimals=2)
-    LATS['TLONG'] = LATS['TLONG'].round(decimals=2)
+    print(f'{datetime.datetime.now()}  done with geometry')
+
     
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
         file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
 
-        if os.path.exists(file_out):
+#         if os.path.exists(file_out):
             # should check here if all the fields exist
-            continue
+#             continue
         
-        print(y, file)
+        print(f'{datetime.datetime.now()} {y}, {file}')
         
         t   = y*365  # time in days since year 0, for consistency with CESM date output
         ds  = xr.open_dataset(file, decode_times=False).drop(['ULONG', 'ULAT'])
-        ds['TLAT'] = ds['TLAT'].round(decimals=2)
-        ds['TLONG'] = ds['TLONG'].round(decimals=2)
+        round_tlatlon(ds)
         
         if ds.PD[0,1000,1000].round(decimals=0)==0:
             ds['PD'] = ds['PD']+rho_sw
@@ -75,7 +84,9 @@ def OHC_integrals(domain, run, mask_nr=0):
         OHC = OHC.where(MASK)
         
         OHC_DZT = OHC*DZT
+        print(f'{datetime.datetime.now()} {y} calculated OHC')
 
+        
         # xr DataArrays
         da_g  = xr_int_global(da=OHC, AREA=AREA, DZ=DZT)
         da_gl = xr_int_global_level(da=OHC, AREA=AREA, DZ=DZT)
@@ -96,27 +107,34 @@ def OHC_integrals(domain, run, mask_nr=0):
         ds_z  = t2ds(da_z , 'OHC_zonal'              , t)
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels'       , t)
         
-        
-        print(f'output: {file_out}')
+        print(f'output: {file_out}\n')
         
         ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
         ds_new.to_netcdf(path=file_out, mode='w')
         ds_new.close()
         
-#         if y==2002 or y==102: break  # for testing only
+        if y in [2002, 102, 156, 1602]: break  # for testing only
     
     # combining yearly files
     file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
 #    if os.path.isfile(file_out):  os.remove(file_out)
     combined = xr.open_mfdataset(f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_*.nc',
                                  concat_dim='time',
-                                 autoclose=True,
+#                                  autoclose=True,
                                  coords='minimal')
     combined.to_netcdf(f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc')
     
     return
 
 
+def round_tlatlon(das):
+    """ rounds TLAT and TLONG to 2 decimals
+    some files' coordinates differ in their last digit
+    rounding them avoids problems in concatonating
+    """
+    das['TLAT']   = das['TLAT'].round(decimals=2)
+    das['TLONG']  = das['TLONG'].round(decimals=2)
+    return das
 
 def t2da(da, t):
     """adds time dimension to xr DataArray, then sets time value to t"""
@@ -197,3 +215,22 @@ def OHC_vert_diff_mean_rm(ds, run):
         OHC_vert_diff_rm  .to_netcdf(f'{path_samoc}/OHC/OHC_vert{suffix}_diff_rm_{run}.nc'  )
 
     return
+
+
+if __name__=="__main__":
+    run     = sys.argv[1]
+    mask_nr = int(sys.argv[2])
+
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
+    assert mask_nr>=0 and mask_nr<13
+
+    print(f'\nrunning OHC_integrals run={run} region={mask_nr}')
+    print(f'{datetime.datetime.now()}\n')
+    
+#     cluster = LocalCluster(n_workers=4)
+#     client = Client(cluster)
+#     client
+    
+    OHC_integrals(run=run, mask_nr=mask_nr)
+    
+    print(f'\n\nfinished at\n{datetime.datetime.now()}')

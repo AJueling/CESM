@@ -71,16 +71,7 @@ class IterateOutputCESM:
         length = 0
         year   = self.year
         month  = self.month
-            
         while os.path.exists(self.file()):
-#             self.month += 1
-#             if self.tavg=='monthly':
-#                 length +=1
-#             if self.month==13:
-#                 self.month = 1
-#                 self.year +=1
-#                 if self.tavg=='yrly':
-#                     length +=1
             if self.tavg=='monthly':
                 self.month += 1
                 length +=1
@@ -90,8 +81,6 @@ class IterateOutputCESM:
             elif self.tavg=='yrly':
                 self.year +=1
                 length +=1
-
-
         return length
 
     def __next__(self):
@@ -108,10 +97,18 @@ class IterateOutputCESM:
                 else:
                     self.month += 1
                 return y, m, new_file
-            
             elif self.tavg=='yrly':
                 self.year += 1
                 return y, 0, new_file
+            
+
+
+def ncfile_list(domain, run, tavg, name=None):
+    list_files = []
+    for (y,m,s) in IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name):
+        assert os.path.exists(s)
+        list_files.append(s)
+    return list_files
 
 
 
@@ -120,7 +117,7 @@ def yrly_avg_nc(domain, run, fields, test=False):
     
     input:
     domain .. (str) 'ocn' or 'atm'
-    run    .. (str) 'ctrl' or 'rcp'
+    run    .. (str) 'ctrl', 'rcp', 'lpd' ,'lpi'
     fields .. list of field names
     
     output:

@@ -63,7 +63,7 @@ def xr_DZ(domain, grid='T'):
     output:
     DZT    .. 3D xr DataArray object with depths in [m]
     """
-    assert domain in ['ocn', 'ocn_rect']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect']
     
     if grid=='U':  file_path = f'{path_samoc}/geometry/DZU_{domain}.nc'
     else:          file_path = f'{path_samoc}/geometry/DZT_{domain}.nc'
@@ -72,13 +72,9 @@ def xr_DZ(domain, grid='T'):
         DZ = xr.open_dataarray(file_path)
         
     else:
-
         DZ, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=3, fill=0)
-
-        if grid=='U': DZU = DZ.copy()
             
         if domain=='ocn':  # partial bottom cells
-            # read pbc depths
             PBC = read_binary_2D_double(file_geometry, 3600, 2400, 1)  # [lon, lat]
             
             if grid=='U':
@@ -89,12 +85,14 @@ def xr_DZ(domain, grid='T'):
                 for k in range(km):
                     DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
                     DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
-               
-                
                                 
+        elif domain=='ocn_low':
+            for k in range(km):
+                DZ[k,:,:] = np.where(C.PD[0,k,:,:]>0, (C.z_w_bot[k]-C.z_w_top[k])/1e2, 0)
+            
         elif domain=='ocn_rect':
             for k in range(km):
-                DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.depth_t[k], DZ[k,:,:])
+                DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.w_dep[k+1]-C.w_dep[k], DZ[k,:,:])
         
         DZ.to_netcdf(file_path)
         
@@ -157,18 +155,18 @@ def xr_HTN(domain):
     returns
     HTN .. 2D xr DataArray
     """
-    assert domain in ['ocn', 'ocn_rect', 'atm'] 
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm'] 
     
     (z, lat, lon) = depth_lat_lon_names(domain)
+    HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
     
-    if domain=='ocn':
+    if domain in ['ocn', 'ocn_low']:
         # this is not exactly the zonal length of the T-cell at its center
         # however, the error introduced is smaller than 1%
         # also it is not directed zonally in the Northern NH due to hte tripolar grid
-        HTN = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).HTN
+        HTN = C.HTN
         
     elif domain=='ocn_rect':
-        HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
         n_lat, n_lon = len(HTN.lat), len(HTN.lon)
         for j in range(n_lat):
             HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
@@ -182,13 +180,13 @@ def xr_LATS(domain):
     returns
     LATS .. 2D xr DataArray
     """
-    assert domain in ['ocn']#, 'ocn_rect', 'atm'] 
+    assert domain in ['ocn', 'ocn_low']#, 'ocn_rect', 'atm'] 
     
     (z, lat, lon) = depth_lat_lon_names(domain)
     
-    if domain=='ocn':
+    if domain in ['ocn', 'ocn_low']:
         LATS = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).TLAT
-        
+
 #     elif domain=='ocn_rect':
 #         HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
 #         n_lat, n_lon = len(HTN.lat), len(HTN.lon)
@@ -225,14 +223,15 @@ def depth_lat_lon_names(domain):
 def dll_from_arb_da(da):
     """ finds dimension names from arbitrary xr DataArray via its size"""
     assert type(da)==xr.core.dataarray.DataArray
-    shape = np.shape(da)
-    assert shape in [(42,2400,3600), (2400,3600), (42,602,900), (602,900)]
+    shape = np.shape(da)[-1]
+    assert shape in [3600, 900, 320]
     
-    if shape in [(42,2400,3600), (2400,3600)]:
+    if shape==3600:
         dll = depth_lat_lon_names('ocn')
-    elif shape in [(42,602,900), (602,900)]:
+    elif shape==900:
         dll = depth_lat_lon_names('ocn_rect')
-        
+    elif shape==320:
+        dll = depth_lat_lon_names('ocn_low')
     return dll
 
 
