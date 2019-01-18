@@ -19,8 +19,15 @@ def xr_lintrend(x):
     return lf
 
 
+def xr_quadtrend(x):
+    """ quadratic trend timeseries of a timeseries """
+    pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
+    lf = pf[2]*x.time**2 + pf[1]*x.time + pf[0]
+    return lf
+
+
 def xr_linear_trend(x):
-    """ function to compute a linear trend of a timeseries """
+    """ function to compute a linear trend coeficient of a timeseries """
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
     return xr.DataArray(pf[1])
 
@@ -231,5 +238,3 @@ def lag_linregress_3D(x, y, lagx=0, lagy=0):
     ds.attrs['lagy'] = lagy
     
     return ds
-
-

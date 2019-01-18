@@ -34,9 +34,9 @@ def xr_int_zonal(da, HTN, LATS, AREA, DZ):
     (z, lat, lon) = dll_from_arb_da(da)
     
     if shape[-1] in [900, 320]:  # rectangular `ocn_low` or `ocn_rect` grid
-        print(np.shape(da))
-        print(np.shape(HTN))
-        print(np.shape(DZ))
+#         print(np.shape(da))
+#         print(np.shape(HTN))
+#         print(np.shape(DZ))
         int_zonal = (da*HTN*DZ).sum(dim=[z, lon])  # 1D (lat)
         
     elif shape[-1]==3600:        # tripolar grid
@@ -70,7 +70,7 @@ def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
 
         for k in range(km):
             da_k = (da[:,k,:,:]*DZ[k,:,:]).drop('z_t')
-            print(k, da_k.coords, dz.coords)
+#             print(k, da_k.coords, dz.coords)
             int_zonal_level[:,k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
         
     return int_zonal_level

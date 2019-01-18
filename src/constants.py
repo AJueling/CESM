@@ -6,7 +6,7 @@ imt, jmt, km = 3600, 2400, 42     # POP high resolution grid dimensions
 """ physical constants (SI units) """
 
 g                 = 9.81          # [m s^-2]         gravitional constant
-rho_sw            = 1.026         # [g cm^-3]        reference density of sea water
+rho_sw            = 1026.         # [kg m^-3]        reference density of sea water
 cp_sw             = 3996.         # [J kg^-1 K^-1]   heat capacity of sea water
 cp_air            = 1005.         # [J kg^-1 K^-1]   heat capacity of dry air at constant pressure
                                   #                  (approx. constant for atm. pressure range)

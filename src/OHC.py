@@ -10,11 +10,12 @@ from grid import create_dz_mean
 from paths import path_samoc
 from regions import boolean_mask, regions_dict
 from constants import cp_sw, rho_sw, km
-from timeseries import IterateOutputCESM
+from timeseries import IterateOutputCESM, ncfile_list
 from xr_integrate import xr_int_global, xr_int_global_level, xr_int_vertical,\
                          xr_int_zonal, xr_int_zonal_level
 from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_from_arb_da
 from xr_regression import xr_linear_trend
+
 
 
 def OHC_integrals(run, mask_nr=0):
@@ -33,6 +34,7 @@ def OHC_integrals(run, mask_nr=0):
     (ocn:      takes about 45 seconds per year: 70 yrs approx 55 mins)
     (ocn_rect: takes about  3 seconds per year: 70 yrs approx 3 mins)
     """
+    print(f'\n{datetime.datetime.now()}  start OHC calculation: run={run} mask_nr={mask_nr}')
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     assert type(mask_nr)==int
     assert mask_nr>=0 and mask_nr<13
@@ -63,9 +65,10 @@ def OHC_integrals(run, mask_nr=0):
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
         file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
 
-#         if os.path.exists(file_out):
-            # should check here if all the fields exist
-#             continue
+        if os.path.exists(file_out):
+#             should check here if all the fields exist
+            print(f'{datetime.datetime.now()} {y} skipped as files exists already')
+            continue
         
         print(f'{datetime.datetime.now()} {y}, {file}')
         
@@ -74,17 +77,17 @@ def OHC_integrals(run, mask_nr=0):
         round_tlatlon(ds)
         
         if ds.PD[0,1000,1000].round(decimals=0)==0:
-            ds['PD'] = ds['PD']+rho_sw
+            ds['PD'] = ds['PD']*1000 + rho_sw
         elif ds.PD[0,1000,1000].round(decimals=0)==1:
-            pass
-        else: 'density is neither close to 0 or 1'
+            ds['PD'] = ds['PD']*1000
+        else: 'density [g/cm^3] is neither close to 0 or 1'
             
         
-        OHC = ds.TEMP*ds.PD*cp_sw*1000  # [g/cm^3] to [kg/m^3]
+        OHC = ds.TEMP*ds.PD*cp_sw
         OHC = OHC.where(MASK)
         
         OHC_DZT = OHC*DZT
-        print(f'{datetime.datetime.now()} {y} calculated OHC')
+        print(f'{datetime.datetime.now()} {y} calculated OHC & OHC_DZT')
 
         
         # xr DataArrays
@@ -106,6 +109,7 @@ def OHC_integrals(run, mask_nr=0):
         ds_vb = t2ds(da_vb, 'OHC_vertical_below_100m', t)
         ds_z  = t2ds(da_z , 'OHC_zonal'              , t)
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels'       , t)
+        print(f'{datetime.datetime.now()}  done dataset')
         
         print(f'output: {file_out}\n')
         
@@ -123,8 +127,85 @@ def OHC_integrals(run, mask_nr=0):
 #                                  autoclose=True,
                                  coords='minimal')
     combined.to_netcdf(f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc')
-    
+    print(f'{datetime.datetime.now()}  done\n')
     return
+
+
+def OHC_parallel(run, mask_nr=0):
+    """ ocean heat content calculation """
+    print('***************************************************')
+    print('* should be run with a dask scheduler             *')
+    print('`from dask.distributed import Client, LocalCluster`')
+    print('`cluster = LocalCluster(n_workers=2)`')
+    print('`client = Client(cluster)`')
+    print('***************************************************')
+    
+    
+    print(f'\n{datetime.datetime.now()}  start OHC calculation: run={run} mask_nr={mask_nr}')
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
+    assert type(mask_nr)==int
+    assert mask_nr>=0 and mask_nr<13
+    
+#     file_out = f'{path_samoc}/OHC/OHC_test.nc'
+    file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'
+    
+    if run in ['ctrl', 'rcp']:
+        domain = 'ocn'
+    elif run in ['lpd', 'lpi']:
+        domain = 'ocn_low'
+        
+    MASK = boolean_mask(domain, mask_nr)
+        
+    # geometry
+    DZT  = xr_DZ(domain)
+    AREA = xr_AREA(domain)
+    HTN  = xr_HTN(domain) 
+    LATS = xr_LATS(domain)
+    print(f'{datetime.datetime.now()}  done with geometry')
+    
+    # multi-file 
+    file_list = ncfile_list(domain='ocn', run=run, tavg='yrly', name='TEMP_PD')
+    OHC = xr.open_mfdataset(paths=file_list,
+                            concat_dim='time',
+                            decode_times=False,
+                            compat='minimal',
+                            parallel=True).drop(['ULAT','ULONG']).TEMP*cp_sw*rho_sw
+    if mask_nr!=0:
+        OHC = OHC.where(MASK)
+    print(f'{datetime.datetime.now()}  done loading data')
+    
+    for ds in [OHC, HTN, LATS]:  round_tlatlon(ds)
+    OHC_DZT = OHC*DZT
+    print(f'{datetime.datetime.now()}  done OHC_DZT')
+
+    # xr DataArrays
+    da_g  = xr_int_global(da=OHC, AREA=AREA, DZ=DZT)
+    da_gl = xr_int_global_level(da=OHC, AREA=AREA, DZ=DZT)
+    da_v  = OHC_DZT.sum(dim='z_t') #xr_int_vertical(da=OHC, DZ=DZT)
+    da_va = OHC_DZT.isel(z_t=slice(0, 9)).sum(dim='z_t')  # above 100 m
+    da_vb = OHC_DZT.isel(z_t=slice(9,42)).sum(dim='z_t')  # below 100 m
+    da_z  = xr_int_zonal(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+    da_zl = xr_int_zonal_level(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+    print(f'{datetime.datetime.now()}  done calculations')
+
+    # xr Datasets
+    ds_g  = da_g .to_dataset(name='OHC_global'             )
+    ds_gl = da_gl.to_dataset(name='OHC_global_levels'      )
+    ds_v  = da_v .to_dataset(name='OHC_vertical'           )
+    ds_va = da_va.to_dataset(name='OHC_vertical_above_100m')
+    ds_vb = da_vb.to_dataset(name='OHC_vertical_below_100m')
+    ds_z  = da_z .to_dataset(name='OHC_zonal'              )
+    ds_zl = da_zl.to_dataset(name='OHC_zonal_levels'       )
+    print(f'{datetime.datetime.now()}  done dataset')
+
+    print(f'output: {file_out}')
+
+    ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl, ds_v, ds_va, ds_vb])
+    ds_new.to_netcdf(path=file_out, mode='w')
+#     ds_new.close()
+    print(f'{datetime.datetime.now()}  done\n')
+    
+    return ds_new
 
 
 def round_tlatlon(das):
@@ -223,14 +304,14 @@ if __name__=="__main__":
 
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     assert mask_nr>=0 and mask_nr<13
-
-    print(f'\nrunning OHC_integrals run={run} region={mask_nr}')
-    print(f'{datetime.datetime.now()}\n')
+  
+    if run in ['lpd', 'lpi']:     # low res
     
-#     cluster = LocalCluster(n_workers=4)
-#     client = Client(cluster)
-#     client
-    
-    OHC_integrals(run=run, mask_nr=mask_nr)
+        cluster = LocalCluster(n_workers=4)
+        client = Client(cluster)
+        OHC_parallel(run=run, mask_nr=mask_nr)
+        
+    elif run in ['ctrl', 'rcp']:  # high res
+        OHC_integrals(run=run, mask_nr=mask_nr)
     
     print(f'\n\nfinished at\n{datetime.datetime.now()}')
