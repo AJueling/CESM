@@ -1,5 +1,14 @@
 TO DO LIST
 ---
+---
+
+__21.01.__: OHC calculations and analysis; Mosaic application
+
+__22.01.__: TPI timeseries and OHC/index relationsships
+
+__23.01.__: pattern correlations and analysis
+
+
 
 __16.01.2018__
 

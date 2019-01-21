@@ -31,7 +31,8 @@ def OHC_integrals(run, mask_nr=0):
     output:
     ds_new  .. xr Dataset
     
-    (ocn:      takes about 45 seconds per year: 70 yrs approx 55 mins)
+    # (ocn:      takes about 45 seconds per year: 70 yrs approx 55 mins)
+    (ocn:      takes about 14 min per year)
     (ocn_rect: takes about  3 seconds per year: 70 yrs approx 3 mins)
     """
     print(f'\n{datetime.datetime.now()}  start OHC calculation: run={run} mask_nr={mask_nr}')
@@ -63,6 +64,10 @@ def OHC_integrals(run, mask_nr=0):
 
     
     for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
+        
+#         if (y+3)%4==0: pass
+#         else: continue
+        
         file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}_{y}.nc'
 
         if os.path.exists(file_out):
@@ -84,10 +89,11 @@ def OHC_integrals(run, mask_nr=0):
             
         
         OHC = ds.TEMP*ds.PD*cp_sw
+#         OHC = ds.TEMP*rho_sw*cp_sw
         OHC = OHC.where(MASK)
         
         OHC_DZT = OHC*DZT
-        print(f'{datetime.datetime.now()} {y} calculated OHC & OHC_DZT')
+        print(f'{datetime.datetime.now()}  {y} calculated OHC & OHC_DZT')
 
         
         # xr DataArrays
@@ -98,6 +104,7 @@ def OHC_integrals(run, mask_nr=0):
         da_vb = OHC_DZT.isel(z_t=slice(9,42)).sum(dim='z_t')  # below 100 m
         da_z  = xr_int_zonal(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
         da_zl = xr_int_zonal_level(da=OHC, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+        print(f'{datetime.datetime.now()}  done calculations')
 
         ds.close()
         
@@ -109,7 +116,7 @@ def OHC_integrals(run, mask_nr=0):
         ds_vb = t2ds(da_vb, 'OHC_vertical_below_100m', t)
         ds_z  = t2ds(da_z , 'OHC_zonal'              , t)
         ds_zl = t2ds(da_zl, 'OHC_zonal_levels'       , t)
-        print(f'{datetime.datetime.now()}  done dataset')
+        print(f'{datetime.datetime.now()}  done making datasets')
         
         print(f'output: {file_out}\n')
         
@@ -117,7 +124,7 @@ def OHC_integrals(run, mask_nr=0):
         ds_new.to_netcdf(path=file_out, mode='w')
         ds_new.close()
         
-        if y in [2002, 102, 156, 1602]: break  # for testing only
+#         if y in [2002, 102, 156, 1602]: break  # for testing only
     
     # combining yearly files
     file_out = f'{path_samoc}/OHC/OHC_integrals_{regions_dict[mask_nr]}_{run}.nc'

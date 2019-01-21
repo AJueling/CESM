@@ -63,15 +63,22 @@ def xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1):
         dz = DZ.max(dim=(lon,lat))
 
         # construct new xr DataArray
-        array = np.zeros((len(da.coords['time']), km, len(lat_centers)))
+        assert 'time' in da.coords
         lat_bin_name = f'TLAT_bins'
-        coords = {'time': da.coords['time'], z: da.coords[z], lat_bin_name: lat_centers}
-        int_zonal_level = xr.DataArray(data=array, coords=coords, dims=('time', z, lat_bin_name))
-
-        for k in range(km):
-            da_k = (da[:,k,:,:]*DZ[k,:,:]).drop('z_t')
-#             print(k, da_k.coords, dz.coords)
-            int_zonal_level[:,k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
+        if da.coords['time'].size==1:  # single time files
+            array = np.zeros((km, len(lat_centers)))
+            coords = {z: da.coords[z], lat_bin_name: lat_centers}
+            int_zonal_level = xr.DataArray(data=array, coords=coords, dims=(z, lat_bin_name))
+            for k in range(km):
+                da_k = (da[k,:,:]*DZ[k,:,:]).drop('z_t')
+                int_zonal_level[k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
+        else:
+            array = np.zeros((da.coords['time'].size, km, len(lat_centers)))
+            coords = {'time': da.coords['time'], z: da.coords[z], lat_bin_name: lat_centers}
+            int_zonal_level = xr.DataArray(data=array, coords=coords, dims=('time', z, lat_bin_name))
+            for k in range(km):
+                da_k = (da[:,k,:,:]*DZ[k,:,:]).drop('z_t')
+                int_zonal_level[:,k,:] = xr_zonal_int_bins(da_k, LATS, AREA)/dz[k]
         
     return int_zonal_level
 
