@@ -305,12 +305,23 @@ def OHC_vert_diff_mean_rm(ds, run):
     return
 
 
+def replace_OHC_year(ds, y):
+    """replaces a year's OHC data with the average of the preceding and following years """
+    y_idx = int(y - ds.time[0]/365)
+    for field in list(ds.variables.keys())[-7:]:
+        ds[field][y_idx] = (ds[field].sel({'time':(y-1)*365}) +
+                                         ds[field].sel({'time':(y+1)*365}) )/2
+    return ds
+
+
 if __name__=="__main__":
     run     = sys.argv[1]
     mask_nr = int(sys.argv[2])
 
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     assert mask_nr>=0 and mask_nr<13
+    
+    # 15 min for one lpi run
   
     if run in ['lpd', 'lpi']:     # low res
     
