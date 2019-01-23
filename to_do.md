@@ -2,6 +2,32 @@ TO DO LIST
 ---
 ---
 
+else:
+
+- car rental
+- gas/electricity
+- Geschenke OPa/Regine & Opa
+
+now:
+
+- update ctrl/rcp OHC plots
+
+- PDO: Pacific North of 20 N
+
+- structure documents
+
+- papers to read and summarize
+
+
+tomorrow:
+
+- restructure documents
+
+- read papers
+
+- Mann paper regression of indices on OHC change
+
+
 __21.01.__: OHC calculations and analysis; Mosaic application
 
 __22.01.__: TPI timeseries and OHC/index relationsships
@@ -37,7 +63,7 @@ _technical issues_
 
 __Literature__
 
-- Mann paper regression of indices on OHC change
+
 
 - apply same methodology to 
 
@@ -55,25 +81,4 @@ ideas:
 - dOHC: forcing vs response under climate change
 
 side projects:
-
-
-
-integration functions:
-
-xr_int_global(da, AREA, DZ)                            dx dy dz
-xr_int_global_level(da, AREA, DZ)                      dx dy
-xr_int_vertical(da, DZ)                                      dz
-xr_int_zonal(da, HTN, LATS, AREA, DZ)                  dx    dz
-xr_int_zonal_level(da, HTN, LATS, AREA, DZ, dx=1)      dx
-xr_zonal_int_bins(da, LATS, AREA, dx=1)
-lat_binning(dx)
-xr_vol_int(xa, AREA, DZ, levels=False, zonal=False)
-xr_int_along_axis(xa, DZ, axis)                        generic
-xr_vol_int_regional(xa, AREA, DZ, MASK)
-find_regional_coord_extent(MASK)
-xr_vol_mean(xa, AREA, DZ)
-xr_surf_int(xa, AREA)
-xr_surf_mean(xa, AREA)
-xr_zonal_mean(xa, AREA, dx, lat_name)
-
 
