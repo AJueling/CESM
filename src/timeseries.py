@@ -246,7 +246,7 @@ def notch(ts, period):
     period .. 1/f to filter out
     """
     w0 = 1/period
-    Q  = .2# found to work fairly well for deseasonalizing
+    Q  = 1.#.2# found to work fairly well for deseasonalizing
     B, A = signal.iirnotch(w0, Q)
     filtered = signal.filtfilt(B, A, ts, axis=(0), padlen=12)
     

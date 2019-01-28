@@ -70,7 +70,7 @@ def boolean_mask(domain, mask_nr):
             MASK = np.where(RMASK==mask_nr, 1, 0)   
     
     elif domain=='ocn_rect':
-        assert mask_nr==0
+#         assert mask_nr==0
         RMASK = xr.open_dataset(file, decode_times=False).TEMP[0,:,:]
         MASK = np.where(RMASK>-2, 1, 0)
         
@@ -103,18 +103,14 @@ def Atlantic_mask(domain):
     return ATLANTIC_MASK
 
 
-def NPacific_mask_rect():
-    """ boolean Pacific mask """
-    TEMP = xr.open_dataset(file_ex_ocn_rect, decode_times=False).TEMP[0,:,:]
-    MASK1 = (TEMP/TEMP).where(TEMP>0, 0)
-    MASK1 = MASK1.where(MASK1.t_lat>0  , 0)
-    MASK1 = MASK1.where(MASK1.t_lat<66 , 0)
-    MASK1 = MASK1.where(MASK1.t_lon>100, 0)
-    MASK1 = MASK1.where(MASK1.t_lon<300, 0)
-    MASK2 = MASK1.where(MASK1.t_lon>250, 0)
-    MASK1 = MASK1.where(MASK1.t_lon<250, 0)
-    MASK2 = MASK2.where(2.1*MASK2.t_lat+MASK2.t_lon<300, 0)
-    return MASK1+MASK2
+def Pacific_mask(domain, latS):
+    """ boolean ocn_rect Pacific mask bounded in the South by latS """
+    MASK = boolean_mask(domain=domain, mask_nr=2)
+    if domain=='ocn_rect':
+        MASK = MASK.where(MASK.t_lat>latS, 0)
+    elif domain=='ocn':
+        MASK = MASK.where(MASK.TLAT>latS, 0)
+    return MASK
 
 def AMO_mask(domain):
     file = example_file(domain)

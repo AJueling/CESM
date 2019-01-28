@@ -75,15 +75,17 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
         ax.text(1, 1, text2, ha='right', va='top', transform=ax.transAxes, fontsize=16)
     
     # SST index polygons
-    if type(rects)==np.ndarray:  rects = [rects]
-    for rect in rects:
-        assert type(rect)==np.ndarray
-        ax.add_patch(mpatches.Polygon(xy=rect,
-                                      facecolor='none', edgecolor='k',
-                                      linewidth=2, zorder=2,
-                                      transform=ccrs.PlateCarree(),
-                                     ),
-                    )    
+    if rects!=None:
+        if type(rects)==np.ndarray:
+            rects = [rects]
+        for rect in rects:
+            assert type(rect)==np.ndarray
+            ax.add_patch(mpatches.Polygon(xy=rect,
+                                          facecolor='none', edgecolor='k',
+                                          linewidth=2, zorder=2,
+                                          transform=ccrs.PlateCarree(),
+                                         ),
+                        )
     # grid
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False)
     gl.ylocator = mticker.FixedLocator([-90, -60, -30, 0, 30, 60, 90])

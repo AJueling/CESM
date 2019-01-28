@@ -308,10 +308,7 @@ def OHC_vert_diff_mean_rm(ds, run):
 def replace_OHC_year(ds, y):
     """replaces a year's OHC data with the average of the preceding and following years """
     y_idx = int(y - ds.time[0]/365)
-    print(y_idx)
-    print(list(ds.variables.keys())[-7:-3])
     for field in list(ds.variables.keys())[-7:-3]:
-        print(field)
         ds[field][dict(time=y_idx)] = ( ds[field][dict(time=y_idx-1)] +
                                         ds[field][dict(time=y_idx+1)] )/2
     return ds

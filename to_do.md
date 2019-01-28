@@ -2,29 +2,15 @@ TO DO LIST
 ---
 ---
 
-else:
-
-- car rental
-- gas/electricity
-- Geschenke OPa/Regine & Opa
-
 now:
 
-- update ctrl/rcp OHC plots
-
 - PDO: Pacific North of 20 N
-
-- structure documents
-
 - papers to read and summarize
 
 
 tomorrow:
 
-- restructure documents
-
 - read papers
-
 - Mann paper regression of indices on OHC change
 
 

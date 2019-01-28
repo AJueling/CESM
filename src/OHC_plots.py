@@ -12,7 +12,8 @@ from grid import create_tdepth, create_dz_mean
 from paths import path_results, path_samoc
 from plotting import discrete_cmap, shifted_color_map
 from constants import km, spy
-from xr_regression import ocn_field_regression
+from timeseries import lowpass
+from xr_regression import ocn_field_regression, xr_quadtrend
 
 tdepth = create_tdepth(domain='ocn')
 colors = ['k', 'C0', 'C1', 'C2', 'C3', 'C4']
@@ -31,8 +32,7 @@ def plot_global_integrals(dss, run):
     plt.tick_params(labelsize=14)
     plt.axhline(0, c='k', lw=.5)
     for i, ds in enumerate(dss):
-        plt.plot(ds.time/365,
-                 (ds.OHC_global-ds.OHC_global[0])/1e21,
+        plt.plot(ds.time/365, (ds.OHC_global-ds.OHC_global[0])/1e21,
                  c=colors[i], lw=lws[i], label=labels[i])
     plt.text(.5,.9, f'{run.upper()}', ha='center', transform=ax.transAxes, fontsize=16)
     plt.xlabel('time [years]', fontsize=16)
@@ -57,11 +57,10 @@ def plot_global_integrals_diff(dss, run):
     plt.axhline(0, c='k', lw=.5)
     for i, ds in enumerate(dss):
 #         plt.plot((ds.OHC_global-ds.OHC_global.shift(time=1))/1e21, c=colors[i], lw=.5)
-        plt.plot(ds.time/365,
-                 (ds.OHC_global-ds.OHC_global.shift(time=1)).rolling({'time':10}, center=True).mean()/1e21,
+        plt.plot(ds.time[1:]/365, lowpass((ds.OHC_global-ds.OHC_global.shift(time=1))[1:], 10)/1e21,
                  c=colors[i], label=f'{labels[i]}', lw=lws[i])
     plt.text(.5,.9, f'{run.upper()}', ha='center', transform=ax.transAxes, fontsize=16)
-    plt.text(.98,.02, '10 year running mean', ha='right', transform=ax.transAxes, fontsize=14)
+    plt.text(.98,.02, '10 lowpass filtered', ha='right', transform=ax.transAxes, fontsize=14)
 #     plt.legend(fontsize=16, ncol=2)
     plt.xlabel('time [years]', fontsize=16)
     plt.ylabel(f'OHC($t$)-OHC($t-1$) [ZJ]', fontsize=16)
@@ -69,7 +68,7 @@ def plot_global_integrals_diff(dss, run):
 
     
 def plot_global_integrals_detr(dss, run):
-    """
+    """ quadratically detrended
     
     input:
     dss .. list of datasets
@@ -84,13 +83,11 @@ def plot_global_integrals_detr(dss, run):
     plt.axhline(0, c='k', lw=.5)
     for i, ds in enumerate(dss):
         qf = np.polyfit(ds.time , ds.OHC_global, 2)
-        detr = ds.OHC_global - (qf[0]*ds.time**2 + qf[1]*ds.time + qf[2])
-        plt.plot(ds.time/365,
-                 (detr.rolling({'time':10}, center=True).mean())/1e21,
+        detr = ds.OHC_global - xr_quadtrend(ds.OHC_global)
+        plt.plot(ds.time/365, lowpass(detr, 10)/1e21,
                  c=colors[i], label=f'{labels[i]}', lw=lws[i])
     plt.text(.5,.9, f'{run.upper()}', ha='center', transform=ax.transAxes, fontsize=16)
-    plt.text(.98,.02, '10 year running mean', ha='right', transform=ax.transAxes, fontsize=14)
-#     plt.legend(fontsize=16, ncol=2)
+    plt.text(.98,.02, '10 lowpass filtered', ha='right', transform=ax.transAxes, fontsize=14)
     plt.xlabel('time [years]', fontsize=16)
     plt.ylabel('quad. detrended OHC [ZJ]', fontsize=16)
     plt.savefig(f'{path_results}/OHC/OHC_global_integrals_regional_detr_{run}')

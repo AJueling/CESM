@@ -19,4 +19,5 @@ latent_heat_vapor = 2501000.      # [J kg^-1]        latent heat of vaporization
 """ unit conversions """
 
 spy               = 3600*24*365   # [s yr^-1]
+spd               = 3600*24       # [s day^-1]
 Jpy_to_Wpsm       = 1/spy/A_earth # [J/yr] to [W/m^2]
