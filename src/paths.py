@@ -197,3 +197,7 @@ file_ex_atm_T_T850_U_V_yrly  = f'{path_samoc}/ctrl/atm_yrly_T_T850_U_V_0200.nc'
 
 
 file_geometry = f'{path_ocn_grid}/dzbc_pbc_s2.0_200709.ieeer8'
+
+file_RMASK_ocn      = f'{path_samoc}/grid/RMASK_ocn.nc'
+file_RMASK_ocn_rect = f'{path_samoc}/grid/RMASK_ocn_rect.nc'
+file_RMASK_ocn_low  = f'{path_samoc}/grid/RMASK_ocn_low.nc'

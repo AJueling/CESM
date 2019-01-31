@@ -2,12 +2,6 @@ TO DO LIST
 ---
 ---
 
-now:
-
-- PDO: Pacific North of 20 N
-- papers to read and summarize
-
-
 tomorrow:
 
 - read papers

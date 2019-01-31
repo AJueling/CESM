@@ -4,7 +4,8 @@ import numpy as np
 import xarray as xr
 
 from xr_DataArrays import example_file
-from paths import file_ex_ocn_rect
+from paths import path_samoc
+from paths import file_ex_ocn_rect, file_RMASK_ocn, file_RMASK_ocn_rect, file_RMASK_ocn_low
 
 ocn_file = example_file('ocn')
 
@@ -57,23 +58,15 @@ regions_dict = {-14: 'Caspian_Sea',
 
 
 def boolean_mask(domain, mask_nr):
-    """ 3D boolean xr DataArray """
-    assert domain in ['ocn', 'ocn_low', 'ocn_rect']
-    
-    file  = example_file(domain)
-    
-    if domain in ['ocn', 'ocn_low']:
-        RMASK = xr.open_dataset(file, decode_times=False).REGION_MASK
-        if mask_nr==0:  # global ocean
-            MASK = np.where(RMASK>0, 1, 0)
-        else:
-            MASK = np.where(RMASK==mask_nr, 1, 0)   
-    
-    elif domain=='ocn_rect':
-#         assert mask_nr==0
-        RMASK = xr.open_dataset(file, decode_times=False).TEMP[0,:,:]
-        MASK = np.where(RMASK>-2, 1, 0)
-        
+    """ selects a region by number, returns xr DataArray """
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect']    
+    RMASK = xr.open_dataarray(f'{path_samoc}/grid/RMASK_{domain}.nc')
+    MASK = RMASK.copy()
+    if mask_nr==0:  # global ocean
+        MASK_np = np.where(RMASK>0, 1, 0)
+    else:
+        MASK_np = np.where(RMASK==mask_nr, 1, 0)
+    MASK.values = MASK_np
     return MASK
 
 
@@ -103,13 +96,42 @@ def Atlantic_mask(domain):
     return ATLANTIC_MASK
 
 
-def Pacific_mask(domain, latS):
-    """ boolean ocn_rect Pacific mask bounded in the South by latS """
-    MASK = boolean_mask(domain=domain, mask_nr=2)
+def mask_box_in_region(domain, mask_nr, bounding_lats=None, bounding_lons=None):
+    """ boolean mask of region limited by bounding_lats/lons """
+    
+    if bounding_lats!=None:
+        assert type(bounding_lats)==tuple
+        (latS, latN) = bounding_lats
+        assert latS<latN
+    if bounding_lons!=None:
+        assert type(bounding_lons)==tuple
+        (lonW, lonE) = bounding_lons
+        if lonW<0:  lonW = lonW+360.
+        if lonE<0:  lonE = lonE+360.
+        assert lonW>=0
+        assert lonW<=360
+        assert lonE>=0
+        assert lonE<=360
+        if lonW>lonE:  # crossing dateline
+            lonW, lonE = lonE, lonW
+            
+    MASK = boolean_mask(domain=domain, mask_nr=mask_nr)
+    
     if domain=='ocn_rect':
-        MASK = MASK.where(MASK.t_lat>latS, 0)
+        if bounding_lons!=None:
+            MASK = MASK.where(MASK.t_lat<latN, 0)
+            MASK = MASK.where(MASK.t_lat>latS, 0)
+        if bounding_lons!=None:
+            MASK = MASK.where(MASK.t_lon<lonE, 0)
+            MASK = MASK.where(MASK.t_lon>lonW, 0)
     elif domain=='ocn':
-        MASK = MASK.where(MASK.TLAT>latS, 0)
+        if bounding_lons!=None:
+            MASK = MASK.where(MASK.TLAT<latN, 0)
+            MASK = MASK.where(MASK.TLAT>latS, 0)
+        if bounding_lons!=None:
+            MASK = MASK.where(MASK.TLONG<lonE, 0)
+            MASK = MASK.where(MASK.TLONG>lonW, 0)
+            
     return MASK
 
 def AMO_mask(domain):
