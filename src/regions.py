@@ -197,4 +197,5 @@ def SST_index_bounds(name):
     elif name=='TPI3': bounds = (150,200,-50,-15)
     elif name=='SOM':  bounds = (310,360,-50,-35)
     elif name=='AMO':  bounds = (280,360,  0, 60)
+    elif name=='PDO':  bounds = (110,255, 20, 68)
     return bounds

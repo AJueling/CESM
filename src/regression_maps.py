@@ -11,16 +11,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-
-# from OHC import t2da, t2ds
-# from SST import SST_index, EOF_SST_analysis
 from maps import map_robinson, map_eq_earth, rect_polygon, make_map, regr_map
-# from grid import find_array_idx
-from paths import path_results, path_samoc#, file_ex_ocn_ctrl, file_ex_ocn_rect
-# from regions import boolean_mask, SOM_area, Nino12, Nino34, global_ocean,\
-#                     gl_ocean_rect, NPacific_mask_rect,\
-#                     Nino12_low, Nino34_low, TexT_mask, AMO_mask, SST_index_bounds
-# from plotting import shifted_color_map, discrete_cmap
+from paths import path_results, path_samoc
 from timeseries import lowpass, chebychev
 from xr_regression import xr_lintrend, lag_linregress_3D
 
@@ -61,6 +53,9 @@ def SST_regr_standard(index):
         index_filt_detr_rcp  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_rcp.nc' , decode_times=False)
         index_filt_detr_lpd  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)
         index_filt_detr_lpi  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpi.nc' , decode_times=False)
+        
+    elif index=='PDO':
+        
         
     ds_ctrl = lag_linregress_3D(index_filt_detr_ctrl, SST_yrly_detr_ctrl)
     ds_rcp  = lag_linregress_3D(index_filt_detr_rcp , SST_yrly_detr_rcp )

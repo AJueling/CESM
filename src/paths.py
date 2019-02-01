@@ -118,7 +118,8 @@ lpistr = 'b.PI_1pic_f19g16_NESSC_control'
 
 # my output (write)
 path_results = '/home/dijkbio/andre/CESM/results'
-path_samoc = '/projects/0/samoc/andre/CESM'
+path_data    = '/home/dijkbio/andre/CESM/data'
+path_samoc   = '/projects/0/samoc/andre/CESM'
 
 # CESM data (should read only)
 path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
