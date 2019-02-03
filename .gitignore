@@ -1,6 +1,10 @@
 to_do.txt
 src/nohup.out
 
+.DS_Store
+._.DS_Store
+
+data/
 results/
 src/ipynb/
 
