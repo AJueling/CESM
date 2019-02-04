@@ -257,3 +257,8 @@ def notch(ts, period):
         ts_new = filtered
     
     return ts_new
+
+
+def deseasonalize(ts):
+    ts = lowpass(lowpass(notch(ts, 12), 12),12)
+    return ts

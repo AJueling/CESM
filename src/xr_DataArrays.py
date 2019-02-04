@@ -3,8 +3,8 @@ import numpy as np
 import xarray as xr
 
 from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl,\
-                  file_ex_ice_rcp, file_ex_atm_lpd, file_ex_ocn_lpd, file_ex_atm_lpi
-from paths import path_samoc, path_results, file_geometry
+                  file_ex_ice_rcp, file_ex_atm_lpd, file_ex_ocn_lpd, file_ex_atm_lpi,\
+                  path_samoc, path_results, file_geometry, file_HadISST
 from constants import R_earth
 from read_binary import read_binary_2D_double
 
@@ -32,7 +32,11 @@ def create_xr_DataArray(domain, n=3, fill=0):
     file = example_file(domain)
     
     C = xr.open_dataset(file, decode_times=False)
-    imt, jmt, km = C.dims[lon], C.dims[lat], C.dims[z]
+    imt, jmt = C.dims[lon], C.dims[lat]
+    if domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'atm_f19', 'atm_f09', 'ice']:
+        km = C.dims[z]
+    elif domain=='ocn_had':
+        km = None
     
     if n==2:
         if fill==0:  array = np.zeros((jmt,imt))
@@ -110,16 +114,16 @@ def xr_AREA(domain):
     output:
     AREA .. 2D xr DataArray [m^2]
     """
-    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'atm_f19', 'atm_f09', 'ice']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had', 'atm', 'atm_f19', 'atm_f09', 'ice']
     
     AREA, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
     
     if domain in ['ocn', 'ocn_low', 'ice']:  # TAREA of cells are written out
         AREA[:,:] = C.TAREA/1e4
         
-    elif domain in ['atm', 'atm_f19', 'atm_f09']:  # regular, rectangular grids
+    elif domain in ['ocn_had', 'atm', 'atm_f19', 'atm_f09']:  # regular, rectangular grids
         (z, lat, lon) = depth_lat_lon_names(domain)
-        dy = C[lat][1].item()-C[lat][0].item()
+        dy = abs(C[lat][1].item()-C[lat][0].item())
         nx, ny = len(C[lon]), len(C[lat])
         jmin, jmax = 1, ny-1
         lat_N = (-90+dy/2)*np.pi/180
@@ -136,15 +140,15 @@ def xr_AREA(domain):
 #         assert np.isclose(np.log10(np.max(AREA.values)),\
 #                           np.log10(R_earth**2 * 2*np.pi/nx * np.pi/ny), rtol=1)
                 
-    
+        if domain=='ocn_had':  # lat elements saved North to South
+            AREA = abs(AREA)
+            
     elif domain=='ocn_rect':  # rect grid with different lat.-diffs.
         ds = xr.open_dataset(file_ex_ocn_rect, decode_times=False)
         nx = len(ds.t_lon)
         for j, l in enumerate(ds.t_lat[:-1]):
             AREA[j,:] = spher_surf_element(R_earth, 2*np.pi/nx, ds.t_lat[j+1]*np.pi/180, ds.t_lat[j]*np.pi/180)
-            
-        
-    
+
     return AREA
 
 
@@ -198,23 +202,53 @@ def xr_LATS(domain):
 
 
 def depth_lat_lon_names(domain):
-    """ dimension names for different model domain dimensions 
+    """ old syntax """
+    return dll_dims_names(domain)
+
+
+def dll_dims_names(domain):
+    """ names for different model domain dimensions 
     
     input:
     domain .. (str)
     
     output:
-    ddl    .. tuple of strings of depth, lat, lon dimension names
+    dll    .. tuple of strings of depth, lat, lon dimension names
     """
-    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'ice', 'atm_f19', 'atm_f09']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had', 'atm', 'ice', 'atm_f19', 'atm_f09']
     
     if domain in ['ocn', 'ocn_low']:
         dll = ('z_t', 'nlat', 'nlon')
     elif domain=='ocn_rect':
         dll = ('depth_t', 't_lat', 't_lon')
+    elif domain=='ocn_had':
+        dll = (None, 'latitude', 'longitude')
+    elif domain in ['atm', 'atm_f19', 'atm_f09']:
+        dll = ('lev', 'lat', 'lon')    
+    return dll
+
+
+def dll_coords_names(domain):
+    """ names for different model domain coordinates 
+    
+    input:
+    domain .. (str)
+    
+    output:
+    dll    .. tuple of strings of depth, lat, lon coordinate names
+    """
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had', 'atm', 'ice', 'atm_f19', 'atm_f09']
+    
+    if domain=='ocn':
+        dll = ('z_t', 'TLAT', 'TLONG')
+    if domain=='ocn_low':
+        dll = ('z_t', 'nlat', 'nlon')
+    elif domain=='ocn_rect':
+        dll = ('depth_t', 't_lat', 't_lon')
+    elif domain=='ocn_had':
+        dll = (None, 'latitude', 'longitude')
     elif domain in ['atm', 'atm_f19', 'atm_f09']:
         dll = ('lev', 'lat', 'lon')
-        
     
     return dll
 
@@ -232,17 +266,20 @@ def dll_from_arb_da(da):
         dll = depth_lat_lon_names('ocn_rect')
     elif shape==320:
         dll = depth_lat_lon_names('ocn_low')
+    elif shape==360:
+        dll = depth_lat_lon_names('ocn_had')
     return dll
 
 
 
 def example_file(domain):
     """ example of output file for a given domain """
-    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'atm', 'ice', 'atm_f19', 'atm_f09']
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had', 'atm', 'ice', 'atm_f19', 'atm_f09']
 
     if   domain=='ocn':       file = file_ex_ocn_ctrl
     elif domain=='ocn_low':   file = file_ex_ocn_lpd
     elif domain=='ocn_rect':  file = file_ex_ocn_rect
+    elif domain=='ocn_had':   file = file_HadISST
     elif domain=='atm':       file = file_ex_atm_ctrl
     elif domain=='atm_f19':   file = file_ex_atm_lpi
     elif domain=='atm_f09':   file = file_ex_atm_lpd

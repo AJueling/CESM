@@ -190,6 +190,8 @@ file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=3000, m=1)
 file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'
 file_ex_ice_yrly = f'{path_ice_rcp}/{rcpstr}.cice.h.avg2000.nc'
 
+file_HadISST     = f'{path_data}/HadISST_sst.nc'
+
 # derived data
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
 
@@ -202,3 +204,4 @@ file_geometry = f'{path_ocn_grid}/dzbc_pbc_s2.0_200709.ieeer8'
 file_RMASK_ocn      = f'{path_samoc}/grid/RMASK_ocn.nc'
 file_RMASK_ocn_rect = f'{path_samoc}/grid/RMASK_ocn_rect.nc'
 file_RMASK_ocn_low  = f'{path_samoc}/grid/RMASK_ocn_low.nc'
+file_RMASK_ocn_had  = f'{path_samoc}/grid/RMASK_ocn_had.nc'

@@ -30,7 +30,7 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     optional: significance shading, polygons, text, central longitude, file output 
     """
     assert type(xa)==xr.core.dataarray.DataArray
-    assert domain in ['atm', 'ocn_T', 'ocn_U', 'ocn_rect', 'ocn_low']
+    assert domain in ['atm', 'ocn_T', 'ocn_U', 'ocn_rect', 'ocn_low', 'ocn_had']
     assert proj in ['ee', 'rob']
     
     fig = plt.figure(figsize=(8,5))
@@ -53,22 +53,25 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     elif domain=='ocn_rect':
         lats = xa.t_lat
         lons = xa.t_lon
+    elif domain=='ocn_had':
+        lats = xa.latitude
+        lons = xa.longitude
     
     im = ax.pcolormesh(lons, lats, xa.values,
                        cmap=cmap, vmin=minv, vmax=maxv,
                        transform=ccrs.PlateCarree(),
                       )
 
-    # significance shading
+    # significance outline
     if type(sig)==xr.core.dataarray.DataArray:
-        ax.contour(lons, lats, sig.values, levels=[.05],
+        ax.contour(lons, lats, sig.values, levels=[.5],
                    linestyles='dashed', linewidths=1.5, #cmap='gray',
                    transform=ccrs.PlateCarree(),
                   )
     
     if domain=='atm':
         ax.coastlines()
-    elif domain in ['ocn_T', 'ocn_U']:
+    elif domain in ['ocn_T', 'ocn_U', 'ocn_had']:
         ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='black', facecolor='w')
         
     # text
@@ -138,14 +141,16 @@ def regr_map(ds, index, run, fn=None):
     elif run in ['lpd', 'lpi']:
         MASK = boolean_mask(domain='ocn_low', mask_nr=0)
         domain = 'ocn_low'
+    
     xa = ds.slope.where(MASK>0)
-    sig = ds.pval.where(MASK>0)
+    
 
+    
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 300
         nv = 5
-    elif index=='PDO':
+    elif index in ['PDO', 'IPO']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 200
         nv = .5
@@ -156,6 +161,13 @@ def regr_map(ds, index, run, fn=None):
                 ]
         clon = 200
         nv = 5
+    
+    # choose two-tailed 95% significance level
+    # as boolean map
+    sig = ds.pval.where(MASK>0)
+    tail1 = np.where(sig<0.025, 1, 0)
+    tail2 = np.where(sig>0.975, 1, 0)
+    sig.values = tail1 + tail2
     
     proj = 'rob'
     cm = discrete_cmap(16, cmocean.cm.balance)    

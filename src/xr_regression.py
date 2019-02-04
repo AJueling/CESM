@@ -32,12 +32,24 @@ def xr_linear_trend(x):
     return xr.DataArray(pf[1])
 
 
+def xr_linear_trend_with_nans(x):
+    """ function to compute a linear trend coeficient of a timeseries """
+    if np.isnan(x).any():
+        x = x.dropna(dim='time')
+        if x.size>1:
+            pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+        else:
+            pf = np.array([np.nan, np.nan])
+    else:
+        pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+    return xr.DataArray(pf[1])
 
-def xr_linear_trends_2D(da, dim_names):
+
+def xr_linear_trends_2D(da, dim_names, with_nans=False):
     """ calculate linear trend of 2D field in time
     
     input:
-    da        .. 3D xr DataArrat with ('lat', 'lon') dimensions
+    da        .. 3D xr DataArray with (dim_names) dimensions
     dim_names .. tuple of 2 strings: e.g. lat, lon dimension names
     
     output:
@@ -47,9 +59,15 @@ def xr_linear_trends_2D(da, dim_names):
     # stack lat and lon into a single dimension called allpoints
     stacked = da.stack(allpoints=[dim1, dim2])
     # apply the function over allpoints to calculate the trend at each point
-    trend = stacked.groupby('allpoints').apply(xr_linear_trend)
-    # unstack back to lat lon coordinates
-    da_trend = trend.unstack('allpoints')
+    if with_nans==False:
+        trend = stacked.groupby('allpoints').apply(xr_linear_trend)
+        # unstack back to lat lon coordinates
+        da_trend = trend.unstack('allpoints')
+    if with_nans==True:
+        trend = stacked.groupby('allpoints').apply(xr_linear_trend_with_nans)
+        # unstack back to lat lon coordinates
+        da_trend = trend.unstack('allpoints')
+        da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
     return da_trend
 
 
@@ -172,7 +190,7 @@ def find_valid_domain(da):
         return (min_lat, max_lat, max_depth)    
     
     
-def lag_linregress_3D(x, y, lagx=0, lagy=0):
+def lag_linregress_3D(x, y, dof_corr=1, lagx=0, lagy=0):
     """
     adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html
     Input: Two xr.Datarrays of any dimensions with the first dim being time. 
@@ -181,8 +199,10 @@ def lag_linregress_3D(x, y, lagx=0, lagy=0):
     for y with respect to x.
     Output: xr Dataset containing covariance, correlation, regression slope and intercept, p-value, and
     standard error on regression between the two datasets along their aligned time dimension.  
-    Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount. 
+    Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount.
+    dof_corc .. [] correction facotr for reduced degrees of freedom
     """ 
+    assert dof_corr<=1 and dof_corr>0
     #1. Ensure that the data are properly alinged to each other. 
     x,y = xr.align(x,y)
     
@@ -217,10 +237,10 @@ def lag_linregress_3D(x, y, lagx=0, lagy=0):
     
     #7. Compute P-value and standard error
     #Compute t-statistics
-    tstats = cor*np.sqrt(n-2)/np.sqrt(1-cor**2)
+    tstats = cor*np.sqrt(n*dof_corr-2)/np.sqrt(1-cor**2)
     stderr = slope/tstats
     
-    pval   = sp.stats.t.sf(tstats, n-2)*2
+    pval   = sp.stats.t.sf(tstats, n-2)  # *2 for t-tailed test
     pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
 
     cov.name       = 'cov'
