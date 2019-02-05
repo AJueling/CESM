@@ -16,7 +16,7 @@
 #         if m==1: print(y, SST_gm.item()) 
 #         if i==0:  SST_new = SST_gm
 #         else:     SST_new = xr.concat([SST_new, SST_gm], dim='time')
-#     SST_new.to_netcdf(f'{path_results}/SST_global_mean_monthly_{run}.nc')
+#     SST_new.to_netcdf(f'{path_samoc}/SST/SST_global_mean_monthly_{run}.nc')
 
 # %%time
 # # CTRL and RCP global means: ocn_rect
@@ -33,7 +33,7 @@
 #         if m==1: print(y, SST_gm.item()) 
 #         if i==0:  SST_new = SST_gm
 #         else:     SST_new = xr.concat([SST_new, SST_gm], dim='time')
-#     SST_new.to_netcdf(f'{path_results}/SST_global_mean_monthly_rect_{run}.nc')
+#     SST_new.to_netcdf(f'{path_samoc}/SST/SST_global_mean_monthly_rect_{run}.nc')
 
 # %%time
 # # CTRL and RCP 60S to 60N means: ocn_rect
@@ -50,7 +50,7 @@
 #         if m==1: print(y, SST_gm.item()) 
 #         if i==0:  SST_new = SST_gm
 #         else:     SST_new = xr.concat([SST_new, SST_gm], dim='time')
-#     SST_new.to_netcdf(f'{path_results}/SST_60S_60N_mean_monthly_rect_{run}.nc')
+#     SST_new.to_netcdf(f'{path_samoc}/SST/SST_60S_60N_mean_monthly_rect_{run}.nc')
 
 
 
@@ -74,7 +74,7 @@
 #         if m==1: print(y, SST_gm.item()) 
 #         if i==0:  SST_new = SST_gm
 #         else:     SST_new = xr.concat([SST_new, SST_gm], dim='time')
-#     SST_new.to_netcdf(f'{path_results}/SST_global_mean_monthly_{run}.nc')
+#     SST_new.to_netcdf(f'{path_samoc}/SST/SST_global_mean_monthly_{run}.nc')
 
 
 

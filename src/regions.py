@@ -9,6 +9,13 @@ from paths import file_ex_ocn_rect, file_RMASK_ocn, file_RMASK_ocn_rect, file_RM
 
 ocn_file = example_file('ocn')
 
+bll_AMO  = ((  0, 60), (- 80,   0))  # (0-60N, 0-80W)
+bll_N34  = (( -5,  5), (-170,-120))  # (5N-5S, 170W-120W)
+bll_SOM  = ((-50,-35), (- 50,   0))
+bll_TPI1 = (( 25, 40), ( 140,-145))  # (25N-45N, 140E-145W)
+bll_TPI2 = ((-10, 10), ( 170,- 90))  # (10S-10N, 170E-90W)
+bll_TPI3 = ((-50,-15), ( 150,-160))  # (50S-15S, 150E-160W)
+
 # 'ocn'
 # AMO_area      = {'nlat':slice(1081,1858), 'nlon':slice( 500,1100)}  # North Atlantic (0-60N, 0-80W)
 Drake_Passage = {'nlat':slice( 268, 513), 'nlon':410             }
@@ -31,8 +38,6 @@ SOM_rect      = {'t_lat': slice(-50,-35), 't_lon': slice(310,360)}
 # AMO_area_low  = {'nlat':slice( 187, 353), 'nlon':slice( 284,35)}  # North Atlantic (0-60N, 0-80W)
 Nino12_low    = {'nlat':slice( 149, 187), 'nlon':slice( 275, 284)}  # Niño 1+2 (0-10S, 90W-80W)
 Nino34_low    = {'nlat':slice( 168, 205), 'nlon':slice( 204, 248)}  # Niño 3.4 (5N-5S, 170W-120W)
-# TexT_area_low = {'nlat':slice(  36, 353)                         }  # tropic + extratropics (60S-60N)
-# SOM_area_low  = {'nlat':slice( 603, 808), 'nlon':slice( 600,1100)}  # 
 gl_ocean_low  = {'nlat':slice(   0, 384), 'nlon':slice(   0, 320)}
 SOM_low       = {'nlat':slice(  55,  83), 'nlon':slice(  -9,  36)}
 
@@ -104,14 +109,25 @@ def Atlantic_mask(domain):
 
 def mask_box_in_region(domain, mask_nr, bounding_lats=None, bounding_lons=None):
     """ boolean mask of region limited by bounding_lats/lons """
+
+    MASK = boolean_mask(domain=domain, mask_nr=mask_nr)
+    
+    if domain=='ocn_rect':              lat, lon = 't_lat', 't_lon'
+    elif domain in ['ocn', 'ocn_low']:  lat, lon = 'TLAT', 'TLONG'
+    elif domain in ['ocn_had']:         lat, lon = 'latitude', 'longitude'   
     
     if bounding_lats!=None:
         assert type(bounding_lats)==tuple
         (latS, latN) = bounding_lats
         assert latS<latN
+        MASK = MASK.where(MASK[lat]<latN, 0)
+        MASK = MASK.where(MASK[lat]>latS, 0)
+        
     if bounding_lons!=None:
         assert type(bounding_lons)==tuple
         (lonW, lonE) = bounding_lons
+        assert lonW!=lonE
+        
         if domain in ['ocn', 'ocn_low', 'ocn_rect']:
             if lonW<0:  lonW = lonW+360.
             if lonE<0:  lonE = lonE+360.
@@ -119,35 +135,15 @@ def mask_box_in_region(domain, mask_nr, bounding_lats=None, bounding_lons=None):
             assert lonW<=360
             assert lonE>=0
             assert lonE<=360
-            if lonW>lonE:  # crossing dateline
-                lonW, lonE = lonE, lonW
         elif domain=='ocn_had':
             if lonW>180:  lonW = lonW-360.
             if lonE>180:  lonE = lonE-360.
-
-            
-    MASK = boolean_mask(domain=domain, mask_nr=mask_nr)
-    
-    if domain=='ocn_rect':
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.t_lat<latN, 0)
-            MASK = MASK.where(MASK.t_lat>latS, 0)
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.t_lon<lonE, 0)
-            MASK = MASK.where(MASK.t_lon>lonW, 0)
-    elif domain in ['ocn', 'ocn_low']:
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.TLAT<latN, 0)
-            MASK = MASK.where(MASK.TLAT>latS, 0)
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.TLONG<lonE, 0)
-            MASK = MASK.where(MASK.TLONG>lonW, 0)
-    elif domain in ['ocn_had']:
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.latitude<latN, 0)
-            MASK = MASK.where(MASK.latitude>latS, 0)
-        if bounding_lons!=None:
-            MASK = MASK.where(MASK.longitude<lonE, 0) + MASK.where(MASK.longitude>lonW, 0)
+        
+        if lonW<lonE:
+            MASK = MASK.where(MASK[lon]<lonE, 0)
+            MASK = MASK.where(MASK[lon]>lonW, 0)
+        else:  # crossing grid boundary
+            MASK = MASK.where(MASK[lon]<lonE, 0) + MASK.where(MASK[lon]>lonW, 0)
             
     return MASK
 
@@ -162,26 +158,13 @@ def AMO_mask(domain):
     MASK = np.where(TLAT<60, MASK, 0)
     return MASK
 
+
 def TexT_mask(domain):
     file = example_file(domain)
     TLAT = xr.open_dataset(file, decode_times=False).TLAT
     MASK = boolean_mask(domain, mask_nr=0)
     MASK = np.where(TLAT>-60, MASK, 0)
     MASK = np.where(TLAT< 60, MASK, 0)
-    return MASK
-
-def SOM_mask(domain):
-    # (50S-35S, 0E-50W)
-    file  = example_file(domain)
-    MASK = boolean_mask(domain, mask_nr=0)
-    (depth, lat, lon) = depth_lat_lon_names(domain)
-    print(lat, lon)
-#     if domain in ['ocn', 'ocn_low']
-    lat = xr.open_dataset(file, decode_times=False)[lat]
-    lon = xr.open_dataset(file, decode_times=False)[lon]
-    MASK = np.where(lat>- 50, MASK, 0)
-    MASK = np.where(lat<- 35, MASK, 0)
-    MASK = np.where(lon> 310, MASK, 0)
     return MASK
 
 
