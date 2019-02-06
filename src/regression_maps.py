@@ -29,30 +29,30 @@ def SST_regr_standard(index):
     SST_yrly_detr_lpi  = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_detr_lpi.nc' , decode_times=False)[-200:,:,:]
     
     if index=='AMO':
-        AMO_ctrl = xr.open_dataarray(f'{path_results}/SST/AMO_yrly_ctrl.nc', decode_times=False)
-        AMO_rcp  = xr.open_dataarray(f'{path_results}/SST/AMO_yrly_rcp.nc' , decode_times=False)
-        AMO_lpd  = xr.open_dataarray(f'{path_results}/SST/AMO_yrly_lpd.nc' , decode_times=False)[-200:]
-        AMO_lpi  = xr.open_dataarray(f'{path_results}/SST/AMO_yrly_lpi.nc' , decode_times=False)[-200:]
+        AMO_ctrl = xr.open_dataarray(f'{path_samoc}/SST/AMO_yrly_ctrl.nc', decode_times=False)
+        AMO_rcp  = xr.open_dataarray(f'{path_samoc}/SST/AMO_yrly_rcp.nc' , decode_times=False)
+        AMO_lpd  = xr.open_dataarray(f'{path_samoc}/SST/AMO_yrly_lpd.nc' , decode_times=False)[-200:]
+        AMO_lpi  = xr.open_dataarray(f'{path_samoc}/SST/AMO_yrly_lpi.nc' , decode_times=False)[-200:]
         index_filt_detr_ctrl = chebychev(AMO_ctrl, 13) - xr_lintrend(chebychev(AMO_ctrl,13))
         index_filt_detr_rcp  = chebychev(AMO_rcp , 13) - xr_lintrend(chebychev(AMO_rcp ,13))
         index_filt_detr_lpd  = chebychev(AMO_lpd , 13) - xr_lintrend(chebychev(AMO_lpd ,13))
         index_filt_detr_lpi  = chebychev(AMO_lpi , 13) - xr_lintrend(chebychev(AMO_lpi ,13))
       
     elif index=='TPI':
-        TPI_ctrl = xr.open_dataarray(f'{path_results}/SST/TPI_ctrl.nc', decode_times=False)
-        TPI_rcp  = xr.open_dataarray(f'{path_results}/SST/TPI_rcp.nc' , decode_times=False)
-        TPI_lpd  = xr.open_dataarray(f'{path_results}/SST/TPI_lpd.nc' , decode_times=False)[-200:]
-        TPI_lpi  = xr.open_dataarray(f'{path_results}/SST/TPI_lpi.nc' , decode_times=False)[-200:]
+        TPI_ctrl = xr.open_dataarray(f'{path_samoc}/SST/TPI_ctrl.nc', decode_times=False)
+        TPI_rcp  = xr.open_dataarray(f'{path_samoc}/SST/TPI_rcp.nc' , decode_times=False)
+        TPI_lpd  = xr.open_dataarray(f'{path_samoc}/SST/TPI_lpd.nc' , decode_times=False)[-200:]
+        TPI_lpi  = xr.open_dataarray(f'{path_samoc}/SST/TPI_lpi.nc' , decode_times=False)[-200:]
         index_filt_detr_ctrl = chebychev(TPI_ctrl, 13) - xr_lintrend(chebychev(TPI_ctrl,13))
         index_filt_detr_rcp  = chebychev(TPI_rcp , 13) - xr_lintrend(chebychev(TPI_rcp ,13))
         index_filt_detr_lpd  = chebychev(TPI_lpd , 13) - xr_lintrend(chebychev(TPI_lpd ,13))
         index_filt_detr_lpi  = chebychev(TPI_lpi , 13) - xr_lintrend(chebychev(TPI_lpi ,13))
 
     elif index=='SOM':
-        index_filt_detr_ctrl = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_ctrl.nc', decode_times=False)
-        index_filt_detr_rcp  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_rcp.nc' , decode_times=False)
-        index_filt_detr_lpd  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)
-        index_filt_detr_lpi  = xr.open_dataarray(f'{path_results}/SST/SOM_cheb13_index_lpi.nc' , decode_times=False)
+        index_filt_detr_ctrl = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_ctrl.nc', decode_times=False)
+        index_filt_detr_rcp  = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_rcp.nc' , decode_times=False)
+        index_filt_detr_lpd  = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)
+        index_filt_detr_lpi  = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_lpi.nc' , decode_times=False)
         
     elif index=='PDO':
         
@@ -62,10 +62,10 @@ def SST_regr_standard(index):
     ds_lpd  = lag_linregress_3D(index_filt_detr_lpd , SST_yrly_detr_lpd )
     ds_lpi  = lag_linregress_3D(index_filt_detr_lpi , SST_yrly_detr_lpi )
     
-    ds_ctrl.to_netcdf(f'{path_results}/SST/{index}_regr_ctrl.nc')
-    ds_rcp .to_netcdf(f'{path_results}/SST/{index}_regr_rcp.nc' )
-    ds_lpd .to_netcdf(f'{path_results}/SST/{index}_regr_lpd.nc' )
-    ds_lpi .to_netcdf(f'{path_results}/SST/{index}_regr_lpi.nc' )
+    ds_ctrl.to_netcdf(f'{path_samoc}/SST/{index}_regr_ctrl.nc')
+    ds_rcp .to_netcdf(f'{path_samoc}/SST/{index}_regr_rcp.nc' )
+    ds_lpd .to_netcdf(f'{path_samoc}/SST/{index}_regr_lpd.nc' )
+    ds_lpi .to_netcdf(f'{path_samoc}/SST/{index}_regr_lpi.nc' )
     
     return
 

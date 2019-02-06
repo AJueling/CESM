@@ -1,3 +1,27 @@
+# =============================================================================
+# GENERATING SST DATA FILES
+# =============================================================================
+
+# %%time
+# # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
+# # stacking files into one xr Dataset object
+# for run in ['ctrl', 'rcp']:  # ['lpi', 'lpd']:
+#     for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
+#         print(y)
+#         da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+#         da = da.drop(['z_t', 'ULONG', 'ULAT'])
+#         da['TLAT' ] = da['TLAT' ].round(decimals=2)
+#         da['TLONG'] = da['TLONG'].round(decimals=2)
+#         del da.encoding["contiguous"]
+#         ds = t2ds(da=da, name='SST', t=int(round(da.time.item())))
+#         ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y}.nc', mode='w')
+     
+#     combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
+#                                  concat_dim='time',
+#                                  autoclose=True,
+#                                  coords='minimal')
+#     combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
+#     # remove extra netCDF files
 
 
 # =============================================================================
