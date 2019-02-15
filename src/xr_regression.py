@@ -203,7 +203,7 @@ def lag_linregress_3D(x, y, dof_corr=1, lagx=0, lagy=0):
     dof_corc .. [] correction facotr for reduced degrees of freedom
     """ 
     assert dof_corr<=1 and dof_corr>0
-    #1. Ensure that the data are properly alinged to each other. 
+    #1. Ensure that the data are properly aligned to each other. 
     x,y = xr.align(x,y)
     
     #2. Add lag information if any, and shift the data accordingly
@@ -253,7 +253,7 @@ def lag_linregress_3D(x, y, dof_corr=1, lagx=0, lagy=0):
     ds = xr.merge([cov, cor, slope, intercept, pval, stderr])
     
     ds.attrs['first_year'] = int(y.time[0]/365)
-    ds.attrs['last_year'] = int(y.time[-1]/365)
+    ds.attrs['last_year']  = int(y.time[-1]/365)
     ds.attrs['lagx'] = lagx
     ds.attrs['lagy'] = lagy
     

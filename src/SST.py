@@ -7,11 +7,11 @@ from eofs.xarray import Eof
 
 import xarray as xr
 
-from paths import path_samoc, path_results
+from paths import path_samoc, path_results, path_data
 from regions import boolean_mask, TPI_masks, mask_box_in_region, bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3
 from timeseries import IterateOutputCESM, deseasonalize
 from xr_DataArrays import xr_AREA
-
+from xr_regression import xr_lintrend, xr_quadtrend, lag_linregress_3D
 
 
 def SST_area_average(xa_SST, AREA, AREA_index, MASK, dims=('nlat', 'nlon'), index_loc=None):
@@ -50,6 +50,7 @@ def SST_index_from_monthly(run, index_loc, MASK):
 
 
 def EOF_SST_analysis(xa, weights, neofs=1, npcs=1, fn=None):
+    """ Empirical Orthogonal Function of SST(t,x,y) field """
     assert type(xa)==xr.core.dataarray.DataArray
     assert type(weights)==xr.core.dataarray.DataArray
     assert 'time' in xa.dims
@@ -108,26 +109,14 @@ def PMV_EOF_indices(run, extent):
         goal: perform EOF of monthly, deseasonalized SST (detrended with global mean SST)
     NB: we will use 60S to 60N SST data as polar data is limited in observations
 
-    1. for detrending: compute monthly global mean SST time series, deseasonalize them
-        >>> see `SST_data_generation.py` file for scripts
-    2. North Pacific monthly output fields
-        2.1. create monthly SST field
-             (if appropriate: determine extend of grid, limit all coordinates)
-             save as single file
-             a) North of 38 deg S
-             b) North of Equator
-             b) North of 20 deg N
-        2.2. deseasonalize 
-        2.3. detrend global mean, deseasonalized SST, 
-        2.4. (remove mean at each point)
-    3. EOF analysis
-       --> index is first principal component
+    
     
     4. regress time series on global maps
         >>> in correspoinding .ipynb files
     """
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
     assert extent in ['38S', 'Eq', '20N']
+    
     if run in ['ctrl', 'rcp']:
         domain = 'ocn_rect'
         run_name = f'rect_{run}'
@@ -191,14 +180,14 @@ def PMV_EOF_indices(run, extent):
 
 
 def SST_index(index, run):
-    """ calcalates SST time series
+    """ calcalates SST time series from yearly detrended SST dataset
     """
     assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
     print(index, run)
     
     if run in ['ctrl', 'rcp']:
-        domain = 'ocn'
+        domain = 'ocn'  #check this
         dims = ('nlat', 'nlon')
     elif run in ['lpd', 'lpi']:
         domain = 'ocn_low'
@@ -229,16 +218,88 @@ def SST_index(index, run):
     MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
     AREA = xr_AREA(domain=domain).where(MASK)
     index_area = AREA.sum()
+
+    SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_global_GMST_dt_yrly_{run}.nc').where(MASK)
+    SSTindex = SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
+    SSTindex.to_netcdf(f'{path_samoc}/SST/{index}_dt_raw_{run}.nc')
     
-    SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc').where(MASK)
-    SOM = SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
-    SOM.to_netcdf(f'{path_samoc}/SST/{index}_raw_{run}.nc')
+    return SSTindex
+
+
+
+def SST_remove_forced_signal(run, tres='yrly', signal='global_GMST'):
+    """ removed the scaled, forced GMST signal
     
-    return SOM
+    1. load raw SST data
+    2. generate forced signal (either quadtrend or CMIP MMEM)
+    3. regress forced signal onto SST data -> \beta
+    4. use regression coefficient \beta to generate SST signal due to forcing
+    5. remove that signal
+    """
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
+    assert tres in ['yrly', 'monthly']
+    assert signal in ['global_GMST']
+    
+    fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
+    
+    if run in ['ctrl', 'rcp']:
+        if tres=='yrly':
+            domain = 'ocn'
+        elif tres=='monthly':
+            domain = 'ocn_rect'
+            fn = f'{path_samoc}/SST/SST_{tres}_rect_{run}.nc'
+    elif run in ['lpd', 'lpi']:
+        domain = 'ocn_low'
+    elif run=='had':
+        domain = 'ocn_had'
+    
+    # 1. load data
+    MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
+    SST = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).where(MASK)
+    
+    # 2/3/4. calculate forced signal
+    if signal=='global_GMST':  # method by Kajtar et al. (2019)
+        forced_signal = forced_GMST(run, tres)
+        beta = lag_linregress_3D(SST, forced_signal)['slope']
+        ds = xr.merge([forced_signal, beta])
+        ds.to_netcdf(f'{path_samoc}/SST/SST_beta_{signal}_{tres}_{run}.nc')
+        if run=='had':
+            print (np.median(beta))
+            beta = xr.where(abs(beta)<5, beta, np.median(beta))
+            beta.plot(vmin=-10)
+        forced_map = beta * forced_signal
+
+    # 5.
+    SST_dt = SST - forced_map
+    SST_dt -= SST_dt.mean(dim='time')
+    SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{signal}_dt_{tres}_{run}.nc')
+    
+    return SST_dt, ds
 
 
-
-
+def forced_GMST(run, tres):
+    """ """
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
+    assert tres in ['yrly', 'monthly']
+    
+    if run in ['ctrl', 'rcp', 'lpd', 'lpi']:
+        forced_signal = xr.open_dataset(f'{path_samoc}/GMST/GMST_{tres}_{run}.nc', decode_times=False).GMST
+        if run=='rcp':
+            forced_signal = xr_quadtrend(forced_signal)
+        else:
+            forced_signal = xr_lintrend(forced_signal)
+            
+        times = forced_signal['time'] + 31 # time coordinates shifted by 31 days
+        forced_signal = forced_signal.assign_coords(time=times)
+        forced_signal.name = 'GMST'
+            
+    elif run=='had':
+        forced_signal = xr.open_dataarray(f'{path_data}/CMIP5/KNMI_CMIP5_GMST_{tres}.nc', decode_times=False)
+        times = (forced_signal['time'].astype(int) - 9)*365
+        forced_signal = forced_signal.assign_coords(time=times)  # days since 1861
+        forced_signal = forced_signal[9:158]  # select 1870-2018
+        
+    return forced_signal
 
 
 if __name__=="__main__":

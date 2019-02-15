@@ -1,5 +1,9 @@
 import numpy as np
 
+# POP files: 
+#  75-275: /projects/0/samoc/pop/tx0.1/output/run_henk_mixedbc/tavg_rectgrid/
+# 276-326: /projects/0/samoc/pop/tx0.1/output/run_henk_mixedbc_extravars_viebahn/tavg_rectgrid/
+
 def CESM_filename(domain, run, y, m, name=None):
     """ filename creation 
     

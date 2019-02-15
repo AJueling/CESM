@@ -68,7 +68,7 @@ regions_dict = {-14: 'Caspian_Sea',
                }
 
 
-def boolean_mask(domain, mask_nr):
+def boolean_mask(domain, mask_nr, rounded=False):
     """ selects a region by number, returns xr DataArray """
     assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had']    
     RMASK = xr.open_dataarray(f'{path_samoc}/grid/RMASK_{domain}.nc')
@@ -78,6 +78,11 @@ def boolean_mask(domain, mask_nr):
     else:
         MASK_np = np.where(RMASK==mask_nr, 1, 0)
     MASK.values = MASK_np
+    
+    if rounded==True and 'TLAT' in MASK.coords and 'TLONG' in MASK.coords:
+        MASK['TLAT' ] = MASK['TLAT' ].round(decimals=2)
+        MASK['TLONG'] = MASK['TLONG'].round(decimals=2)
+        
     return MASK
 
 
