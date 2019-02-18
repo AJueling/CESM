@@ -8,8 +8,8 @@ def CESM_filename(domain, run, y, m, name=None):
     """ filename creation 
     
     input:
-    domain   .. (str) 'ocn' or 'atm'
-    run      .. (str) 'ctrl' or 'rcp'
+    domain   .. (str) 'ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice'
+    run      .. (str) 'ctrl', 'rcp', 'lpd', 'lpi', 'pop'
     y        .. (int) year
     m        .. (int) month; if 0, then yearly file
     name     .. (str) added to yrly file
@@ -18,11 +18,12 @@ def CESM_filename(domain, run, y, m, name=None):
     file     .. (str) filename
     """
     assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
-    assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop']
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int)
     assert m>=0 and m<13
     
     time = f'{y:04}-{m:02}'
+    time2 = f'{y:04}{m:02}'
     
     if domain=='ocn':
         if run=='ctrl':
@@ -38,13 +39,11 @@ def CESM_filename(domain, run, y, m, name=None):
         elif run=='lpd':
             if m==0:
                 file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
-#                 print('yearly averaged not yet implemented')
             else:
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
         elif run=='lpi':
             if m==0:
                 file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
-#                 print('yearly averaged not yet implemented')
             else:
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
                 
@@ -53,12 +52,23 @@ def CESM_filename(domain, run, y, m, name=None):
             if m==0:  # yearly files
                 file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
             else:
-                file = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.{time}.interp900x602.nc'
+                file = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.{time}.interp900x602.nc'
         elif run=='rcp':
             if m==0:
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
             else:
-                file = f'{path_ocn_rcp_rect}/{rcpstr}.pop.h.{time}.interp900x602.nc'
+                file = f'{path_ocn_rect_rcp}/{rcpstr}.pop.h.{time}.interp900x602.nc'
+        elif run=='pop':
+            if m==0:
+                if y<276:
+                    file = f'{path_ocn_rect_pop1}/yearly/{popstr}.avg{y:04}.nc'
+                elif y>=276:
+                    file = f'{path_ocn_rect_pop2}/{popstr}.avg{y:04}.nc'
+            else:
+                if y<276:
+                    file = f'{path_ocn_rect_pop1}/monthly/{popstr}.{time2}.interp900x602.nc'
+                elif y>=276:
+                    file = f'{path_ocn_rect_pop2}/{popstr}.{time2}.interp900x602.nc'
                 
     elif domain=='ocn_low':
         if run=='lpd':
@@ -91,7 +101,6 @@ def CESM_filename(domain, run, y, m, name=None):
         elif run=='lpi':
             if m==0:
                 file = f'{path_yrly_lpi}/atm_yrly_{name}_{y:04}.nc'
-#                 raise ValueError('yearly averaged not yet implemented')
             else:
                 file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
                 
@@ -116,6 +125,7 @@ spinup = 'spinup_pd_maxcores_f05_t12'
 rcpstr = 'rcp8.5_co2_f05_t12'
 lpdstr = 'spinup_B_2000_cam5_f09_g16'
 lpistr = 'b.PI_1pic_f19g16_NESSC_control'
+popstr = 't.t0.1_42l_nccs01'
 
 
 # PATHS
@@ -131,6 +141,7 @@ path_ctrl = f'{path_CESM}/{spinup}'
 path_rcp  = f'{path_CESM}/{rcpstr}'
 path_lpd  = f'/projects/0/acc/cesm/cesm1_1_2/{lpdstr}'
 path_lpi  = f'/projects/0/acc/cesm/cesm1_0_5/{lpistr}'
+path_pop  = f'/projects/0/samoc/pop/tx0.1'
 
 # grid
 path_ocn_grid = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/'
@@ -157,11 +168,15 @@ path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist'
 
 
 # interpolated to rectangular 0.4 deg grid
-path_ocn_ctrl_rect = f'{path_ctrl}/OUTPUT/ocn/hist/monthly_rect'
+path_ocn_rect_ctrl = f'{path_ctrl}/OUTPUT/ocn/hist/monthly_rect'
 path_atm_ctrl_rect = f'{path_ctrl}/OUTPUT/atm/hist/monthly_rect'
 
-path_ocn_rcp_rect  = f'{path_rcp}/OUTPUT/ocn/hist/monthly_rect'
+path_ocn_rect_rcp  = f'{path_rcp}/OUTPUT/ocn/hist/monthly_rect'
 path_atm_rcp_rect  = f'{path_rcp}/OUTPUT/atm/hist/monthly_rect'
+
+path_ocn_rect_pop1 = f'{path_pop}/output/run_henk_mixedbc/tavg_rectgrid'
+path_ocn_rect_pop2 = f'{path_pop}/output/run_henk_mixedbc_extravars_viebahn/tavg_rectgrid'
+
 
 # OHC files created by Rene
 path_rene          = '/projects/0/prace_imau/prace_2013081679/rene/CESM'
@@ -184,7 +199,7 @@ file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
 file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
 file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 
-file_ex_ocn_rect  = f'{path_ocn_ctrl_rect}/{spinup}.pop.h.0200-01.interp900x602.nc'
+file_ex_ocn_rect  = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
 file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y= 200, m=1)
 file_ex_atm_rcp  = CESM_filename(domain='atm', run='rcp' , y=2000, m=1)

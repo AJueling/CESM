@@ -200,10 +200,10 @@ def lag_linregress_3D(x, y, dof_corr=1, lagx=0, lagy=0):
     Output: xr Dataset containing covariance, correlation, regression slope and intercept, p-value, and
     standard error on regression between the two datasets along their aligned time dimension.  
     Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount.
-    dof_corc .. [] correction facotr for reduced degrees of freedom
+    dof_corr .. (0,1] correction factor for reduced degrees of freedom
     """ 
     assert dof_corr<=1 and dof_corr>0
-    #1. Ensure that the data are properly aligned to each other. 
+    #1. Ensure that the data are properly aligned to each other.
     x,y = xr.align(x,y)
     
     #2. Add lag information if any, and shift the data accordingly

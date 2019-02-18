@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 import xarray as xr
@@ -178,25 +179,8 @@ def PMV_EOF_indices(run, extent):
     return eof, pc
 
 
-
-def SST_index(index, run):
-    """ calcalates SST time series from yearly detrended SST dataset
-    """
-    assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
-    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
-    print(index, run)
-    
-    if run in ['ctrl', 'rcp']:
-        domain = 'ocn'  #check this
-        dims = ('nlat', 'nlon')
-    elif run in ['lpd', 'lpi']:
-        domain = 'ocn_low'
-        dims = ('nlat', 'nlon')
-    elif run=='had':
-        domain = 'ocn_had'
-        dims = ('latitude', 'longitude')
-    
-    # bounding latitudes and longitudes
+def bounding_lats_lons(index):
+    """ bounding latitudes and longitudes """
     if index=='AMO':
         (blats, blons) = bll_AMO
         mask_nr = 6
@@ -212,6 +196,30 @@ def SST_index(index, run):
     elif index=='TPI3':
         (blats, blons) = bll_TPI3
         mask_nr = 2
+    return blats, blons, mask_nr
+    
+
+
+def SST_index(index, run, detrend_signal='GMST'):
+    """ calcalates SST time series from yearly detrended SST dataset
+    """
+    assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
+    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
+    assert detrend_signal in ['GMST', 'AMO', 'SOM']
+    
+    print(index, run)
+    
+    if run in ['ctrl', 'rcp']:
+        domain = 'ocn'  #check this
+        dims = ('nlat', 'nlon')
+    elif run in ['lpd', 'lpi']:
+        domain = 'ocn_low'
+        dims = ('nlat', 'nlon')
+    elif run=='had':
+        domain = 'ocn_had'
+        dims = ('latitude', 'longitude')
+    
+    blats, blons, mask_nr = bounding_lats_lons(index)
     
     # load yearly data files
     
@@ -219,16 +227,26 @@ def SST_index(index, run):
     AREA = xr_AREA(domain=domain).where(MASK)
     index_area = AREA.sum()
 
-    SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_global_GMST_dt_yrly_{run}.nc').where(MASK)
+    if run=='had' or detrend_signal=='GMST':
+        print(f'no filtering has taken place, but detrended with {detrend_signal}\n')
+        fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly_{run}.nc'
+        assert os.path.exists(fn)
+        SST_yrly = xr.open_dataarray(fn).where(MASK)
+        detr = '_dt'
+    else:
+        print('no detrending or filtering has taken place\n')
+        SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc').where(MASK)
+        detr = ''
+        
     SSTindex = SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
-    SSTindex.to_netcdf(f'{path_samoc}/SST/{index}_dt_raw_{run}.nc')
+    SSTindex.to_netcdf(f'{path_samoc}/SST/{index}{detr}_raw_{run}.nc')
     
     return SSTindex
 
 
 
-def SST_remove_forced_signal(run, tres='yrly', signal='global_GMST'):
-    """ removed the scaled, forced GMST signal
+def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST'):
+    """ removed the scaled, forced GMST signal (method by Kajtar et al. (2019))
     
     1. load raw SST data
     2. generate forced signal (either quadtrend or CMIP MMEM)
@@ -238,8 +256,9 @@ def SST_remove_forced_signal(run, tres='yrly', signal='global_GMST'):
     """
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
     assert tres in ['yrly', 'monthly']
-    assert signal in ['global_GMST']
-    
+    assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
+    if detrend_signal in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']:   assert run=='had'
+        
     fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
     
     if run in ['ctrl', 'rcp']:
@@ -256,49 +275,61 @@ def SST_remove_forced_signal(run, tres='yrly', signal='global_GMST'):
     # 1. load data
     MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
     SST = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).where(MASK)
+    SST = SST - SST.mean(dim='time')
     
     # 2/3/4. calculate forced signal
-    if signal=='global_GMST':  # method by Kajtar et al. (2019)
-        forced_signal = forced_GMST(run, tres)
-        beta = lag_linregress_3D(SST, forced_signal)['slope']
-        ds = xr.merge([forced_signal, beta])
-        ds.to_netcdf(f'{path_samoc}/SST/SST_beta_{signal}_{tres}_{run}.nc')
-        if run=='had':
-            print (np.median(beta))
-            beta = xr.where(abs(beta)<5, beta, np.median(beta))
-            beta.plot(vmin=-10)
-        forced_map = beta * forced_signal
+    forced_signal = forcing_signal(run=run, tres=tres, detrend_signal=detrend_signal)
 
-    # 5.
-    SST_dt = SST - forced_map
-    SST_dt -= SST_dt.mean(dim='time')
-    SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{signal}_dt_{tres}_{run}.nc')
+    if detrend_signal=='GMST':
+        beta = lag_linregress_3D(forced_signal, SST)['slope']
+        if run=='had':
+            beta = xr.where(abs(beta)<5, beta, np.median(beta))
+        ds = xr.merge([forced_signal, beta])
+        ds.to_netcdf(f'{path_samoc}/SST/SST_beta_{detrend_signal}_{tres}_{run}.nc')
+        forced_map = beta * forced_signal
+        
+        # 5.
+        SST_dt = SST - forced_map
+        SST_dt -= SST_dt.mean(dim='time')
+        
+    elif detrend_signal in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']:
+        # these indices will be detrended afterwards
+        SST_dt = SST - forced_signal
+        ds = None
+        
+    SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{detrend_signal}_dt_{tres}_{run}.nc')
     
     return SST_dt, ds
 
 
-def forced_GMST(run, tres):
-    """ """
+def forcing_signal(run, tres, detrend_signal):
+    """ GMST forced component
+    run  .. dataset
+    tres .. time resolution
+    """
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
     assert tres in ['yrly', 'monthly']
+    assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
     
     if run in ['ctrl', 'rcp', 'lpd', 'lpi']:
+        assert detrend_signal=='GMST'
         forced_signal = xr.open_dataset(f'{path_samoc}/GMST/GMST_{tres}_{run}.nc', decode_times=False).GMST
         if run=='rcp':
             forced_signal = xr_quadtrend(forced_signal)
         else:
             forced_signal = xr_lintrend(forced_signal)
-            
         times = forced_signal['time'] + 31 # time coordinates shifted by 31 days
         forced_signal = forced_signal.assign_coords(time=times)
-        forced_signal.name = 'GMST'
             
     elif run=='had':
-        forced_signal = xr.open_dataarray(f'{path_data}/CMIP5/KNMI_CMIP5_GMST_{tres}.nc', decode_times=False)
+        forced_signal = xr.open_dataarray(f'{path_data}/CMIP5/KNMI_CMIP5_{detrend_signal}_{tres}.nc', decode_times=False)
         times = (forced_signal['time'].astype(int) - 9)*365
         forced_signal = forced_signal.assign_coords(time=times)  # days since 1861
         forced_signal = forced_signal[9:158]  # select 1870-2018
-        
+    
+    forced_signal -= forced_signal.mean()
+    forced_signal.name = 'forcing'
+    
     return forced_signal
 
 
