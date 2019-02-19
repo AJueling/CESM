@@ -205,7 +205,7 @@ def SST_index(index, run, detrend_signal='GMST'):
     """
     assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
-    assert detrend_signal in ['GMST', 'AMO', 'SOM']
+    assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
     
     print(index, run)
     
@@ -227,14 +227,22 @@ def SST_index(index, run, detrend_signal='GMST'):
     AREA = xr_AREA(domain=domain).where(MASK)
     index_area = AREA.sum()
 
-    if run=='had' or detrend_signal=='GMST':
-        print(f'no filtering has taken place, but detrended with {detrend_signal}\n')
+    if run=='had' and detrend_signal in ['AMO', 'SOM'] or detrend_signal=='GMST':
+        print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
+        if detrend_signal=='GMST': 
+            print('GMST(t) signal scaled at each grid point\n')
+        else:
+            print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
         fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly_{run}.nc'
         assert os.path.exists(fn)
         SST_yrly = xr.open_dataarray(fn).where(MASK)
         detr = '_dt'
     else:
-        print('no detrending or filtering has taken place\n')
+        print('underlying SST field: no detrending, no filtering')
+        if detrend_signal in ['AMO', 'SOM']:
+            print(f'{detrend_signal} must subsequently be detrended with polynomial\n')
+        else:
+            print(f'{detrend_signal} must not be detrended since forcing signal compensated in TPI\n')
         SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc').where(MASK)
         detr = ''
         
@@ -318,7 +326,9 @@ def forcing_signal(run, tres, detrend_signal):
             forced_signal = xr_quadtrend(forced_signal)
         else:
             forced_signal = xr_lintrend(forced_signal)
-        times = forced_signal['time'] + 31 # time coordinates shifted by 31 days
+        times = forced_signal['time'] + 31 # time coordinates shifted by 31 days (SST saved end of January, GMST beginning)
+        if run=='ctrl':  # for this run, sometimes 31 days, sometimes 15/16 days offset
+            times = xr.open_dataset(f'{path_samoc}/SST/SST_yrly_ctrl.nc', decode_times=False).time
         forced_signal = forced_signal.assign_coords(time=times)
             
     elif run=='had':
