@@ -209,7 +209,7 @@ file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=3000, m=1)
 file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'
 file_ex_ice_yrly = f'{path_ice_rcp}/{rcpstr}.cice.h.avg2000.nc'
 
-file_HadISST     = f'{path_data}/HadISST_sst.nc'
+file_HadISST     = f'{path_data}/HadISST/HadISST_sst.nc'
 
 # derived data
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'

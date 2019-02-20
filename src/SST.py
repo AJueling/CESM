@@ -236,7 +236,7 @@ def SST_index(index, run, detrend_signal='GMST'):
         fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly_{run}.nc'
         assert os.path.exists(fn)
         SST_yrly = xr.open_dataarray(fn).where(MASK)
-        detr = '_dt'
+        detr = f'_{detrend_signal}_dt'
     else:
         print('underlying SST field: no detrending, no filtering')
         if detrend_signal in ['AMO', 'SOM']:
