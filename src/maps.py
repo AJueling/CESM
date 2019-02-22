@@ -144,8 +144,6 @@ def regr_map(ds, index, run, fn=None):
     
     xa = ds.slope.where(MASK>0)
     
-
-    
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 300
