@@ -136,18 +136,19 @@ def rect_polygon(extent):
 def regr_map(ds, index, run, fn=None):
     """ map of regression slope with 95% significance countours and SST index polygons """
     if run in ['ctrl', 'rcp']:
-        MASK = boolean_mask(domain='ocn_rect', mask_nr=0)
         domain = 'ocn_rect'
     elif run in ['lpd', 'lpi']:
-        MASK = boolean_mask(domain='ocn_low', mask_nr=0)
         domain = 'ocn_low'
+    elif run=='had':
+        domain = 'ocn_had'
+    MASK = boolean_mask(domain=domain, mask_nr=0)
     
     xa = ds.slope.where(MASK>0)
     
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 300
-        nv = 5
+        nv = .5
     elif index in ['PDO', 'IPO']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 200

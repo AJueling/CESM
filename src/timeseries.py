@@ -1,7 +1,9 @@
 import os
 import numpy as np
+import mtspec
 import xarray as xr
 import scipy.signal as signal
+from statsmodels.tsa.arima_process import ArmaProcess
 
 from paths import path_ocn_ctrl, path_ocn_rcp
 from paths import path_atm_ctrl, path_atm_rcp
@@ -101,6 +103,84 @@ class IterateOutputCESM:
             elif self.tavg=='yrly':
                 self.year += 1
                 return y, 0, new_file
+            
+            
+class tseries_analysis(object):
+    """ commonly used time series analysis functions 
+    > spectrum
+    > AR(1) fitting
+    > MC spectral (uncertainty) estimates
+    
+    """
+    
+    def __init__(self, ts):
+        """ time series analysis
+        ts .. (np.ndarray) regularly sampled time series data
+        """
+        self.ts = ts
+        assert type(self.ts)==np.ndarray
+        self.len = len(self.ts)
+    
+    def spectrum(self, data=None, filter_type=None, filter_cutoff=None):
+        """ multitaper spectrum """
+        if data is None:  data = self.ts
+        assert type(data)==np.ndarray
+        if filter_type is not None:
+            assert filter_type in ['lowpass', 'chebychev']
+            assert type(filter_cutoff)==int
+            assert filter_cutoff>1
+            if filter_type=='lowpass':
+                data = lowpass(data, filter_cutoff)
+            elif filter_type=='chebychev':
+                data = chebychev(data, filter_cutoff)
+        
+        spec, freq, jackknife, _, _ = mtspec.mtspec(
+                data=data, delta=1., time_bandwidth=4,
+                number_of_tapers=5, statistics=True)
+        return (spec, freq, jackknife)
+    
+    def autocorrelation(self, n=1):
+        """ calculates the first n lag autocorrelation coefficient """
+        assert n<self.len
+        n += 1  # zeroth element is lag-0 autocorrelation = 1
+        acs = np.ones((n))
+        for i in np.arange(1,n):
+            acs[i] = np.corrcoef(self.ts[:-i],self.ts[i:])[0,1]
+        return acs
+        
+    def mc_ar1(self, n=1000):
+        """ Monte-Carlo AR(1) processes """
+        phi = self.autocorrelation(n=1)[1]
+        AR_object = ArmaProcess(np.array([1, -phi]), np.array([1]))
+        mc = np.zeros((n, self.len))
+        for i in range(n):
+            mc[i,:] = AR_object.generate_sample(nsample=self.len)
+            mc[i,:] *= np.std(self.ts)/np.std(mc[i,:])
+        return mc
+        
+    def mc_ar1_spectrum(self, n=1000, filter_type=None, filter_cutoff=None):
+        """ calculates the MC avg spectrum and the 95% confidence interval """
+        mc = self.mc_ar1()
+        if filter_type is not None:
+            assert filter_type in ['lowpass', 'chebychev']
+            assert type(filter_cutoff)==int
+            assert filter_cutoff>1
+            if filter_type=='lowpass':
+                mc = lowpass(mc.T, filter_cutoff).T
+            elif filter_type=='chebychev':
+                mc = chebychev(mc.T, filter_cutoff).T
+
+        mc_spectra = np.zeros((n, int(self.len/2)+1))
+        for i in range(n):
+            (mc_spectra[i,:], freq, jk) = self.spectrum(data=mc[i,:])
+        mc_spectrum = np.zeros((4, int(self.len/2)+1))
+        mc_spectrum[0,:] = np.median(mc_spectra, axis=0)
+        mc_spectrum[1,:] = freq
+        mc_spectrum[2,:] = np.percentile(mc_spectra,  5, axis=0)
+        mc_spectrum[3,:] = np.percentile(mc_spectra, 95, axis=0)
+        return mc_spectrum
+
+
             
 
 
@@ -263,3 +343,6 @@ def notch(ts, period):
 def deseasonalize(ts):
     ts = lowpass(lowpass(notch(ts, 12), 12),12)
     return ts
+
+
+
