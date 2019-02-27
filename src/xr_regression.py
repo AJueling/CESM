@@ -67,9 +67,36 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
         trend = stacked.groupby('allpoints').apply(xr_linear_trend_with_nans)
         # unstack back to lat lon coordinates
         da_trend = trend.unstack('allpoints')
-        da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
+    da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
     return da_trend
 
+
+def xr_autocorrelation_2D(da, dim_names, with_nans=False):
+    """ calculate linear trend of 2D field in time
+    
+    input:
+    da        .. 3D xr DataArray with (dim_names) dimensions
+    dim_names .. tuple of 2 strings: e.g. lat, lon dimension names
+    
+    output:
+    da_trend  .. slope of linear regression
+    """
+    def autocorrelation(x):
+        return xr.DataArray(np.corrcoef(x[1:], x[:-1])[0,1])
+    
+    (dim1, dim2) = dim_names
+    # stack lat and lon into a single dimension called allpoints
+    stacked = da.stack(allpoints=[dim1, dim2])
+    # apply the function over allpoints to calculate the trend at each point
+    if with_nans==False:
+        trend = stacked.groupby('allpoints').apply(autocorrelation)
+        da_ac = trend.unstack('allpoints')
+    if with_nans==True:
+        trend = stacked.groupby('allpoints').apply(xr_linear_trend_with_nans)
+        # unstack back to lat lon coordinates
+        da_ac = trend.unstack('allpoints')
+    da_ac = da_ac.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
+    return da_ac
 
 
 def ocn_field_regression(xa, run):

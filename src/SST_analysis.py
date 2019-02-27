@@ -53,15 +53,15 @@ class SST_index_analysis(object):
         """
         def fn_raw(run):
             return f'{path_samoc}/SST/{self.index}_raw_{run}.nc'
-        self.ctrl = xr.open_dataarray(fn_raw('ctrl'), decode_times=False)
-        self.rcp  = xr.open_dataarray(fn_raw('rcp' ), decode_times=False)
-        self.lpd  = xr.open_dataarray(fn_raw('lpd' ), decode_times=False)
-        self.lpi  = xr.open_dataarray(fn_raw('lpi' ), decode_times=False)
+        self.ctrl_raw = xr.open_dataarray(fn_raw('ctrl'), decode_times=False)
+        self.rcp_raw  = xr.open_dataarray(fn_raw('rcp' ), decode_times=False)
+        self.lpd_raw  = xr.open_dataarray(fn_raw('lpd' ), decode_times=False)
+        self.lpi_raw  = xr.open_dataarray(fn_raw('lpi' ), decode_times=False)
         if self.index in ['AMO', 'SOM']:
-            self.had  = xr.open_dataarray(f'{path_samoc}/SST/{self.index}_{self.index}_dt_raw_had.nc' , decode_times=False)
+            self.had_raw  = xr.open_dataarray(f'{path_samoc}/SST/{self.index}_{self.index}_dt_raw_had.nc' , decode_times=False)
         elif self.index=='TPI':
-            self.had  = xr.open_dataarray(fn_raw('had') , decode_times=False)
-        self.all_raw_indices = {'ctrl':self.ctrl, 'rcp':self.rcp, 'lpd':self.lpd, 'lpi':self.lpi, 'had':self.had}
+            self.had_raw  = xr.open_dataarray(fn_raw('had') , decode_times=False)
+        self.all_raw_indices = {'ctrl':self.ctrl_raw, 'rcp':self.rcp_raw, 'lpd':self.lpd_raw, 'lpi':self.lpi_raw, 'had':self.had_raw}
         
     
     def load_GMST_detr_indices(self):
@@ -157,6 +157,7 @@ class SST_index_analysis(object):
         ax.set_ylabel(f'{self.index} Power Spectral Density', fontsize=14)
         plt.tight_layout()
         
+    
     def plot_spectrum_ar1(self, run):
         """ plots spectrum of single time series + AR(1) spectrum
         AR(1) spectrum includes uncertainties from MC simulation
@@ -192,7 +193,6 @@ class SST_index_analysis(object):
         plt.tight_layout()
         
         
-        
     def plot_all_autocorrelations(self, n=50):
         fig, ax = plt.subplots(1, 1, figsize=(6,4))
         ax.tick_params(labelsize=14)
@@ -206,8 +206,6 @@ class SST_index_analysis(object):
         ax.set_xlabel(r'lag [yr]', fontsize=14)
         ax.set_ylabel(f'{self.index} Autocorrelation', fontsize=14)
         plt.tight_layout()
-        
-        return
     
     
     def plot_regression_map(self, run):

@@ -54,7 +54,7 @@ def SST_regr_standard(index):
         index_filt_detr_lpd  = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_lpd.nc' , decode_times=False)
         index_filt_detr_lpi  = xr.open_dataarray(f'{path_samoc}/SST/SOM_cheb13_index_lpi.nc' , decode_times=False)
         
-    elif index=='PDO':
+#     elif index=='PDO':
         
         
     ds_ctrl = lag_linregress_3D(index_filt_detr_ctrl, SST_yrly_detr_ctrl)
