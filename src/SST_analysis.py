@@ -10,9 +10,9 @@ from timeseries import tseries_analysis
 from xr_regression import lag_linregress_3D
 
 
-class SST_index_analysis(object):
+class IndexAnalysis(object):
     """
-    collection of analysis and plotting 
+    collection of analysis and plotting functions
     """
     
     def __init__(self, index, run='all'):

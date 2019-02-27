@@ -32,19 +32,6 @@ def xr_linear_trend(x):
     return xr.DataArray(pf[1])
 
 
-def xr_linear_trend_with_nans(x):
-    """ function to compute a linear trend coeficient of a timeseries """
-    if np.isnan(x).any():
-        x = x.dropna(dim='time')
-        if x.size>1:
-            pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
-        else:
-            pf = np.array([np.nan, np.nan])
-    else:
-        pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
-    return xr.DataArray(pf[1])
-
-
 def xr_linear_trends_2D(da, dim_names, with_nans=False):
     """ calculate linear trend of 2D field in time
     
@@ -55,6 +42,19 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
     output:
     da_trend  .. slope of linear regression
     """
+    
+    def xr_linear_trend_with_nans(x):
+        """ function to compute a linear trend coeficient of a timeseries """
+        if np.isnan(x).any():
+            x = x.dropna(dim='time')
+            if x.size>1:
+                pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+            else:
+                pf = np.array([np.nan, np.nan])
+        else:
+            pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+        return xr.DataArray(pf[1])
+    
     (dim1, dim2) = dim_names
     # stack lat and lon into a single dimension called allpoints
     stacked = da.stack(allpoints=[dim1, dim2])
@@ -92,7 +92,7 @@ def xr_autocorrelation_2D(da, dim_names, with_nans=False):
         trend = stacked.groupby('allpoints').apply(autocorrelation)
         da_ac = trend.unstack('allpoints')
     if with_nans==True:
-        trend = stacked.groupby('allpoints').apply(xr_linear_trend_with_nans)
+        trend = stacked.groupby('allpoints').apply(autocorrelation_with_nans)
         # unstack back to lat lon coordinates
         da_ac = trend.unstack('allpoints')
     da_ac = da_ac.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
