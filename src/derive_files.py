@@ -4,7 +4,7 @@ import xarray as xr
 from paths import path_samoc
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names
-from xr_regression import xr_autocorrelation_2D
+from xr_regression import xr_autocorrelation_2D, lag_linregress_3D
 
 class MakeDerivedFiles(object):
     """ functions to generate netcdf files derived from CESM output / obs. """
@@ -116,21 +116,29 @@ class MakeDerivedFiles(object):
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{self.run}.nc')
         # remove extra netCDF files
         return
-
+    
+    def make_GMST_file(self):
     
     
-    def make_SST_linear_trend_map(self):
-        """ """
+    def make_OHC_file(self):
         return
     
+    def make_MOC_file(self):
+        return
     
-    def make_SST_autocorrelation_map(self):
-        """ 
-        ca. 4:30 for had, lpd, and lpi
-        """
-        SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_GMST_dt_yrly_{self.run}.nc', decode_times=False)
-        latlon = (depth_lat_lon_names(self.domain)[1:])
-        SST_map = xr_autocorrelation_2D(SST_yrly, latlon)
-        SST_map.to_netcdf(f'{path_samoc}/SST/SST_autocorrelation_{self.run}.nc' )
-        return SST_map
-        
+    def make_CICE_file(self):
+        return
+    
+    def make_freshwater_35S_file(self):
+        return
+    
+    def make_SST_index_file(self):
+        return
+    
+#     def load_SST_data(self, detrend=False):
+#         """ loads raw or detrended SST fields """
+#         if detrend==False:
+#             self.SST = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{self.run}.nc', decode_times=False)
+#         if detrend==True:
+#             self.SST = xr.open_dataarray(f'{path_samoc}/SST/SST_GMST_dt_yrly_{self.run}.nc', decode_times=False)
+#         return

@@ -6,6 +6,7 @@ from pandas.tools.plotting import autocorrelation_plot
 
 from maps import regr_map
 from paths import path_samoc, path_results
+from analysis import TimeSeriesAnalysis
 from timeseries import tseries_analysis
 from xr_regression import lag_linregress_3D
 
@@ -214,3 +215,56 @@ class IndexAnalysis(object):
     
     
         
+        
+class TimeSeriesSynthesis(TimeSeriesAnalysis):
+    """ combines different time series """
+    def __init__(self):
+        self.ctrl = {'name':'ctrl'}
+        self.rcp  = {'name':'rcp'}
+        self.lpd  = {'name':'lpd'}
+        self.lpi  = {'name':'lpi'}
+        self.had  = {'name':'had'}
+        
+        self.runs = [self.ctrl, self.rcp, self.lpd, self.lpi, self.had]
+        
+        self.load_GMST()
+        self.load_TOA()
+        self.load_SST_indices()
+        
+        
+    def load_TOA(self):
+        return
+        
+    def load_GMST(self):
+        for run in self.runs[:4]:
+            name = run["name"]
+            run['GMST'] = xr.open_dataset(f'{path_samoc}/GMST/GMST_yrly_{name}.nc', decode_times=False).GMST
+        return
+    
+    def load_SST_indices(self):
+        for run in self.runs:
+            for index in ['AMO', 'SOM', 'TPI']:
+                name = run["name"]
+                run[index] = xr.open_dataarray(f'{path_samoc}/SST/{index}_{name}.nc', decode_times=False)
+        return
+        
+    
+    def model_GMST_modes(self):
+        """ linear models of GMST as a function of SST indices """
+        return
+    
+    def model_GMST_TOA_modes(self):
+        """ linear models of GMST as function of SST modes and TOA """
+        return
+    
+    def model_GMST_TOA_OHU(self):
+        """ GMST as a function of TOA and OHU """
+        return
+    
+    
+    def plot_lead_lag(self):
+        return
+    
+    def plot_variance(self):
+        return
+    
