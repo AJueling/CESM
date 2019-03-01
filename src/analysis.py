@@ -3,11 +3,13 @@ contains 3 classes:
 """
 
 import numpy as np
+import xesmf as xe
 import mtspec
 import xarray as xr
 from statsmodels.tsa.arima_process import ArmaProcess
 
 from filters import lowpass
+from xr_DataArrays import dll_coords_names
 
 
 class xrAnalysis(object):
@@ -215,11 +217,25 @@ class FieldAnalysis(xrAnalysis):
     > autocorrelation map
     
     """
-    def __init__(self, field):
+    def __init__(self, field=None):
         """
         field .. xr.DataArray
         """
         self.field = field
+        
+    def determine_domain(self, A):
+        """ guesses domain from shape of DataArray A """
+        if np.shape(A)==(2400,3600):
+            domain = 'ocn'
+        elif np.shape(A)==(602, 900):
+            domain = 'ocn_rect'
+        elif np.shape(A)==(384, 320):
+            domain = 'ocn_low'
+        elif np.shape(A)==(180, 360):
+            domain = 'ocn_had'
+        else:
+            raise ValueError('not a known shape')
+        return domain
     
     def make_linear_trend_map(self, fn):
         """ """
@@ -235,4 +251,72 @@ class FieldAnalysis(xrAnalysis):
         ds = self.autocorrelation(self.field)
         if fn is not None:  ds.to_netcdf(fn)
         return ds
+    
+    def regrid(self, field_to_regrid, field_unchanged, method='conservative'):
+        if method=='conservative':
+            raise ValueError('need to implement lat/lon bounds lat_b, lon_b!')'
+        assert np.size(field_unchanged)<np.size(field_to_regrid)
+        def rename_coords(A, back=False):
+            print('renaming', A)
+            domain = self.determine_domain(A)
+            dll_coords = dll_coords_names(domain)
+            if back==False:
+                A = A.rename({dll_coords[1]: 'lat', dll_coords[2]: 'lon'})
+            elif back==True:
+                A = A.rename({'lat': dll_coords[1], 'lon': dll_coords[2]})
+            print(A)
+            return A
+        field_to_regrid = rename_coords(field_to_regrid)
+        field_unchanged = rename_coords(field_unchanged)
+        regridder = xe.Regridder(field_to_regrid, field_unchanged, method,
+                                 periodic=True)
+#                                  reuse_weights=True, periodic=True)
+        field_regridded = regridder(field_to_regrid)
+        field_regridded = rename_coords(field_regridded, back=True)
+        return field_regridded
+    
+    def regrid_to_lower_resolution(self, other_field, method=None):
+        """ regrids either self.field or other_field to the lower of either resolutions
+        returns the pair (self.field, other field) that are regridded keeping that order
+        """
+        field_A, field_B = self.field, other_field
+        for field in [field_A, field_B]:
+            assert type(field)==xr.core.dataarray.DataArray
+            assert len(np.shape(field))==2
+            
+        if np.size(field_A)==np.size(field_B):
+            print('the fields are the same size already, no regridding necessary')
+            return field_A, field_B
+        
+        elif np.size(field_A)>np.size(field_B):
+            assert method is not None
+            print('regridding self.field')
+            field_to_regrid = field_A
+            field_unchanged = field_B
+            field_regridded = self.regrid(field_to_regrid, field_unchanged, method)
+            return field_regridded, field_unchanged        
+            
+        elif np.size(field_A)<np.size(field_B):
+            assert method is not None
+            print('regridding other_field')
+            field_to_regrid = field_B
+            field_unchanged = field_A
+            field_regridded = self.regrid(field_to_regrid, field_unchanged, method)
+            return field_unchanged, field_regridded
+        
+    
+    def spatial_correlation(self, other_field, method=None):
+        """ correlate two 2D fields """
+        if np.shape(self.field)!=np.shape(other_field):  # have to regrid
+            assert method is not None
+            A, B = self.regrid_to_lower_resolution(self, self.field, other_field, method=method)
+        else:
+            A, B = self.field, other_field
+        assert np.shape(A)==np.shape(B)
+        self.determine_domain(A)
+        
+        AREA = xr_AREA(domain)
+        
+        return spatial_corr_coef
+        
     

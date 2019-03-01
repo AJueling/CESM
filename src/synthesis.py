@@ -6,7 +6,7 @@ from pandas.tools.plotting import autocorrelation_plot
 
 from maps import regr_map
 from paths import path_samoc, path_results
-from analysis import TimeSeriesAnalysis
+from analysis import TimeSeriesAnalysis, FieldAnalysis
 from xr_regression import lag_linregress_3D
 
 
@@ -269,3 +269,10 @@ class TimeSeriesSynthesis(TimeSeriesAnalysis):
     def plot_variance(self):
         return
     
+    
+class FieldSynthesis(FieldAnalysis):
+    """ compares xr fields """
+    def __init__(self, run):
+        self.run = run
+        
+    def spatial_
