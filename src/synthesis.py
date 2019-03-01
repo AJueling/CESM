@@ -7,11 +7,10 @@ from pandas.tools.plotting import autocorrelation_plot
 from maps import regr_map
 from paths import path_samoc, path_results
 from analysis import TimeSeriesAnalysis
-from timeseries import tseries_analysis
 from xr_regression import lag_linregress_3D
 
 
-class IndexAnalysis(object):
+class IndexAnalysis(TimeSeriesAnalysis):
     """
     collection of analysis and plotting functions
     """
@@ -157,6 +156,7 @@ class IndexAnalysis(object):
         ax.set_xlabel(r'Frequency [yr$^{-1}$]', fontsize=14)
         ax.set_ylabel(f'{self.index} Power Spectral Density', fontsize=14)
         plt.tight_layout()
+        plt.savefig(f'{path_results}/SST/{self.index}_all_spectra')
         
     
     def plot_spectrum_ar1(self, run):
@@ -165,25 +165,23 @@ class IndexAnalysis(object):
         for the filtered SST indices, the AR(1) process is first fitted to the annual data
         """
         self.load_raw_indices()
-        tsa = tseries_analysis(self.all_raw_indices[run].values)
+        tsa = TimeSeriesAnalysis(self.all_raw_indices[run].values)
         ft, fc = 'lowpass', 13
         spectrum = tsa.spectrum(filter_type=ft, filter_cutoff=fc)
         mc_spectrum = tsa.mc_ar1_spectrum(filter_type=ft, filter_cutoff=fc)
         
         fig, ax = plt.subplots(1, 1, figsize=(8,5))
         ax.tick_params(labelsize=14)
-        ax.set_yscale('log')
-        
-        ax.legend(fontsize=14, loc=1, frameon=False)
-        ax.fill_between(spectrum[1], spectrum[2][:, 0], spectrum[2][:, 1],
-                       color='C0', alpha=0.3, label=f'{run.upper()} jackknife estimator')
-        ax.plot(spectrum[1], spectrum[0], c='C0', label=f'{run.upper()} spectrum')
-        
-        ax.fill_between(mc_spectrum[1,:], mc_spectrum[2,:],  mc_spectrum[3,:],
+        ax.set_yscale('log')        
+        L2 = ax.fill_between(mc_spectrum[1,:], mc_spectrum[2,:],  mc_spectrum[3,:],
                         color='C1', alpha=.3, label='5-95% C.I.')
-        ax.plot(mc_spectrum[1,:], mc_spectrum[0,:], c='C1', label=f'MC AR(1)')
-
-        ax.legend(ncol=2, fontsize=14, loc=3)
+        L1, = ax.plot(mc_spectrum[1,:], mc_spectrum[0,:], c='C1', label=f'MC AR(1)')     
+        L4 = ax.fill_between(spectrum[1], spectrum[2][:, 0], spectrum[2][:, 1],
+                       color='C0', alpha=0.3, label=f'{run.upper()} jackknife estimator')
+        L3, = ax.plot(spectrum[1], spectrum[0], c='C0', label=f'{run.upper()} spectrum')
+        leg1 = plt.legend(handles=[L1, L2], fontsize=14, frameon=False, loc=3)
+        ax.legend(handles=[L3,L4], fontsize=14, frameon=False, loc=1)
+        ax.add_artist(leg1)
         ymax = 1e1
         if any([mc_spectrum[3,:].max()>ymax, spectrum[2][:, 1].max()>ymax]):
             ymax = max([mc_spectrum[3,:].max(), spectrum[2][:, 1].max()])
@@ -192,21 +190,24 @@ class IndexAnalysis(object):
         ax.set_xlabel(r'Frequency [yr$^{-1}$]', fontsize=14)
         ax.set_ylabel(f'{self.index} Power Spectral Density', fontsize=14)
         plt.tight_layout()
+        plt.savefig(f'{path_results}/SST/{self.index}_AR1_spectrum_{run}')
         
         
-    def plot_all_autocorrelations(self, n=50):
-        fig, ax = plt.subplots(1, 1, figsize=(6,4))
+    def plot_all_autocorrelations(self, n=60):
+        fig, ax = plt.subplots(1, 1, figsize=(8,5))
         ax.tick_params(labelsize=14)
         ax.axhline(0, c='k', lw=.5)
         for i, run in enumerate(self.all_indices.keys()):
-            tsa = tseries_analysis(self.all_indices[run].values)
+            tsa = TimeSeriesAnalysis(self.all_indices[run].values)
             acs = tsa.autocorrelation(n=n)
             plt.plot(np.arange(0,n+1), acs, label=f'{run.upper()}')
         plt.legend(fontsize=14, frameon=False)
         ax.set_xlim((0,n))
+        ax.set_ylim((-1.1,1.1))
         ax.set_xlabel(r'lag [yr]', fontsize=14)
         ax.set_ylabel(f'{self.index} Autocorrelation', fontsize=14)
         plt.tight_layout()
+        plt.savefig(f'{path_results}/SST/{self.index}_all_autocorrelations')
     
     
     def plot_regression_map(self, run):

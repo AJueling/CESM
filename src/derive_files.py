@@ -117,6 +117,8 @@ class MakeDerivedFiles(object):
         # remove extra netCDF files
         return
     
+    def make_detrended_SST_file(self, )
+    
     def make_GMST_file(self):
     
     

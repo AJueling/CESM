@@ -7,6 +7,8 @@ import mtspec
 import xarray as xr
 from statsmodels.tsa.arima_process import ArmaProcess
 
+from filters import lowpass
+
 
 class xrAnalysis(object):
     """ functions that work on 1D time series as well as on 3D fields
@@ -224,13 +226,13 @@ class FieldAnalysis(xrAnalysis):
         self.load_SST_data()
         return
         
-    def make_standard_deviation_map(self, fn):
+    def make_standard_deviation_map(self, fn=None):
         ds = standard_deviation(self.field)
-        ds.to_netcdf(fn)
+        if fn is not None:  ds.to_netcdf(fn)
         return ds
     
-    def make_autocorrelation_map(self, fn):
-        ds = autocorrelation(self.field)
-        ds.to_netcdf(fn)
+    def make_autocorrelation_map(self, fn=None):
+        ds = self.autocorrelation(self.field)
+        if fn is not None:  ds.to_netcdf(fn)
         return ds
     
