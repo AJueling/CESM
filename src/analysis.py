@@ -149,12 +149,25 @@ class TimeSeriesAnalysis(xrAnalysis):
         ts .. (np.ndarray) regularly sampled time series data
         """
         self.ts = ts
-        assert type(self.ts)==np.ndarray
+#         assert type(self.ts)==np.ndarray
+        assert 'time' in ts.coords
         self.len = len(self.ts)
+        
+        
+    def rolling_trends(self, window=11):
+        """ returns trends over a rolling window """
+        assert type(window)==int
+        da = xr.DataArray(data=np.full((self.len), np.nan),
+                          coords={'time': self.ts.time}, dims=('time'))
+        for t in range(self.len-window):
+            da[int(np.floor(window/2))+t] = np.polyfit(np.arange(window), self.ts[t:t+window], 1)[0]
+        return da
+    
+    
     
     def spectrum(self, data=None, filter_type=None, filter_cutoff=None):
         """ multitaper spectrum """
-        if data is None:  data = self.ts
+        if data is None:  data = np.array(self.ts)
         assert type(data)==np.ndarray
         if filter_type is not None:
             assert filter_type in ['lowpass', 'chebychev']

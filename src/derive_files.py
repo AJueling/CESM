@@ -122,10 +122,98 @@ class MakeDerivedFiles(object):
     
     def make_detrended_SST_file(self, )
     
-    def make_GMST_file(self):
-        
-        
+    def make_GMST_with_trends_file(self):
+        """ builds a timesries of the GMST and saves it to a netCDF
     
+        input:
+        run    .. (str) ctrl or cp
+
+        output:
+        ds_new .. xr Dataset containing GMST and T_zonal
+        """
+        domain = 'atm'
+        tavg   = 'yrly'
+        name   = 'T_T850_U_V'
+
+        if run in ['ctrl', 'rcp']:   AREA = xr_AREA('atm')
+        elif run=='lpi':             AREA = xr_AREA('atm_f19')
+        elif run=='lpd':             AREA = xr_AREA('atm_f09')
+
+        AREA_lat   = AREA.sum(dim='lon')
+        AREA_total = AREA.sum(dim=('lat','lon'))
+
+
+        if run in ['lpd']:  name = None
+
+        ny   = len(IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name))
+        first_yr = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name).year
+        iterator = IterateOutputCESM(domain=domain, run=run, tavg=tavg, name=name)
+        years    = (np.arange(ny) + first_yr)*365  # this is consistent with CESM output
+
+        for i, (y, m, file) in enumerate(iterator):
+            print(y)
+            assert os.path.exists(file)
+            if run in ['ctrl', 'rcp', 'lpi']:
+                da = xr.open_dataset(file, decode_times=False)['T'][-1,:,:]
+            elif run in ['lpd']:
+                da = xr.open_dataset(file, decode_times=False)['T'][0,-1,:,:]
+
+            if i==0:  # create new xr Dataset
+                lats = da.lat.values
+                ds_new = xr.Dataset()
+                ds_new['GMST']    = xr.DataArray(data=np.zeros((ny)),
+                                                 coords={'time': years},
+                                                 dims=('time'))
+                ds_new['T_zonal'] = xr.DataArray(data=np.zeros((ny, len(lats))), 
+                                                 coords={'time': years, 'lat': lats},
+                                                 dims=('time', 'lat'))
+
+            ds_new['GMST'][i]      = (da*AREA).sum(dim=('lat','lon'))/AREA_total
+            ds_new['T_zonal'][i,:] = (da*AREA).sum(dim='lon')/AREA_lat
+
+        # [K] to [degC]
+        for field in ['GMST', 'T_zonal']:  
+            ds_new[field] = ds_new[field] + abs_zero
+
+        # rolling linear trends [degC/yr]
+        ds_new = rolling_lin_trends(ds=ds_new, ny=ny, years=years)
+
+        # fits
+        lfit = np.polyfit(np.arange(ny), ds_new.GMST, 1)
+        qfit = np.polyfit(np.arange(ny), ds_new.GMST, 2)
+
+        ds_new[f'lin_fit']  = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                           coords={'time': years},
+                                           dims=('time'),
+                                           attrs={'lin_fit_params':lfit})
+        ds_new[f'quad_fit'] = xr.DataArray(data=np.empty((len(ds_new['GMST']))),
+                                           coords={'time': years},
+                                           dims=('time'),
+                                           attrs={'quad_fit_params':qfit})
+
+        for t in range(ny):
+            ds_new[f'lin_fit'][t]  =                lfit[0]*t + lfit[1]
+            ds_new[f'quad_fit'][t] = qfit[0]*t**2 + qfit[1]*t + qfit[2]
+
+        ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
+
+        return ds_new
+        
+        
+    def make_AHC_file(self):
+        """ calculate total atmospheric heat content [Joule] """
+        def atm_heat_content(ds, dp, AREA):
+            assert 'T' in ds
+            assert 'lat' in ds.coords
+            assert 'lat' in AREA.coords
+            assert 'lon' in ds.coords
+            assert 'lon' in AREA.coords
+            assert 'lev' in ds.coords
+            assert 'lev' in dp.coords
+            return (AREA*dp*ds['T']*cp_air).sum()
+    
+    
+        
     
     def make_OHC_file(self):
         return
