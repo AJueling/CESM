@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 # POP files: 
@@ -11,7 +12,9 @@ def CESM_filename(domain, run, y, m, name=None):
     domain   .. (str) 'ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice'
     run      .. (str) 'ctrl', 'rcp', 'lpd', 'lpi', 'pop'
     y        .. (int) year
-    m        .. (int) month; if 0, then yearly file
+    m        .. (int) month; 
+                      if 0, then name of yearly avg. file
+                      if 13, then monthly multifile name
     name     .. (str) added to yrly file
     
     output:
@@ -20,10 +23,13 @@ def CESM_filename(domain, run, y, m, name=None):
     assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop']
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int)
-    assert m>=0 and m<13
+    assert m>=0 and m<14
     
     time = f'{y:04}-{m:02}'
     time2 = f'{y:04}{m:02}'
+    
+    if m==13:  # returning multi-file name
+        time = '*'
     
     if domain=='ocn':
         if run=='ctrl':
@@ -116,6 +122,9 @@ def CESM_filename(domain, run, y, m, name=None):
             else:
                 file = f'{path_ice_rcp}/{rcpstr}.cice.h.{time}.nc'
             
+    if m<13 and os.path.exists(file)==False:
+        print(f'The file "{file}" does not exist')
+        
     return file
 
 

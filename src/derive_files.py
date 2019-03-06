@@ -3,8 +3,9 @@ import xarray as xr
 
 from paths import path_samoc
 from timeseries import IterateOutputCESM
-from xr_DataArrays import depth_lat_lon_names
+from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
 from xr_regression import xr_autocorrelation_2D, lag_linregress_3D
+
 
 class MakeDerivedFiles(object):
     """ functions to generate netcdf files derived from CESM output / obs. """
@@ -19,6 +20,8 @@ class MakeDerivedFiles(object):
         elif run=='had':
             self.domain = 'ocn_had'
         print(f'self.domain = {self.domain} for {self.run} run, some functions require setting different domain')
+    
+    def multifile_name(self)
     
     
     def yrly_avg_nc(self, fields, test=False):
@@ -120,12 +123,38 @@ class MakeDerivedFiles(object):
     def make_detrended_SST_file(self, )
     
     def make_GMST_file(self):
+        
+        
     
     
     def make_OHC_file(self):
         return
     
     def make_MOC_file(self):
+        # # ca 20 sec per file
+        # # 50 min for ctrl
+        # # 26 min for rcp
+        if selfrun in ['ctrl', 'rcp']:
+            DXU  = xr_DXU(self.domain)            # [m]
+            DZU  = xr_DZ(self.domain, grid='U')   # [m]
+            # MASK = Atlantic_mask('ocn')   # Atlantic
+            # MASK = boolean_mask('ocn', 2) # Pacific
+            MASK = boolean_mask(self.domain, 0)   # Global OCean
+            for i, (y,m,s) in enumerate(IterateOutputCESM(domain=self.domain, run=self.run, tavg='yrly', name='UVEL_VVEL')):
+                # ca. 20 sec per year
+                print(i, y, s)
+                ds = xr.open_dataset(s, decode_times=False)
+                MOC = calculate_MOC(ds=ds, DXU=DXU, DZU=DZU, MASK=MASK)
+                if i==0:
+                    MOC_out = MOC.copy()
+                else:
+                    MOC_out = xr.concat([MOC_out, MOC], dim='time')
+            #     if y==202: break
+            MOC_out.to_netcdf(f'{path_results}/MOC/GMOC_{self.run}.nc')
+        
+        elif self.run in ['lpd', 'lpi']:
+            ds = xr.open_mfdataset()
+        
         return
     
     def make_CICE_file(self):

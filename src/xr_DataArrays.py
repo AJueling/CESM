@@ -239,10 +239,8 @@ def dll_coords_names(domain):
     """
     assert domain in ['ocn', 'ocn_low', 'ocn_rect', 'ocn_had', 'atm', 'ice', 'atm_f19', 'atm_f09']
     
-    if domain=='ocn':
+    if domain in ['ocn', 'ocn_low']:
         dll = ('z_t', 'TLAT', 'TLONG')
-    if domain=='ocn_low':
-        dll = ('z_t', 'nlat', 'nlon')
     elif domain=='ocn_rect':
         dll = ('depth_t', 't_lat', 't_lon')
     elif domain=='ocn_had':

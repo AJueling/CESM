@@ -95,7 +95,7 @@ def GMST_timeseries(run):
 
 
 def GMST_regression(run):
-    """ calculates the surface temperature trends
+    """ calculates the 2D surface temperature trends
     
     input:
     run      .. (str) ctrl or rcp
@@ -130,7 +130,7 @@ def GMST_regression(run):
 
 
 def atm_heat_content(ds, dp, AREA):
-    """ calculate total atmoshperic heat content [Joule] """
+    """ calculate total atmospheric heat content [Joule] """
     assert 'T' in ds
     assert 'lat' in ds.coords
     assert 'lat' in AREA.coords
