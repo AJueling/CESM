@@ -101,7 +101,10 @@ def CESM_filename(domain, run, y, m, name=None):
                 file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
         elif run=='lpd':
             if m==0:
-                file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
+                if name==None:
+                    file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
+                else:
+                    file = f'{path_atm_lpd}/atm_yrly_{name}_{y:04}.nc'
             else:
                 raise ValueError('monthly files are not available for lpd run!')
         elif run=='lpi':
@@ -173,7 +176,7 @@ path_atm_lpd  = f'{path_lpd}/OUTPUT/atm/hist/yearly'
 path_ice_lpd  = f'{path_lpd}/OUTPUT/ice/hist'
 
 path_ocn_lpi  = f'{path_lpi}/OUTPUT/ocn/hist/monthly'
-path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist'
+path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist/monthly'
 
 
 # interpolated to rectangular 0.4 deg grid

@@ -1,10 +1,11 @@
 import os
+import numpy as np
 import xarray as xr
 
-from paths import path_samoc
+from paths import CESM_filename, path_samoc
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
-from xr_regression import xr_autocorrelation_2D, lag_linregress_3D
+# from xr_regression import xr_autocorrelation_2D, lag_linregress_3D
 
 
 class MakeDerivedFiles(object):
@@ -21,20 +22,22 @@ class MakeDerivedFiles(object):
             self.domain = 'ocn_had'
         print(f'self.domain = {self.domain} for {self.run} run, some functions require setting different domain')
     
-    def multifile_name(self)
+    
+    def multifile_name(self):
+        return
     
     
-    def yrly_avg_nc(self, fields, test=False):
+    def yrly_avg_nc(self, domain, fields, test=False):
         """ creates yearly average file from monthly
         input:    fields .. list of field names
         output:   [writes netCDF file]
         (takes approx. 2 min for high res ocean data for two 3D fields)
         (takes approx. 4 sec for lower res atm data for one 2D and one 3D field)
         """
-        assert self.domain in ['ocn', 'ocn_rect', 'atm', 'ice']
+        assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
         assert self.run in ['ctrl', 'rcp', 'lpd' ,'lpi']
 
-        print(f'yearly averaging of {self.run} {self.domain}')
+        print(f'yearly averaging of {self.run} {domain}')
         for field in fields:  print(f'   {field}')
 
         name = ''
@@ -43,59 +46,79 @@ class MakeDerivedFiles(object):
             name += field
             if i<n_fields-1:
                 name += '_'
-
+                
         ffield = fields[0]
-
-        first_year = IterateOutputCESM(domain=self.domain, run=self.run, tavg='monthly').year
-
-        for y, m, s in IterateOutputCESM(domain=self.domain, run=self.run, tavg='monthly'):
-            if m==1:
-                new_filename = CESM_filename(domain=self.domain, run=self.run, y=y, m=0, name=name)
-            if os.path.exists(new_filename):
-                continue
-            ds = xr.open_dataset(s, decode_times=False)
-
-            if m==1:  # create new xr Dataset
+                
+        if self.run=='lpd' and domain=='atm':
+            # there are no monthly files for the lpd run
+            # but for consistency, I create the same files as for the runs with monthly output only
+            for y, m, s in IterateOutputCESM(domain=domain, run=self.run, tavg='yrly'):
+                new_filename = CESM_filename(domain=domain, run=self.run, y=y, m=0, name=name)
+                ds = xr.open_dataset(s, decode_times=False)
                 dim = len(np.shape(ds[ffield]))
-                if domain in ['atm', 'ocn', 'ice']:
-                    if dim==3:  # 2D field
-                        ds_out = (ds[ffield][0,:,:]/12).to_dataset()
-                    elif dim==4:  # 3D
-                        ds_out = (ds[ffield][0,:,:,:]/12).to_dataset()
-                elif domain=='ocn_rect':
-                    if dim==2:  # 2D
-                        ds_out = (ds[ffield][:,:]/12).to_dataset()
-                    elif dim==3:  # 3D
-                        ds_out = (ds[ffield][:,:,:]/12).to_dataset()
-                for field in fields[1:]:  # add rest of fields
-                    dim = len(np.shape(ds[field]))
-                    if domain in ['atm', 'ocn', 'ice']:
-                        if dim==3:
-                            ds_out[field] = ds[field][0,:,:]/12
-                        elif dim==4:
-                            ds_out[field] = ds[field][0,:,:,:]/12
-                    elif domain=='ocn_rect':
-                        if dim==2:
-                            ds_out[field] = ds[field][:,:]/12
-                        elif dim==3:
-                            ds_out[field] = ds[field][:,:,:]/12
-            else:  # add subsequent monthly values
-                for field in fields:
-                    dim = len(np.shape(ds[field]))
-                    if domain in ['atm', 'ocn', 'ice']:
-                        if   dim==3:  ds_out[field][:,:]   += ds[field][0,:,:]/12
-                        elif dim==4:  ds_out[field][:,:,:] += ds[field][0,:,:,:]/12
-                    elif domain=='ocn_rect':
-                        if   dim==2:  ds_out[field][:,:]   += ds[field][:,:]/12
-                        elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
-
-            if m==12:  # write to new file
+                if   dim==3:  ds_out = (ds[ffield][0,:,:]).to_dataset()
+                elif dim==4:  ds_out = (ds[ffield][0,:,:,:]).to_dataset()
+                if len(fields)>1:
+                    for field in fields[1:]:
+                        dim = len(np.shape(ds[field]))
+                        if   dim==3:  ds_out[field] = ds[field][0,:,:]
+                        elif dim==4:  ds_out[field] = ds[field][0,:,:,:]
                 print(y, new_filename)
                 ds_out.to_netcdf(path=new_filename, mode='w')
+            return
+        
+        else:                
+            first_year = IterateOutputCESM(domain=domain, run=self.run, tavg='monthly').year
 
-            if test==True and y==first_year+2:  break
-        print('done!')
-        return
+            for y, m, s in IterateOutputCESM(domain=domain, run=self.run, tavg='monthly'):
+                if m==1:
+                    new_filename = CESM_filename(domain=domain, run=self.run, y=y, m=0, name=name)
+                if os.path.exists(new_filename):
+                    continue
+                ds = xr.open_dataset(s, decode_times=False)
+
+                if m==1:  # create new xr Dataset
+                    dim = len(np.shape(ds[ffield]))
+                    if domain in ['atm', 'ocn', 'ice']:
+                        if dim==3:  # 2D field
+                            ds_out = (ds[ffield][0,:,:]/12).to_dataset()
+                        elif dim==4:  # 3D
+                            ds_out = (ds[ffield][0,:,:,:]/12).to_dataset()
+                    elif domain=='ocn_rect':
+                        if dim==2:  # 2D
+                            ds_out = (ds[ffield][:,:]/12).to_dataset()
+                        elif dim==3:  # 3D
+                            ds_out = (ds[ffield][:,:,:]/12).to_dataset()
+                    for field in fields[1:]:  # add rest of fields
+                        dim = len(np.shape(ds[field]))
+                        if domain in ['atm', 'ocn', 'ice']:
+                            if dim==3:
+                                ds_out[field] = ds[field][0,:,:]/12
+                            elif dim==4:
+                                ds_out[field] = ds[field][0,:,:,:]/12
+                        elif domain=='ocn_rect':
+                            if dim==2:
+                                ds_out[field] = ds[field][:,:]/12
+                            elif dim==3:
+                                ds_out[field] = ds[field][:,:,:]/12
+
+                else:  # add subsequent monthly values
+                    for field in fields:
+                        dim = len(np.shape(ds[field]))
+                        if domain in ['atm', 'ocn', 'ice']:
+                            if   dim==3:  ds_out[field][:,:]   += ds[field][0,:,:]/12
+                            elif dim==4:  ds_out[field][:,:,:] += ds[field][0,:,:,:]/12
+                        elif domain=='ocn_rect':
+                            if   dim==2:  ds_out[field][:,:]   += ds[field][:,:]/12
+                            elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
+
+                if m==12:  # write to new file
+                    print(y, new_filename)
+                    ds_out.to_netcdf(path=new_filename, mode='w')
+
+                if test==True and y==first_year+2:  break
+            print('done!')
+            return
     
     
     def make_SST_yrly_data_file(self):
@@ -120,7 +143,8 @@ class MakeDerivedFiles(object):
         # remove extra netCDF files
         return
     
-    def make_detrended_SST_file(self, )
+    def make_detrended_SST_file(self):
+        return
     
     def make_GMST_with_trends_file(self):
         """ builds a timesries of the GMST and saves it to a netCDF
