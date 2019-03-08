@@ -6,6 +6,8 @@ import numpy as np
 import xesmf as xe
 import mtspec
 import xarray as xr
+
+import scipy.stats as stats
 from statsmodels.tsa.arima_process import ArmaProcess
 from statsmodels.stats.weightstats import DescrStatsW
 
@@ -66,7 +68,7 @@ class xrAnalysis(object):
 
         return cor
     
-    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0):
+    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0, autocorrelation=None):
         """
         adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html
         Input: Two xr.Datarrays of any dimensions with the first dim being time. 
@@ -77,6 +79,7 @@ class xrAnalysis(object):
         standard error on regression between the two datasets along their aligned time dimension.  
         Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount.
         dof_corr .. (0,1] correction factor for reduced degrees of freedom
+        autocorrelation .. map
         """ 
         assert dof_corr<=1 and dof_corr>0
         #1. Ensure that the data are properly aligned to each other.
@@ -113,10 +116,19 @@ class xrAnalysis(object):
 
         #7. Compute P-value and standard error
         #Compute t-statistics
+        if autocorrelation is not None:
+            dof_corr = autocorrelation.copy()
+            dof_corr_filter = autocorrelation.copy()
+            dof_corr_filter[:,:] = 1/13
+            dof_corr_auto = (1-autocorrelation)/(1+autocorrelation)
+            dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)
+        
+        print('after dof assignment')
+        
         tstats = cor*np.sqrt(n*dof_corr-2)/np.sqrt(1-cor**2)
         stderr = slope/tstats
 
-        pval   = sp.stats.t.sf(tstats, n-2)  # *2 for t-tailed test
+        pval   = stats.t.sf(tstats, n-2)  # *2 for t-tailed test
         pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
 
         cov.name       = 'cov'
@@ -183,13 +195,16 @@ class TimeSeriesAnalysis(xrAnalysis):
                 number_of_tapers=5, statistics=True)
         return (spec, freq, jackknife)
     
-    def autocorrelation(self, n=1):
+    def autocorrelation(self, data=None, n=1):
         """ calculates the first n lag autocorrelation coefficient """
-        assert n<self.len
+        if data is None:
+            assert n<self.len
+            data = self.ts
+        
         n += 1  # zeroth element is lag-0 autocorrelation = 1
         acs = np.ones((n))
         for i in np.arange(1,n):
-            acs[i] = np.corrcoef(self.ts[:-i],self.ts[i:])[0,1]
+            acs[i] = np.corrcoef(data[:-i]-data[:-i].mean(), data[i:]-data[i:].mean())[0,1]
         return acs
         
     def mc_ar1(self, n=1000):
@@ -224,6 +239,47 @@ class TimeSeriesAnalysis(xrAnalysis):
         mc_spectrum[3,:] = np.percentile(mc_spectra, 95, axis=0)
         return mc_spectrum
     
+    @staticmethod
+    def test_homoscedasticity(X, Y):
+        X1, Y1 = X, Y
+        if len(X)>150:  X1 = X[-150:]
+        if len(Y)>150:  Y1 = Y[-150:]
+        print(f'{stats.levene(X, Y)[1]:4.2e}, {stats.levene(X1, Y1)[1]:4.2e}')
+        
+    def plot_spectrum_ar1(self, data=None):
+        """ plots spectrum of single time series + AR(1) spectrum
+        AR(1) spectrum includes uncertainties from MC simulation
+        for the filtered SST indices, the AR(1) process is first fitted to the annual data
+        """
+        self.load_raw_indices()
+        tsa = TimeSeriesAnalysis(self.all_raw_indices[run].values)
+        ft, fc = 'lowpass', 13
+        spectrum = tsa.spectrum(filter_type=ft, filter_cutoff=fc)
+        mc_spectrum = tsa.mc_ar1_spectrum(filter_type=ft, filter_cutoff=fc)
+        
+        fig, ax = plt.subplots(1, 1, figsize=(8,5))
+        ax.tick_params(labelsize=14)
+        ax.set_yscale('log')        
+        L2 = ax.fill_between(mc_spectrum[1,:], mc_spectrum[2,:],  mc_spectrum[3,:],
+                        color='C1', alpha=.3, label='5-95% C.I.')
+        L1, = ax.plot(mc_spectrum[1,:], mc_spectrum[0,:], c='C1', label=f'MC AR(1)')     
+        L4 = ax.fill_between(spectrum[1], spectrum[2][:, 0], spectrum[2][:, 1],
+                       color='C0', alpha=0.3, label=f'{run.upper()} jackknife estimator')
+        L3, = ax.plot(spectrum[1], spectrum[0], c='C0', label=f'{run.upper()} spectrum')
+        leg1 = plt.legend(handles=[L1, L2], fontsize=14, frameon=False, loc=3)
+        ax.legend(handles=[L3,L4], fontsize=14, frameon=False, loc=1)
+        ax.add_artist(leg1)
+        ymax = 1e1
+        if any([mc_spectrum[3,:].max()>ymax, spectrum[2][:, 1].max()>ymax]):
+            ymax = max([mc_spectrum[3,:].max(), spectrum[2][:, 1].max()])
+        ax.set_ylim((1E-6, ymax))
+        ax.set_xlim((0, 0.1))
+        ax.set_xlabel(r'Frequency [yr$^{-1}$]', fontsize=14)
+        ax.set_ylabel(f'{self.index} Power Spectral Density', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(f'{path_results}/SST/{self.index}_AR1_spectrum_{run}')
+        
+    
     
     
 class FieldAnalysis(xrAnalysis):
@@ -254,6 +310,12 @@ class FieldAnalysis(xrAnalysis):
             raise ValueError('not a known shape')
         return domain
     
+    
+    def load_SST_dt_field(self):
+        return
+    
+    def load_SST_autocorrelation_maps(self):
+        return
     
     def make_linear_trend_map(self, fn):
         """ """

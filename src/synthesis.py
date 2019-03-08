@@ -3,11 +3,13 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import mtspec
 from pandas.tools.plotting import autocorrelation_plot
+from itertools import combinations
 
 from maps import regr_map
 from paths import path_samoc, path_results
+from constants import A_earth
 from analysis import TimeSeriesAnalysis, FieldAnalysis
-from xr_regression import lag_linregress_3D
+# from xr_regression import lag_linregress_3D
 
 
 class IndexAnalysis(TimeSeriesAnalysis):
@@ -75,7 +77,11 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.lpd_GMST  = xr.open_dataarray(fn('lpd' ), decode_times=False)
         self.lpi_GMST  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.had_GMST  = xr.open_dataarray(fn('had' ), decode_times=False)
-        self.all_GMST_indices = {'ctrl':self.ctrl_GMST, 'rcp':self.rcp_GMST, 'lpd':self.lpd_GMST, 'lpi':self.lpi_GMST, 'had':self.had_GMST}
+        self.all_GMST_indices = {'ctrl':self.ctrl_GMST, 
+                                 'rcp':self.rcp_GMST,
+                                 'lpd':self.lpd_GMST,
+                                 'lpi':self.lpi_GMST,
+                                 'had':self.had_GMST}
         
         
     def load_yrly_SST(self):
@@ -87,7 +93,11 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.SST_lpd  = xr.open_dataarray(fn('lpd' ), decode_times=False)
         self.SST_lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.SST_had  = xr.open_dataarray(fn('had' ), decode_times=False)
-        self.all_SSTs = {'ctrl':self.SST_ctrl, 'rcp':self.SST_rcp, 'lpd':self.SST_lpd, 'lpi':self.SST_lpi, 'had':self.SST_had}
+        self.all_SSTs = {'ctrl':self.SST_ctrl,
+                         'rcp':self.SST_rcp,
+                         'lpd':self.SST_lpd,
+                         'lpi':self.SST_lpi, 
+                         'had':self.SST_had}
     
     
     def load_regression_files(self):
@@ -99,14 +109,38 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.regr_lpd  = xr.open_dataset(fn('lpd' ), decode_times=False)
         self.regr_lpi  = xr.open_dataset(fn('lpi' ), decode_times=False)
         self.regr_had  = xr.open_dataset(fn('had' ), decode_times=False)
-        self.all_regrs = {'ctrl':self.regr_ctrl, 'rcp':self.regr_rcp, 'lpd':self.regr_lpd, 'lpi':self.regr_lpi, 'had':self.regr_had}
+        self.all_regrs = {'ctrl':self.regr_ctrl,
+                          'rcp':self.regr_rcp,
+                          'lpd':self.regr_lpd,
+                          'lpi':self.regr_lpi,
+                          'had':self.regr_had}
+        
+        
+    def load_SST_autocorrelation_files(self):
+        """ loads autocorrelation files """
+        def fn(run):
+            return f'{path_samoc}/SST/SST_autocorrelation_{run}.nc'
+        self.autocorr_ctrl = xr.open_dataarray(fn('ctrl'), decode_times=False)
+        self.autocorr_rcp  = xr.open_dataarray(fn('rcp' ), decode_times=False)
+        self.autocorr_lpd  = xr.open_dataarray(fn('lpd' ), decode_times=False)
+        self.autocorr_lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
+        self.autocorr_had  = xr.open_dataarray(fn('had' ), decode_times=False)
+        self.all_autocorrs = {'ctrl':self.autocorr_ctrl, 
+                              'rcp':self.autocorr_rcp,
+                              'lpd':self.autocorr_lpd,
+                              'lpi':self.autocorr_lpi,
+                              'had':self.autocorr_had}
 
         
     def make_regression_files(self):
         """ generate regression files """
+        self.load_SST_autocorrelation_files()
         for i, run in enumerate(self.all_indices.keys()):
             print(run)
-            ds = lag_linregress_3D(x=self.all_SSTs[run], y=self.all_indices[run])
+            if run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue
+            ds = self.lag_linregress(x=self.all_SSTs[run],
+                                     y=self.all_indices[run],
+                                     autocorrelation=self.all_autocorrs[run])
             ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
         
         
@@ -234,7 +268,19 @@ class TimeSeriesSynthesis(TimeSeriesAnalysis):
         
         
     def load_TOA(self):
+        self.ctrl['FTNT'] = xr.open_dataarray(f'{path_samoc}/TOA/TOM_ctrl.nc', decode_times=False)/A_earth
+        self.rcp ['FTNT'] = xr.open_dataarray(f'{path_samoc}/TOA/TOM_rcp.nc' , decode_times=False)/A_earth
+        self.lpd ['FTNT'] = xr.open_dataarray(f'{path_samoc}/TOA/TOM_lpd.nc' , decode_times=False)/A_earth
+        self.lpi ['FTNT'] = xr.open_dataarray(f'{path_samoc}/TOA/TOM_lpi.nc' , decode_times=False)/A_earth
+        
+        self.ctrl['FTNT_dt'] = self.ctrl['FTNT'] - self.lintrend( self.ctrl['FTNT'])
+        self.rcp ['FTNT_dt'] = self.rcp ['FTNT'] - self.quadtrend(self.rcp ['FTNT'])
+        self.lpd ['FTNT_dt'] = self.lpd ['FTNT'] - self.lintrend( self.lpd ['FTNT'])
+        self.lpi ['FTNT_dt'] = self.lpi ['FTNT'] - self.lintrend( self.lpi ['FTNT'])
         return
+    
+
+        
         
     def load_GMST(self):
         for run in self.runs[:4]:
@@ -249,6 +295,18 @@ class TimeSeriesSynthesis(TimeSeriesAnalysis):
                 run[index] = xr.open_dataarray(f'{path_samoc}/SST/{index}_{name}.nc', decode_times=False)
         return
         
+#     @staticmethod
+    def print_pairwise_homoscedasticity(self, fields):
+        assert type(fields)==tuple
+        print('p-value\nfull time series, last 150 years')
+        for c in combinations(fields, 2):
+            self.test_homoscedasticity(c[0], c[1])
+        return
+            
+    def print_all_autocorrelations(self, timeseries):
+        for ts in timeseries:
+            print(self.autocorrelation(ts))
+        return
     
     def model_GMST_modes(self):
         """ linear models of GMST as a function of SST indices """
@@ -263,6 +321,69 @@ class TimeSeriesSynthesis(TimeSeriesAnalysis):
         return
     
     
+    @staticmethod
+    def plot_all_timeseries(times, timeseries, ylabels, xlim, fn=None):
+        (m,n) = np.shape(timeseries)
+        
+        f, ax, = plt.subplots(m,1,figsize=(12,m*3), sharex=True)
+        for i in range(m):
+            ax[i].tick_params(labelsize=14)
+            ax[i].axhline(0, c='k', lw=.5)
+        # ax.axhline(0,c='k', lw=.5)
+
+        time_had = np.arange(2350,2519)
+
+        for i in range(m):
+            for j in range(n):
+                time = times[i,j]
+                data = timeseries[i,j]
+                ax[i].plot(time, data, c=f'C{j}')
+                ax[i].set_ylabel(ylabels[i], fontsize=16)
+                
+        ax[-1].set_xlabel('time [years]', fontsize=16)
+
+        ax[-1].set_xticks(np.arange(0,2800,100))
+        ax[-1].set_xlim(xlim)
+        f.align_ylabels()
+        f.tight_layout()
+        if fn is not None:  plt.savefig(fn)
+            
+    def plot_all_spectra(self, timeseries, fn=None):
+        f, ax = plt.subplots(1,1, figsize=(8,5))
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.tick_params(labelsize=14)
+        
+        for ts in timeseries:
+            spectrum = self.spectrum(data=ts.values)
+            ax.plot(spectrum[1], spectrum[0])
+        ax.set_xlabel(r'frequency [yr$^{-1}$]', fontsize=14)
+        ax.set_ylabel('power spectral density', fontsize=14)
+        plt.tight_layout()
+        
+    def plot_all_TOA(self):
+        self.load_TOA()
+        time_ctrl = np.arange(1950,2150)
+        time_rcp  = np.arange(2200,2300)
+        time_lpd  = np.arange(1503,1851)
+        time_lpi  = np.arange(1276,1482)
+        times = np.array([time_ctrl, time_rcp, time_lpd, time_lpi])
+        times = np.array([times, times])
+        timeseries = np.array([[self.ctrl['FTNT'].values, self.rcp['FTNT'].values,
+                                self.lpd['FTNT'].values, self.lpi['FTNT'].values],
+                               [self.ctrl['FTNT_dt'].values, self.rcp['FTNT_dt'].values,
+                                self.lpd['FTNT_dt'].values, self.lpi['FTNT_dt'].values]])
+        ylabels = [r'TOA [W m$^{-2}$]', r'detrended TOA [W m$^{-2}$]']
+        xlim = (1230,2350)
+        fn = f'{path_results}/TOA/TOA_timeseries'
+        self.plot_all_timeseries(times, timeseries, ylabels, xlim, fn=fn)
+        
+    def print_TOA_statistics(self):
+        self.load_TOA()
+        for i, ts in enumerate([self.ctrl['FTNT_dt'], self.rcp['FTNT_dt'],\
+                                self.lpd['FTNT_dt'], self.lpi['FTNT_dt']]):
+            print(i, TimeSeriesAnalysis(ts).autocorrelation(), ts.std().values)
+        
     def plot_lead_lag(self):
         return
     
@@ -275,4 +396,4 @@ class FieldSynthesis(FieldAnalysis):
     def __init__(self, run):
         self.run = run
         
-    def spatial_
+#     def spatial_
