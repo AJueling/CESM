@@ -85,6 +85,7 @@ class xrAnalysis(object):
         #1. Ensure that the data are properly aligned to each other.
         x,y = xr.align(x,y)
 
+        print(x, y)
         #2. Add lag information if any, and shift the data accordingly
         if lagx!=0:
             #If x lags y by 1, x must be shifted 1 step backwards. 
@@ -104,9 +105,11 @@ class xrAnalysis(object):
         xstd  = x.std(axis=0)
         ystd  = y.std(axis=0)
 
+        print(np.shape(x), np.shape(xmean))
+        print(np.shape(y), np.shape(ymean))
         #4. Compute covariance along time axis
         cov   =  np.sum((x - xmean)*(y - ymean), axis=0)/(n)
-
+        print("cov",cov)
         #5. Compute correlation along time axis
         cor   = cov/(xstd*ystd)
 
@@ -124,11 +127,13 @@ class xrAnalysis(object):
             dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)
         
         print('after dof assignment')
-        
+        print(cor)
         tstats = cor*np.sqrt(n*dof_corr-2)/np.sqrt(1-cor**2)
+        print(tstats)
         stderr = slope/tstats
 
         pval   = stats.t.sf(tstats, n-2)  # *2 for t-tailed test
+        print(pval)
         pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
 
         cov.name       = 'cov'
@@ -324,7 +329,7 @@ class FieldAnalysis(xrAnalysis):
     
         
     def make_standard_deviation_map(self, fn=None):
-        ds = standard_deviation(self.field)
+        ds = self.field.std(dim='time')
         if fn is not None:  ds.to_netcdf(fn)
         return ds
     

@@ -22,6 +22,46 @@ def lowpass(ts, period):
     return ts_new
 
 
+def highpass(ts, period):
+    """ highpass filter
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+    ts      .. time series array with axis 0 as time axis
+    perdiod .. cutoff period
+    """
+    N  = 2         # Filter order
+    Wn = 1/period  # Cutoff frequency
+    B, A = signal.butter(N, Wn, output='ba', btype='highpass')
+    filtered = signal.filtfilt(B, A, ts, axis=(0), padlen=N-1, padtype='constant')
+    
+    if type(ts)==xr.core.dataarray.DataArray:
+        ts_new = ts.copy()
+        ts_new.values = filtered
+    else:
+        ts_new = filtered
+    
+    return ts_new
+
+
+def bandpass(ts, periods):
+    """ highpass filter
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+    ts      .. time series array with axis 0 as time axis
+    perdiod .. cutoff period
+    """
+    N  = 2         # Filter order
+    Wn = 1/periods  # Cutoff frequencies
+    B, A = signal.butter(N, Wn, output='ba', btype='bandpass')
+    filtered = signal.filtfilt(B, A, ts, axis=(0), padlen=N-1, padtype='constant')
+    
+    if type(ts)==xr.core.dataarray.DataArray:
+        ts_new = ts.copy()
+        ts_new.values = filtered
+    else:
+        ts_new = filtered
+    
+    return ts_new
+
+
 def chebychev(ts, period):
     N, rp = 6, 1  # N=6 was used in Henley et al. (2015), rp is low to minimize ripples
     Wn = 1/period

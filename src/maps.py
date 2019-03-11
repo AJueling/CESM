@@ -41,10 +41,11 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     ax.set_position([.02,.05,.96,.93])
     cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
     
-    if domain in ['atm', 'ocn_low']:
+    print(domain)
+    if domain in ['atm']:#, 'ocn_low']:
         lats = xa.lat
         lons = xa.lon
-    elif domain=='ocn_T':
+    elif domain in ['ocn_T', 'ocn_low']:
         lats = xa.TLAT
         lons = xa.TLONG
     elif domain=='ocn_U':
@@ -142,8 +143,9 @@ def regr_map(ds, index, run, fn=None):
     elif run=='had':
         domain = 'ocn_had'
     MASK = boolean_mask(domain=domain, mask_nr=0)
-    
+    print(MASK)
     xa = ds.slope.where(MASK>0)
+    print(xa)
     
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))

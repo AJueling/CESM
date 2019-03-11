@@ -78,10 +78,10 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.lpi_GMST  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.had_GMST  = xr.open_dataarray(fn('had' ), decode_times=False)
         self.all_GMST_indices = {'ctrl':self.ctrl_GMST, 
-                                 'rcp':self.rcp_GMST,
-                                 'lpd':self.lpd_GMST,
-                                 'lpi':self.lpi_GMST,
-                                 'had':self.had_GMST}
+                                 'rcp' :self.rcp_GMST,
+                                 'lpd' :self.lpd_GMST,
+                                 'lpi' :self.lpi_GMST,
+                                 'had' :self.had_GMST}
         
         
     def load_yrly_SST(self):
@@ -94,11 +94,26 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.SST_lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.SST_had  = xr.open_dataarray(fn('had' ), decode_times=False)
         self.all_SSTs = {'ctrl':self.SST_ctrl,
-                         'rcp':self.SST_rcp,
-                         'lpd':self.SST_lpd,
-                         'lpi':self.SST_lpi, 
-                         'had':self.SST_had}
+                         'rcp' :self.SST_rcp,
+                         'lpd' :self.SST_lpd,
+                         'lpi' :self.SST_lpi, 
+                         'had' :self.SST_had}
     
+    
+    def load_yrly_dt_SST(self):
+        """ loads annual SST files """
+        def fn(run):
+            return f'{path_samoc}/SST/SST_GMST_dt_yrly_{run}.nc'
+        self.SST_dt_ctrl = xr.open_dataarray(fn('ctrl'), decode_times=False)
+        self.SST_dt_rcp  = xr.open_dataarray(fn('rcp' ), decode_times=False)
+        self.SST_dt_lpd  = xr.open_dataarray(fn('lpd' ), decode_times=False)
+        self.SST_dt_lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
+        self.SST_dt_had  = xr.open_dataarray(fn('had' ), decode_times=False)
+        self.all_dt_SSTs = {'ctrl':self.SST_dt_ctrl,
+                            'rcp' :self.SST_dt_rcp,
+                            'lpd' :self.SST_dt_lpd,
+                            'lpi' :self.SST_dt_lpi, 
+                            'had' :self.SST_dt_had}
     
     def load_regression_files(self):
         """ loads regression files """
@@ -110,10 +125,10 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.regr_lpi  = xr.open_dataset(fn('lpi' ), decode_times=False)
         self.regr_had  = xr.open_dataset(fn('had' ), decode_times=False)
         self.all_regrs = {'ctrl':self.regr_ctrl,
-                          'rcp':self.regr_rcp,
-                          'lpd':self.regr_lpd,
-                          'lpi':self.regr_lpi,
-                          'had':self.regr_had}
+                          'rcp' :self.regr_rcp,
+                          'lpd' :self.regr_lpd,
+                          'lpi' :self.regr_lpi,
+                          'had' :self.regr_had}
         
         
     def load_SST_autocorrelation_files(self):
@@ -126,22 +141,24 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.autocorr_lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.autocorr_had  = xr.open_dataarray(fn('had' ), decode_times=False)
         self.all_autocorrs = {'ctrl':self.autocorr_ctrl, 
-                              'rcp':self.autocorr_rcp,
-                              'lpd':self.autocorr_lpd,
-                              'lpi':self.autocorr_lpi,
-                              'had':self.autocorr_had}
+                              'rcp' :self.autocorr_rcp,
+                              'lpd' :self.autocorr_lpd,
+                              'lpi' :self.autocorr_lpi,
+                              'had' :self.autocorr_had}
 
         
     def make_regression_files(self):
         """ generate regression files """
         self.load_SST_autocorrelation_files()
+        self.load_yrly_dt_SST()
         for i, run in enumerate(self.all_indices.keys()):
             print(run)
-            if run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue
-            ds = self.lag_linregress(x=self.all_SSTs[run],
-                                     y=self.all_indices[run],
+            #iif run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue
+            ds = self.lag_linregress(x=self.all_dt_SSTs[run][5:-5],
+                                     y=self.all_indices[run][5:-5],
                                      autocorrelation=self.all_autocorrs[run])
             ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
+        return
         
         
     def plot_all_indices(self):
@@ -246,7 +263,8 @@ class IndexAnalysis(TimeSeriesAnalysis):
     
     def plot_regression_map(self, run):
         self.load_regression_files()
-        regr_map(ds=self.all_regrs[run] , index=self.index, run=run , fn=None)
+        regr_map(ds=self.all_regrs[run] , index=self.index, 
+                 run=run , fn=None)
     
     
         
