@@ -46,7 +46,11 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.lpd  = xr.open_dataarray(fn('lpd' ), decode_times=False)
         self.lpi  = xr.open_dataarray(fn('lpi' ), decode_times=False)
         self.had  = xr.open_dataarray(fn('had' ), decode_times=False)
-        self.all_indices = {'ctrl':self.ctrl, 'rcp':self.rcp, 'lpd':self.lpd, 'lpi':self.lpi, 'had':self.had}
+        self.all_indices = {'ctrl':self.ctrl,
+                            'rcp':self.rcp,
+                            'lpd':self.lpd,
+                            'lpi':self.lpi,
+                            'had':self.had}
         
     
     def load_raw_indices(self):
@@ -63,7 +67,11 @@ class IndexAnalysis(TimeSeriesAnalysis):
             self.had_raw  = xr.open_dataarray(f'{path_samoc}/SST/{self.index}_{self.index}_dt_raw_had.nc' , decode_times=False)
         elif self.index=='TPI':
             self.had_raw  = xr.open_dataarray(fn_raw('had') , decode_times=False)
-        self.all_raw_indices = {'ctrl':self.ctrl_raw, 'rcp':self.rcp_raw, 'lpd':self.lpd_raw, 'lpi':self.lpi_raw, 'had':self.had_raw}
+        self.all_raw_indices = {'ctrl':self.ctrl_raw,
+                                'rcp':self.rcp_raw,
+                                'lpd':self.lpd_raw,
+                                'lpi':self.lpi_raw,
+                                'had':self.had_raw}
         
     
     def load_GMST_detr_indices(self):
