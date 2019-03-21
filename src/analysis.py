@@ -8,6 +8,7 @@ import mtspec
 import xarray as xr
 
 import scipy.stats as stats
+import matplotlib.pyplot as plt
 from statsmodels.tsa.arima_process import ArmaProcess
 from statsmodels.stats.weightstats import DescrStatsW
 
@@ -25,17 +26,20 @@ class xrAnalysis(object):
     def __init__(self):
         return
     
+    
     def lintrend(self, x):
         """ linear trend timeseries of a timeseries """
         pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
         lf = pf[1]*x.time + pf[0]
         return lf
     
+    
     def quadtrend(self, x):
         """ quadratic trend timeseries of a timeseries """
         pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
         lf = pf[2]*x.time**2 + pf[1]*x.time + pf[0]
         return lf
+    
     
     def standard_deviation(self, x):
         """ calculated standard deviation
@@ -44,6 +48,7 @@ class xrAnalysis(object):
         xstd = x.std(axis=0, skipna=True)
         xstd.name = 'standard_deviation'
         return xstd
+    
     
     def autocorrelation(self, x):
         """ autocorrelation 
@@ -68,6 +73,7 @@ class xrAnalysis(object):
 
         return cor
     
+    
     def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0, autocorrelation=None):
         """
         adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html
@@ -85,7 +91,6 @@ class xrAnalysis(object):
         #1. Ensure that the data are properly aligned to each other.
         x,y = xr.align(x,y)
 
-        print(x, y)
         #2. Add lag information if any, and shift the data accordingly
         if lagx!=0:
             #If x lags y by 1, x must be shifted 1 step backwards. 
@@ -98,18 +103,17 @@ class xrAnalysis(object):
             y   = y.shift(time = -lagy).dropna(dim='time')
             x,y = xr.align(x,y)
 
+        print(y)
         #3. Compute data length, mean and standard deviation along time axis for further use: 
         n     = x.shape[0]
-        xmean = x.mean(axis=0)
-        ymean = y.mean(axis=0)
-        xstd  = x.std(axis=0)
-        ystd  = y.std(axis=0)
+        xmean = x.mean(axis=0, skipna=True)
+        ymean = y.mean(axis=0, skipna=True)
+        xstd  = x.std(axis=0, skipna=True)
+        ystd  = y.std(axis=0, skipna=True)
 
-        print(np.shape(x), np.shape(xmean))
-        print(np.shape(y), np.shape(ymean))
         #4. Compute covariance along time axis
+        print(n)
         cov   =  np.sum((x - xmean)*(y - ymean), axis=0)/(n)
-        print("cov",cov)
         #5. Compute correlation along time axis
         cor   = cov/(xstd*ystd)
 
@@ -126,15 +130,13 @@ class xrAnalysis(object):
             dof_corr_auto = (1-autocorrelation)/(1+autocorrelation)
             dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)
         
-        print('after dof assignment')
-        print(cor)
+
         tstats = cor*np.sqrt(n*dof_corr-2)/np.sqrt(1-cor**2)
-        print(tstats)
         stderr = slope/tstats
 
-        pval   = stats.t.sf(tstats, n-2)  # *2 for t-tailed test
-        print(pval)
+        pval   = stats.t.sf(tstats, n*dof_corr-2)  # *2 for t-tailed test
         pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
+
 
         cov.name       = 'cov'
         cor.name       = 'cor'
@@ -152,6 +154,7 @@ class xrAnalysis(object):
 
         return ds
 
+    
     
 class TimeSeriesAnalysis(xrAnalysis):
     """ functions to analyze single 1D xr time series  

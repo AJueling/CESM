@@ -161,10 +161,12 @@ class IndexAnalysis(TimeSeriesAnalysis):
         self.load_yrly_dt_SST()
         for i, run in enumerate(self.all_indices.keys()):
             print(run)
-            #iif run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue
+            if run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue
             ds = self.lag_linregress(x=self.all_dt_SSTs[run][5:-5],
                                      y=self.all_indices[run][5:-5],
                                      autocorrelation=self.all_autocorrs[run])
+            print(ds)
+            print(self.index)
             ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
         return
         
@@ -271,8 +273,7 @@ class IndexAnalysis(TimeSeriesAnalysis):
     
     def plot_regression_map(self, run):
         self.load_regression_files()
-        regr_map(ds=self.all_regrs[run] , index=self.index, 
-                 run=run , fn=None)
+        regr_map(ds=self.all_regrs[run] , index=self.index, run=run , fn=None)
     
     
         
