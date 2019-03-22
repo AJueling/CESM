@@ -86,57 +86,42 @@ class xrAnalysis(object):
         Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount.
         dof_corr .. (0,1] correction factor for reduced degrees of freedom
         autocorrelation .. map
-        """ 
+        """
+        np.warnings.filterwarnings('ignore')  # silencing numpy warning for NaNs
         assert dof_corr<=1 and dof_corr>0
-        #1. Ensure that the data are properly aligned to each other.
+        
+        # Ensure that the data are properly aligned to each other.
         x,y = xr.align(x,y)
 
-        #2. Add lag information if any, and shift the data accordingly
-        if lagx!=0:
-            #If x lags y by 1, x must be shifted 1 step backwards. 
-            #But as the 'zero-th' value is nonexistant, xr assigns it as invalid (nan). Hence it needs to be dropped
-            x   = x.shift(time = -lagx).dropna(dim='time')
-            #Next important step is to re-align the two datasets so that y adjusts to the changed coordinates of x
-            x,y = xr.align(x,y)
+        # Add lag information if any, and shift the data accordingly
+        if lagx!=0:  x = x.shift(time = -lagx).dropna(dim='time')
+        if lagy!=0:  y = y.shift(time = -lagy).dropna(dim='time')
+        x,y = xr.align(x,y)
 
-        if lagy!=0:
-            y   = y.shift(time = -lagy).dropna(dim='time')
-            x,y = xr.align(x,y)
-
-        print(y)
-        #3. Compute data length, mean and standard deviation along time axis for further use: 
+        # Compute data length, mean and standard deviation along time axis for further use: 
         n     = x.shape[0]
         xmean = x.mean(axis=0, skipna=True)
         ymean = y.mean(axis=0, skipna=True)
         xstd  = x.std(axis=0, skipna=True)
         ystd  = y.std(axis=0, skipna=True)
+        cov   =  np.sum((x - xmean)*(y - ymean), axis=0)/(n)  # covariance
+        cor   = cov/(xstd*ystd)                               # correlation  
+        slope = cov/(xstd**2)                                 # regression slope
+        intercept = ymean - xmean*slope                       # intercept
 
-        #4. Compute covariance along time axis
-        print(n)
-        cov   =  np.sum((x - xmean)*(y - ymean), axis=0)/(n)
-        #5. Compute correlation along time axis
-        cor   = cov/(xstd*ystd)
-
-        #6. Compute regression slope and intercept:
-        slope     = cov/(xstd**2)
-        intercept = ymean - xmean*slope  
-
-        #7. Compute P-value and standard error
-        #Compute t-statistics
+        # statistics for significance test
         if autocorrelation is not None:
             dof_corr = autocorrelation.copy()
             dof_corr_filter = autocorrelation.copy()
             dof_corr_filter[:,:] = 1/13
             dof_corr_auto = (1-autocorrelation)/(1+autocorrelation)
-            dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)
-        
+            dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)      
 
-        tstats = cor*np.sqrt(n*dof_corr-2)/np.sqrt(1-cor**2)
+        # t-statistics
+        tstats = cor*np.sqrt(dof_corr*n-2)/np.sqrt(1-cor**2)
         stderr = slope/tstats
-
-        pval   = stats.t.sf(tstats, n*dof_corr-2)  # *2 for t-tailed test
+        pval   = stats.t.sf(tstats, n*dof_corr-2)
         pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
-
 
         cov.name       = 'cov'
         cor.name       = 'cor'

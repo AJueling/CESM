@@ -41,7 +41,6 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     ax.set_position([.02,.05,.96,.93])
     cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
     
-    print(domain)
     if domain in ['atm']:#, 'ocn_low']:
         lats = xa.lat
         lons = xa.lon
@@ -73,26 +72,26 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     if domain=='atm':
         ax.coastlines()
     elif domain in ['ocn_T', 'ocn_U', 'ocn_had']:
-        ax.add_feature(cartopy.feature.LAND, zorder=2, edgecolor='black', facecolor='w')
+        ax.add_feature(cartopy.feature.LAND,
+                       zorder=2, edgecolor='black', facecolor='w')
         
     # text
     if text1!=None:
-        ax.text(0, 1, text1, ha='left' , va='top', transform=ax.transAxes, fontsize=16)
+        ax.text(0, 1, text1, ha='left' , va='top',
+                transform=ax.transAxes, fontsize=16)
     if text2!=None:
-        ax.text(1, 1, text2, ha='right', va='top', transform=ax.transAxes, fontsize=16)
+        ax.text(1, 1, text2, ha='right', va='top',
+                transform=ax.transAxes, fontsize=16)
     
     # SST index polygons
-    if type(rects)==np.ndarray:
-        rects = [rects]
-    elif type(rects)==list:
-        for rect in rects:
-            assert type(rect)==np.ndarray
-            ax.add_patch(mpatches.Polygon(xy=rect,
-                                          facecolor='none', edgecolor='k',
-                                          linewidth=2, zorder=2,
-                                          transform=ccrs.PlateCarree(),
-                                         ),
-                        )
+    if type(rects)==np.ndarray:  rects = [rects]
+    assert type(rects)==list
+    for rect in rects:
+        assert type(rect)==np.ndarray
+        ax.add_patch(mpatches.Polygon(xy=rect,
+                                      facecolor='none', edgecolor='k',
+                                      linewidth=2, zorder=2,
+                                      transform=ccrs.PlateCarree(), ), )
             
     # grid
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False)
@@ -126,8 +125,10 @@ def rect_polygon(extent):
     assert type(extent)==tuple
     (lonmin,lonmax,latmin,latmax) = extent
     n=50
-    xs = [np.linspace(lonmin,lonmax,n), np.linspace(lonmax,lonmax,n), np.linspace(lonmax,lonmin,n), np.linspace(lonmin,lonmin,n)]
-    ys = [np.linspace(latmin,latmin,n), np.linspace(latmin,latmax,n), np.linspace(latmax,latmax,n), np.linspace(latmax,latmin,n)]
+    xs = [np.linspace(lonmin,lonmax,n), np.linspace(lonmax,lonmax,n),
+          np.linspace(lonmax,lonmin,n), np.linspace(lonmin,lonmin,n)]
+    ys = [np.linspace(latmin,latmin,n), np.linspace(latmin,latmax,n),
+          np.linspace(latmax,latmax,n), np.linspace(latmax,latmin,n)]
     xs = [item for sublist in xs for item in sublist]
     ys = [item for sublist in ys for item in sublist]
     poly_coords = np.swapaxes(np.array([xs, ys]),0,1)
@@ -136,39 +137,40 @@ def rect_polygon(extent):
 
 def regr_map(ds, index, run, fn=None):
     """ map of regression slope with 95% significance countours and SST index polygons """
-    if run in ['ctrl', 'rcp']:
-        domain = 'ocn_rect'
-    elif run in ['lpd', 'lpi']:
-        domain = 'ocn_low'
-    elif run=='had':
-        domain = 'ocn_had'
+    if run in ['ctrl', 'rcp']:   domain = 'ocn'
+    elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
+    elif run=='had':             domain = 'ocn_had'
     MASK = boolean_mask(domain=domain, mask_nr=0)
-    print(MASK)
-    xa = ds.slope.where(MASK>0)
-    print(xa)
+    
+    xa = ds.slope.where(MASK)
+    if domain in ['ocn', 'ocn_low']:
+        xa = xa.assign_coords(TLONG=ds.TLONG)
     
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 300
-        nv = .5
+        nv = .25
     elif index in ['PDO', 'IPO']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 200
-        nv = .5
+        nv = .25
     elif index=='TPI':
         rects = [rect_polygon(SST_index_bounds('TPI1')),
                  rect_polygon(SST_index_bounds('TPI2')),
                  rect_polygon(SST_index_bounds('TPI3')),
                 ]
         clon = 200
-        nv = 5
+        nv = .25
     
     # choose two-tailed 95% significance level
     # as boolean map
-    sig = ds.pval.where(MASK>0)
-    tail1 = np.where(sig<0.025, 1, 0)
-    tail2 = np.where(sig>0.975, 1, 0)
+    sig = ds.pval.where(MASK)
+#     tail1 = np.where(sig<0.025, 1, 0)
+    tail1 = np.where(sig<0.005, 1, 0)
+#     tail2 = np.where(sig>0.975, 1, 0)
+    tail2 = np.where(sig>99.5, 1, 0)
     sig.values = tail1 + tail2
+    sig = sig.where(MASK)
     
     proj = 'rob'
     cm = discrete_cmap(16, cmocean.cm.balance)    
@@ -177,6 +179,8 @@ def regr_map(ds, index, run, fn=None):
     text2 = f'{run.upper()}\n{ds.first_year}-\n{ds.last_year}'
     if fn==None:  filename = f'{path_results}/SST/{index}_regr_map_{run}.png'
     else:         filename = f'{path_results}/SST/{index}_regr_map_{run}_{fn}.png'
-    
+    if run in ['ctrl', 'rcp']:   domain = 'ocn_T'
+        
     f, ax = make_map(xa=xa, domain=domain, proj=proj, cmap=cm, minv=-nv, maxv=nv,
-                     label=label, filename=filename, text1=text1, text2=text2, rects=rects, sig=sig, clon=clon)
+                     label=label, filename=filename, text1=text1, text2=text2,
+                     rects=rects, sig=sig, clon=clon)
