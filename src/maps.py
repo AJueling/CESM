@@ -71,7 +71,7 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     
     if domain=='atm':
         ax.coastlines()
-    elif domain in ['ocn_T', 'ocn_U', 'ocn_had']:
+    elif domain in ['ocn_T', 'ocn_U', 'ocn_had', 'ocn_low']:
         ax.add_feature(cartopy.feature.LAND,
                        zorder=2, edgecolor='black', facecolor='w')
         
