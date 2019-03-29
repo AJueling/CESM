@@ -74,29 +74,41 @@ class xrAnalysis(object):
         return cor
     
     
-    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0, autocorrelation=None):
+    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0, 
+                       autocorrelation=None, filterperiod=None, standardize=False):
         """
         adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html
-        Input: Two xr.Datarrays of any dimensions with the first dim being time. 
-        Thus the input data could be a 1D time series, or for example, have three dimensions (time,lat,lon). 
-        Datasets can be provied in any order, but note that the regression slope and intercept will be calculated
-        for y with respect to x.
-        Output: xr Dataset containing covariance, correlation, regression slope and intercept, p-value, and
-        standard error on regression between the two datasets along their aligned time dimension.  
-        Lag values can be assigned to either of the data, with lagx shifting x, and lagy shifting y, with the specified lag amount.
-        dof_corr .. (0,1] correction factor for reduced degrees of freedom
-        autocorrelation .. map
+        
+        input:
+        x               .. 1D time series, or three dimensions (time,lat,lon).
+        y               .. (first dim must be time)
+        dof_corr        .. (0,1] correction factor for reduced degrees of freedom
+        lagx, lagy      .. lags for x or y
+        autocorrelation .. 2D map
+        filterperiod    .. if time filter is applied to either time series or spatial data
+        standardize     .. normalize time series to standard deviation 1
+        
+        output:
+        ds .. xr Dataset containing covariance, 
+                                    correlation, 
+                                    regression slope and intercept (for y with respect to x),
+                                    p-value, and
+                                    standard error on regression 
+                                    between the two datasets along their aligned time dimension.
         """
         np.warnings.filterwarnings('ignore')  # silencing numpy warning for NaNs
         assert dof_corr<=1 and dof_corr>0
         
-        # Ensure that the data are properly aligned to each other.
+        # aligning data on time axis
         x,y = xr.align(x,y)
 
-        # Add lag information if any, and shift the data accordingly
+        # lags
         if lagx!=0:  x = x.shift(time = -lagx).dropna(dim='time')
         if lagy!=0:  y = y.shift(time = -lagy).dropna(dim='time')
         x,y = xr.align(x,y)
+        
+        # standardize
+        if standardize==True:  x /= x.std(axis=0, skipna=True)
 
         # Compute data length, mean and standard deviation along time axis for further use: 
         n     = x.shape[0]
@@ -104,16 +116,20 @@ class xrAnalysis(object):
         ymean = y.mean(axis=0, skipna=True)
         xstd  = x.std(axis=0, skipna=True)
         ystd  = y.std(axis=0, skipna=True)
-        cov   =  np.sum((x - xmean)*(y - ymean), axis=0)/(n)  # covariance
-        cor   = cov/(xstd*ystd)                               # correlation  
-        slope = cov/(xstd**2)                                 # regression slope
-        intercept = ymean - xmean*slope                       # intercept
+        cov   = np.sum((x - xmean)*(y - ymean), axis=0)/(n)  # covariance
+        cor   = cov/(xstd*ystd)                              # correlation  
+        slope = cov/(xstd**2)                                # regression slope
+        intercept = ymean - xmean*slope                      # intercept
 
         # statistics for significance test
         if autocorrelation is not None:
             dof_corr = autocorrelation.copy()
             dof_corr_filter = autocorrelation.copy()
-            dof_corr_filter[:,:] = 1/13
+            if filterperiod is None:
+                dof_corr_filter[:,:] = 1/13
+            else:
+                assert type(filterperiod)==int
+                dof_corr_filter[:,:] = 1/filterperiod
             dof_corr_auto = (1-autocorrelation)/(1+autocorrelation)
             dof_corr[:,:] = np.maximum(dof_corr_filter.values, dof_corr_auto.values)      
 
@@ -123,15 +139,14 @@ class xrAnalysis(object):
         pval   = stats.t.sf(tstats, n*dof_corr-2)
         pval   = xr.DataArray(pval, dims=cor.dims, coords=cor.coords)
 
+        # create xr Dataset
         cov.name       = 'cov'
         cor.name       = 'cor'
         slope.name     = 'slope'
         intercept.name = 'intercept'
         pval.name      = 'pval'
         stderr.name    = 'stderr'
-
         ds = xr.merge([cov, cor, slope, intercept, pval, stderr])
-
         ds.attrs['first_year'] = int(y.time[0]/365)
         ds.attrs['last_year']  = int(y.time[-1]/365)
         ds.attrs['lagx'] = lagx

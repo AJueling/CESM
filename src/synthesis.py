@@ -167,8 +167,10 @@ class IndexAnalysis(TimeSeriesAnalysis):
         for i, run in enumerate(self.all_indices.keys()):
             # if run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue  # for testing
             print(run)
-            ds = self.lag_linregress(x=self.all_dt_SSTs[run][5:-5],
-                                     y=self.all_indices[run][5:-5],
+            x = self.all_indices[run][-149:]  # only last 149 years like in obs.
+            y = self.all_dt_SSTs[run][-149:]
+            ds = self.lag_linregress(x=x[7:-7],  # removing filter edge effects
+                                     y=y[7:-7],
                                      autocorrelation=self.all_autocorrs[run])
             ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
         print('success')
