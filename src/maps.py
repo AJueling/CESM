@@ -59,7 +59,6 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
         lats = xa.latitude
         lons = xa.longitude
         lons, lats = np.meshgrid(lons, lats)
-        print(np.shape(lats), np.shape(lons))
     
     im = ax.pcolormesh(lons, lats, xa.values,
                        cmap=cmap, vmin=minv, vmax=maxv,
@@ -168,6 +167,8 @@ def regr_map(ds, index, run, fn=None):
                 ]
         clon = 200
         nv = .25
+    
+    print(run, np.max(ds.slope.values))
     
     # choose two-tailed 95% significance level
     # as boolean map

@@ -108,13 +108,15 @@ class xrAnalysis(object):
         x,y = xr.align(x,y)
         
         # standardize
-        if standardize==True:  x /= x.std(axis=0, skipna=True)
+        if standardize==True:
+            x -= x.mean(axis=0, skipna=True)
+            x /= x.std(axis=0, skipna=True)
 
-        # Compute data length, mean and standard deviation along time axis for further use: 
-        n     = x.shape[0]
-        xmean = x.mean(axis=0, skipna=True)
+        # statistics
+        n     = x.shape[0]                                   # data length
+        xmean = x.mean(axis=0, skipna=True)                  # mean
         ymean = y.mean(axis=0, skipna=True)
-        xstd  = x.std(axis=0, skipna=True)
+        xstd  = x.std(axis=0, skipna=True)                   # standard deviation
         ystd  = y.std(axis=0, skipna=True)
         cov   = np.sum((x - xmean)*(y - ymean), axis=0)/(n)  # covariance
         cor   = cov/(xstd*ystd)                              # correlation  

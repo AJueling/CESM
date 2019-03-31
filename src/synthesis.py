@@ -171,7 +171,9 @@ class IndexAnalysis(TimeSeriesAnalysis):
             y = self.all_dt_SSTs[run][-149:]
             ds = self.lag_linregress(x=x[7:-7],  # removing filter edge effects
                                      y=y[7:-7],
-                                     autocorrelation=self.all_autocorrs[run])
+                                     autocorrelation=self.all_autocorrs[run],
+                                     standardize=True,
+                                    )
             ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
         print('success')
         return
