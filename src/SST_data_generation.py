@@ -1,33 +1,100 @@
+import glob
+import os
+import xarray as xr
+
+from paths import path_samoc
+from timeseries import IterateOutputCESM
+
 class GenerateSSTFields(object):
-    def __init__(self, ):
+    """"""
+    def __init__(self):
         return
     
-    def
+    @staticmethod
+    def remove_superfluous_files(fn):
+        for x in glob.glob(fn):
+            os.remove(x) 
+    
+    @staticmethod
+    def generate_yrly_SST_files(run):
+        """ generate the SST data files from TEMP_PD yaryl averaged files """
+        # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
+        # stacking files into one xr DataArray object
+        for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
+            print(y)
+            da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            da = da.drop(['z_t', 'ULONG', 'ULAT'])
+            da['TLAT' ] = da['TLAT' ].round(decimals=2)
+            da['TLONG'] = da['TLONG'].round(decimals=2)
+            del da.encoding["contiguous"]
+            ds = t2ds(da=da, name='SST', t=int(round(da.time.item())))
+            ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y}.nc', mode='w')
 
-# =============================================================================
-# GENERATING SST DATA FILES
-# =============================================================================
+        combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
+                                     concat_dim='time', autoclose=True, coords='minimal')
+        combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
 
-# %%time
-# # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
-# # stacking files into one xr Dataset object
-# for run in ['ctrl', 'rcp']:  # ['lpi', 'lpd']:
-#     for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
-#         print(y)
-#         da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-#         da = da.drop(['z_t', 'ULONG', 'ULAT'])
-#         da['TLAT' ] = da['TLAT' ].round(decimals=2)
-#         da['TLONG'] = da['TLONG'].round(decimals=2)
-#         del da.encoding["contiguous"]
-#         ds = t2ds(da=da, name='SST', t=int(round(da.time.item())))
-#         ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y}.nc', mode='w')
-     
-#     combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
-#                                  concat_dim='time',
-#                                  autoclose=True,
-#                                  coords='minimal')
-#     combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
-#     # remove extra netCDF files
+        remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+            
+            
+    @staticmethod
+    def generate_monthly_SST_files(run):
+        """ concatonate monthly files, ocn_rect for high res runs"""
+        # 8 mins for 200 years of ctrl
+        if run in ['ctrl', 'rcp']:  domain = 'ocn_rect'
+        elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
+            
+        for y,m,s in IterateOutputCESM(domain=domain, tavg='monthly', run=run):
+            xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            if m==1:
+                print(y)
+                xa_out = xa.copy()    
+            else:
+                xa_out = xr.concat([xa_out, xa], dim='time')
+            if m==12:
+                xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}_{y}.nc')
+                        
+        combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{run}_*.nc',
+                                     concat_dim='time', decode_times=False)
+        combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}.nc')
+        combined.close()
+
+        remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
+            
+            
+    @staticmethod
+    def generate_monthly_regional_SST_files(run):
+        """"""
+            # 6 mins for 200 years of ctrl
+        for i, r in enumerate(['Pac_38S', 'Pac_Eq', 'Pac_20N']):
+            latS = [-38, 0, 20][i]
+            lonE = [300, 285, 255][i]
+            
+            if run  in ['ctrl', 'rcp']:  domain= 'ocn_rect'
+            elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
+                
+            Pac_MASK = mask_box_in_region(domain=domain, mask_nr=2, bounding_lats=(latS,68), bounding_lons=(110,lonE))
+            if run in ['ctrl', 'rcp']:
+                Pac_MASK = Pac_MASK.where(Pac_MASK.t_lon+1/.6*Pac_MASK.t_lat<333,0)
+            NPac_area = xr_AREA(domain).where(Pac_MASK, drop=True)
+            
+            for y,m,s in IterateOutputCESM(domain=domain, tavg='monthly', run=run):
+                xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:].where(Pac_MASK, drop=True)
+                if m==1:
+                    print(y)
+                    xa_out = xa.copy()    
+                else:
+                    xa_out = xr.concat([xa_out, xa], dim='time')
+                if m==12:
+                    xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}_{y}.nc')
+                            
+            combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc', concat_dim='time', decode_times=False)
+            combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
+            combined.close()
+            
+            remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
+            # # remove yearly files
+        
 
 
 # =============================================================================
@@ -115,74 +182,10 @@ class GenerateSSTFields(object):
 # =============================================================================
 
 
-# %%time
-# # 8 mins for 200 years of ctrl
-# n=1
-
-# for j, run in enumerate(['ctrl', 'rcp']):
-#     for y,m,s in IterateOutputCESM(domain='ocn_rect', tavg='monthly', run=run):
-#         xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-#         if m==1:
-#             print(y)
-#             xa_out = xa.copy()    
-#         else:
-#             xa_out = xr.concat([xa_out, xa], dim='time')
-
-#         if m==12:
-#             xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_rect_{run}_{y}.nc')
-# run='ctrl'
-# combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_rect_{run}_*.nc', concat_dim='time', decode_times=False)
-# combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_rect_{run}.nc')
-# combined.close()
-# remove yearly files
-
-# %%time
-# # 6 mins for 200 years of ctrl
-# n = 1
-# for i, r in enumerate(['Pac_38S', 'Pac_Eq', 'Pac_20N']):
-#     latS = [-38, 0, 20][i]
-#     lonE = [300, 285, 255][i]
-#     Pac_MASK = mask_box_in_region(domain='ocn_rect', mask_nr=2, bounding_lats=(latS,68), bounding_lons=(110,lonE))
-#     Pac_MASK = Pac_MASK.where(Pac_MASK.t_lon+1/.6*Pac_MASK.t_lat<333,0)
-#     NPac_area = xr_AREA('ocn_rect').where(Pac_MASK, drop=True)
-#     for run  in ['ctrl', 'rcp']:
-#         for y,m,s in IterateOutputCESM(domain='ocn_rect', tavg='monthly', run=run):
-#             xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:].where(Pac_MASK, drop=True)
-#             if m==1:
-#                 print(y)
-#                 xa_out = xa.copy()    
-#             else:
-#                 xa_out = xr.concat([xa_out, xa], dim='time')
-#             if m==12:
-#                 xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_rect_{run}_{y}.nc')
-#     combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_rect_{run}_*.nc', concat_dim='time', decode_times=False)
-#     combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_rect_{run}.nc')
-#     combined.close()
 
 
 
-# %%time
-# # 
-# n = 1
-# for i, r in enumerate(['Pac_38S', 'Pac_Eq', 'Pac_20N']):
-#     latS = [-38, 0, 20][i]
-#     lonE = [300, 285, 255][i]
-#     Pac_MASK = mask_box_in_region(domain='ocn_low', mask_nr=2, bounding_lats=(latS,68), bounding_lons=(110,lonE))
-#     NPac_area = xr_AREA('ocn_low').where(Pac_MASK, drop=True)
-#     for run  in ['lpd', 'lpi']:
-#         for y,m,s in IterateOutputCESM(domain='ocn_low', tavg='monthly', run=run):
-#             xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:].where(Pac_MASK, drop=True)
-#             if m==1:
-#                 print(y)
-#                 xa_out = xa.copy()    
-#             else:
-#                 xa_out = xr.concat([xa_out, xa], dim='time')
-#             if m==12:
-#                 xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}_{y}.nc')
-#     combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc', concat_dim='time', decode_times=False)
-#     combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
-#     combined.close()
-# # remove yearly files
+
 
 
 # ds = xr.open_dataset(file_HadISST, decode_times=False)

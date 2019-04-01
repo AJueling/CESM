@@ -186,7 +186,6 @@ class TimeSeriesAnalysis(xrAnalysis):
         return da
     
     
-    
     def spectrum(self, data=None, filter_type=None, filter_cutoff=None):
         """ multitaper spectrum """
         if data is None:  data = np.array(self.ts)
