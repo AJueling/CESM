@@ -73,7 +73,7 @@ def IPO_TPI(run):
     """ raw timeseries of the three tripole SST indices described in Henley et al. (2015) """
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
     if run in ['ctrl', 'rcp']:
-        domain = 'ocn'
+        domain = 'ocn_rect'
     elif run in ['lpd', 'lpi']:
         domain = 'ocn_low'
     
@@ -81,15 +81,15 @@ def IPO_TPI(run):
     TPI2 = SST_index_from_monthly(run=run, index_loc=None, MASK=TPI_masks(domain, 2))
     TPI3 = SST_index_from_monthly(run=run, index_loc=None, MASK=TPI_masks(domain, 3))
     
-    TPI1.to_netcdf(f'{path_samoc}/SST/TPI1_{run}.nc')
-    TPI2.to_netcdf(f'{path_samoc}/SST/TPI2_{run}.nc')
-    TPI3.to_netcdf(f'{path_samoc}/SST/TPI3_{run}.nc')
+    TPI1.to_netcdf(f'{path_samoc}/SST/TPI1_monhtly_{run}.nc')
+    TPI2.to_netcdf(f'{path_samoc}/SST/TPI2_monhtly_{run}.nc')
+    TPI3.to_netcdf(f'{path_samoc}/SST/TPI3_monhtly_{run}.nc')
     
     return
 
 
 def PMV_EOF_indices(run, extent):
-    """goal: perform EOF of monthly, deseasonalized SST (detrended with global mean SST)
+    """ perform EOF of monthly, deseasonalized SST (detrended with global mean SST)
     NB: we will use 60S to 60N SST data as polar data is limited in observations
 
     1. for detrending: compute monthly global mean SST time series, deseasonalize them
@@ -200,9 +200,8 @@ def bounding_lats_lons(index):
     
 
 
-def SST_index(index, run, detrend_signal='GMST'):
-    """ calcalates SST time series from yearly detrended SST dataset
-    """
+def SST_index(index, run, detrend_signal='GMST', time_slice='full'):
+    """ calcalates SST time series from yearly detrended SST dataset """
     assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
     assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
@@ -218,11 +217,10 @@ def SST_index(index, run, detrend_signal='GMST'):
     elif run=='had':
         domain = 'ocn_had'
         dims = ('latitude', 'longitude')
+        
     
     blats, blons, mask_nr = bounding_lats_lons(index)
-    
-    # load yearly data files
-    
+        
     MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
     AREA = xr_AREA(domain=domain).where(MASK)
     index_area = AREA.sum()
@@ -233,11 +231,18 @@ def SST_index(index, run, detrend_signal='GMST'):
             print('GMST(t) signal scaled at each grid point\n')
         else:
             print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
-        fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly_{run}.nc'
+        if time_slice=='full':
+            fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly_{run}.nc'
+            trange = ''
+        else:
+            first_year, last_year = determine_years_from_slice(run=run, tres='yrly', time_slice=time_slice)
+            trange = f'_{first_year}_{last_year}'
+            fn = f'{path_samoc}/SST/SST_{detrend_signal}_dt_yrly{trange}_{run}.nc'
         assert os.path.exists(fn)
         SST_yrly = xr.open_dataarray(fn).where(MASK)
         detr = f'_{detrend_signal}_dt'
-    else:
+        
+    else:  # run=='had' and detrend_signal!='GMST'
         print('underlying SST field: no detrending, no filtering')
         if detrend_signal in ['AMO', 'SOM']:
             print(f'{detrend_signal} must subsequently be detrended with polynomial\n')
@@ -247,7 +252,7 @@ def SST_index(index, run, detrend_signal='GMST'):
         detr = ''
         
     SSTindex = SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
-    SSTindex.to_netcdf(f'{path_samoc}/SST/{index}{detr}_raw_{run}.nc')
+    SSTindex.to_netcdf(f'{path_samoc}/SST/{index}{detr}_raw{trange}_{run}.nc')
     
     return SSTindex
 
@@ -291,21 +296,8 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
     elif run=='had':
         domain = 'ocn_had'
 
-    if time_slice!='full':
-        if tres=='yrly':
-            first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
-        elif tres=='monthly':
-            if run in ['ctrl', 'rcp']:
-                first_year, last_year = int(time_slice[0]/12), int(time_slice[1]/12)
-                if run=='ctrl':
-                    first_year += 100
-                    last_year  += 100
-                elif run=='rcp':
-                    first_year += 2000
-                    last_year  += 2000
-            elif run in ['lpd', 'lpi']:
-                first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
-        print(first_year, last_year)
+    first_year, last_year = determine_years_from_slice(run, tres, time_slice)
+    
 
 #     sys.exit("Error message")
     # 1. load data
@@ -347,6 +339,8 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
         SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{detrend_signal}_dt_{tres}_{first_year}_{last_year}_{run}.nc')
     
     return SST_dt, ds
+
+
 
 
 def forcing_signal(run, tres, detrend_signal, time_slice='full'):
@@ -397,6 +391,25 @@ def forcing_signal(run, tres, detrend_signal, time_slice='full'):
     forced_signal.name = 'forcing'
     
     return forced_signal
+
+
+def determine_years_from_slice(run, tres, time_slice):
+    assert time_slice is not 'full'
+    if tres=='yrly':
+        first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
+    elif tres=='monthly':
+        if run in ['ctrl', 'rcp']:
+            first_year, last_year = int(time_slice[0]/12), int(time_slice[1]/12)
+            if run=='ctrl':
+                first_year += 100
+                last_year  += 100
+            elif run=='rcp':
+                first_year += 2000
+                last_year  += 2000
+        elif run in ['lpd', 'lpi']:
+            first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
+    return first_year, last_year
+
 
 
 if __name__=="__main__":

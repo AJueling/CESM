@@ -2,6 +2,7 @@ import glob
 import os
 import xarray as xr
 
+from SST import SST_index
 from paths import path_samoc
 from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
@@ -113,7 +114,37 @@ class GenerateSSTFields(object):
         da_new.name = 'GMST'
         da_new.attrs = {'Note':'This is the linear trend of the SST evolution, not GMST'}
         da_new.to_dataset().to_netcdf(f'{path_samoc}/GMST/GMST_monthly_{run}.nc')
+        
 
+yrly_ctrl_100_248 = (36531,90551)
+yrly_ctrl_151_299 = (55146,109166)
+yrly_lpd_268_416  = (97851,151871)
+yrly_lpd_417_565  = (152236,206256)        
+
+class DeriveSSTIndices(object):
+    def __init__():
+        return
+    
+    @staticmethod
+    def derive_all_SST_avg_indices(run):
+        """"""
+        AMO  = SST_index('AMO' , run, detrend_signal='GMST')
+        SOM  = SST_index('SOM' , run, detrend_signal='GMST')
+        TPI1 = SST_index('TPI1', run, detrend_signal='GMST')
+        TPI2 = SST_index('TPI2', run, detrend_signal='GMST')
+        TPI3 = SST_index('TPI3', run, detrend_signal='GMST')
+    
+        if run=='ctrl':  slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
+        elif run=='lpd': slices = [yrly_lpd_268_416, yrly_lpd_417_565]
+            
+        if run in ['ctrl', 'lpd']:
+            for tslice in slices:
+                AMO  = SST_index('AMO' , run, detrend_signal='GMST', time_slice=tslice)
+                SOM  = SST_index('SOM' , run, detrend_signal='GMST', time_slice=tslice)
+                TPI1 = SST_index('TPI1', run, detrend_signal='GMST', time_slice=tslice)
+                TPI2 = SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
+                TPI3 = SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
+            
 
 # =============================================================================
 # GLOBAL MEAN TIME SERIES
