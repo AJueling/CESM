@@ -4,6 +4,7 @@ import xarray as xr
 
 from paths import path_samoc
 from timeseries import IterateOutputCESM
+from xr_regression import xr_lintrend
 
 class GenerateSSTFields(object):
     """"""
@@ -34,7 +35,7 @@ class GenerateSSTFields(object):
                                      concat_dim='time', autoclose=True, coords='minimal')
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
 
-        remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+        GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
             
             
     @staticmethod
@@ -45,7 +46,10 @@ class GenerateSSTFields(object):
         elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
             
         for y,m,s in IterateOutputCESM(domain=domain, tavg='monthly', run=run):
-            xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            if run in ['ctrl', 'rcp']:
+                xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            if run in ['lpd', 'lpi']:
+                xa = xr.open_dataset(s, decode_times=False).TEMP[0,0,:,:]
             if m==1:
                 print(y)
                 xa_out = xa.copy()    
@@ -59,7 +63,7 @@ class GenerateSSTFields(object):
         combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}.nc')
         combined.close()
 
-        remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
+        GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
             
             
     @staticmethod
@@ -92,9 +96,23 @@ class GenerateSSTFields(object):
             combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
             combined.close()
             
-            remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
+            GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
             # # remove yearly files
-        
+            
+    @staticmethod
+    def generate_monthly_mock_linear_GMST_files(run):
+        """ generates xr DataArray with same time coordinates as monthly SST fields
+        which contains the linear fit to the mean SST as a stand in for the missing
+        monthly GMST
+        """
+        assert run in ['ctrl', 'lpd']
+        if run=='ctrl':  dims = ['t_lon', 't_lat']
+        elif run=='lpd':  dims = ['nlon', 'nlat']
+        da = xr.open_dataarray(f'{path_samoc}/SST/SST_monthly_{run}.nc', decode_times=False)
+        da_new = xr_lintrend(da.mean(dim=dims, skipna=True, keep_attrs=True))
+        da_new.name = 'GMST'
+        da_new.attrs = {'Note':'This is the linear trend of the SST evolution, not GMST'}
+        da_new.to_dataset().to_netcdf(f'{path_samoc}/GMST/GMST_monthly_{run}.nc')
 
 
 # =============================================================================

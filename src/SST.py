@@ -276,49 +276,54 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
     if run=='had':
         assert time_slice=='full'
     
+    
+
+
+    # file name and domain
     fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
-    
-    if time_slice is not 'full':
-        if tres=='yrly':
-            first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
-        elif tres=='monthly':
-            assert run in ['ctrl', 'rcp']
-            first_year, last_year = int(time_slice[0]/12/365), int(time_slice[1]/365)
-            if run=='ctrl':
-                first_year += 100
-                last_year  += 100
-            elif run=='rcp':
-                first_year += 2000
-                last_year  += 2000
-#             elif run=='lpd':
-#                 first_year += 154
-#                 last_year  += 154
-#             elif run=='lpi':
-#                 first_year += 1600
-#                 last_year  += 1600
-    
     if run in ['ctrl', 'rcp']:
         if tres=='yrly':
             domain = 'ocn'
         elif tres=='monthly':
             domain = 'ocn_rect'
-            fn = f'{path_samoc}/SST/SST_{tres}_rect_{run}.nc'
-    elif run in ['lpd', 'lpi']:
+    elif run in ['lpd', 'lpi']:  
         domain = 'ocn_low'
     elif run=='had':
         domain = 'ocn_had'
-    
+
+    if time_slice!='full':
+        if tres=='yrly':
+            first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
+        elif tres=='monthly':
+            if run in ['ctrl', 'rcp']:
+                first_year, last_year = int(time_slice[0]/12), int(time_slice[1]/12)
+                if run=='ctrl':
+                    first_year += 100
+                    last_year  += 100
+                elif run=='rcp':
+                    first_year += 2000
+                    last_year  += 2000
+            elif run in ['lpd', 'lpi']:
+                first_year, last_year = int(time_slice[0]/365), int(time_slice[1]/365)
+        print(first_year, last_year)
+
+#     sys.exit("Error message")
     # 1. load data
     MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
     SST = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).where(MASK)
     if time_slice is not 'full':
-        assert type(time_slice)==dict
-        SST = SST.sel(*time_slice)
+        assert type(time_slice)==tuple
+        SST = SST.sel(time=slice(*time_slice))
+        
+    if tres=='monthly':  # deseasonalize
+        for t in range(12):
+            SST[t::12,:,:] -= SST[t::12,:,:].mean(dim='time')
+        
     SST = SST - SST.mean(dim='time')
     
     # 2/3/4. calculate forced signal
     forced_signal = forcing_signal(run=run, tres=tres, detrend_signal=detrend_signal, time_slice=time_slice)
-
+    
     if detrend_signal=='GMST':
         beta = lag_linregress_3D(forced_signal, SST)['slope']
         if run=='had':
@@ -339,7 +344,7 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
     if time_slice=='full':
         SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{detrend_signal}_dt_{tres}_{run}.nc')
     else:
-        SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{detrend_signal}_dt_{tres}_{run}.nc')
+        SST_dt.to_netcdf(f'{path_samoc}/SST/SST_{detrend_signal}_dt_{tres}_{first_year}_{last_year}_{run}.nc')
     
     return SST_dt, ds
 
@@ -362,19 +367,31 @@ def forcing_signal(run, tres, detrend_signal, time_slice='full'):
             forced_signal = xr_quadtrend(forced_signal)
         else:
             forced_signal = xr_lintrend(forced_signal)
-        times = forced_signal['time'] + 31 # time coordinates shifted by 31 days (SST saved end of January, GMST beginning)
-        if run=='ctrl':  # for this run, sometimes 31 days, sometimes 15/16 days offset
-            times = xr.open_dataset(f'{path_samoc}/SST/SST_yrly_ctrl.nc', decode_times=False).time
-        forced_signal = forced_signal.assign_coords(time=times)
+        if tres=='yrly':
+            times = forced_signal['time'] + 31 # time coordinates shifted by 31 days (SST saved end of January, GMST beginning)
+            if run=='ctrl':  # for this run, sometimes 31 days, sometimes 15/16 days offset
+                times = xr.open_dataset(f'{path_samoc}/SST/SST_yrly_ctrl.nc', decode_times=False).time
+            forced_signal = forced_signal.assign_coords(time=times)
+#         elif tres=='monthly':
             
     elif run=='had':
         forced_signal = xr.open_dataarray(f'{path_data}/CMIP5/KNMI_CMIP5_{detrend_signal}_{tres}.nc', decode_times=False)
-        times = (forced_signal['time'].astype(int) - 9)*365
-        forced_signal = forced_signal.assign_coords(time=times)  # days since 1861
-        forced_signal = forced_signal[9:158]  # select 1870-2018
-    
+        if tres=='monthly':  # deseasonalize
+            for t in range(12):
+                forced_signal[t::12] -= forced_signal[t::12].mean(dim='time')
+        
+        if tres=='yrly':# select 1870-2018
+            times = (forced_signal['time'].astype(int) - 9)*365
+            forced_signal = forced_signal.assign_coords(time=times)  # days since 1861
+            forced_signal = forced_signal[9:158]
+        elif tres=='monthly':
+            # ...
+            forced_signal = forced_signal[9*12:158*12-1]
+            times = xr.open_dataarray(f'{path_samoc}/SST/SST_monthly_had.nc', decode_times=False).time.values
+            forced_signal = forced_signal.assign_coords(time=times)
+            
     if time_slice is not 'full':
-        forced_signal = forced_signal.sel(*time_slice)
+        forced_signal = forced_signal.sel(time=slice(*time_slice))
     
     forced_signal -= forced_signal.mean()
     forced_signal.name = 'forcing'
