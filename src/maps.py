@@ -155,18 +155,18 @@ def regr_map(ds, index, run, fn=None):
     if index in ['AMO', 'SOM']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 300
-        nv = .25
+        nv = .4
     elif index in ['PDO', 'IPO']:
         rects = rect_polygon(SST_index_bounds(index))
         clon = 200
-        nv = .25
+        nv = .4
     elif index=='TPI':
         rects = [rect_polygon(SST_index_bounds('TPI1')),
                  rect_polygon(SST_index_bounds('TPI2')),
                  rect_polygon(SST_index_bounds('TPI3')),
                 ]
         clon = 200
-        nv = .25
+        nv = .4
     
     print(run, np.max(ds.slope.values))
     

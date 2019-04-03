@@ -1,6 +1,7 @@
 import glob
 import os
 import xarray as xr
+import matplotlib.pyplot as plt
 
 from SST import SST_index
 from paths import path_samoc
@@ -78,7 +79,9 @@ class GenerateSSTFields(object):
             if run  in ['ctrl', 'rcp']:  domain= 'ocn_rect'
             elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
                 
-            Pac_MASK = mask_box_in_region(domain=domain, mask_nr=2, bounding_lats=(latS,68), bounding_lons=(110,lonE))
+            Pac_MASK = mask_box_in_region(domain=domain, mask_nr=2,
+                                          bounding_lats=(latS,68),
+                                          bounding_lons=(110,lonE))
             if run in ['ctrl', 'rcp']:
                 Pac_MASK = Pac_MASK.where(Pac_MASK.t_lon+1/.6*Pac_MASK.t_lat<333,0)
             NPac_area = xr_AREA(domain).where(Pac_MASK, drop=True)
@@ -93,7 +96,8 @@ class GenerateSSTFields(object):
                 if m==12:
                     xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}_{y}.nc')
                             
-            combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc', concat_dim='time', decode_times=False)
+            combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc',
+                                         concat_dim='time', decode_times=False)
             combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
             combined.close()
             
@@ -119,7 +123,10 @@ class GenerateSSTFields(object):
 yrly_ctrl_100_248 = (36531,90551)
 yrly_ctrl_151_299 = (55146,109166)
 yrly_lpd_268_416  = (97851,151871)
-yrly_lpd_417_565  = (152236,206256)        
+yrly_lpd_417_565  = (152236,206256)
+
+from filters import chebychev, lowpass
+from analysis import FieldAnalysis, xrAnalysis
 
 class DeriveSSTIndices(object):
     def __init__():
@@ -144,6 +151,89 @@ class DeriveSSTIndices(object):
                 TPI1 = SST_index('TPI1', run, detrend_signal='GMST', time_slice=tslice)
                 TPI2 = SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
                 TPI3 = SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
+                
+    @staticmethod
+    def derive_final_SST_indices(run):
+        plt.figure()
+        tslices = ['']
+        if run=='ctrl':  tslices.extend(['_100_248', '_151_299'])
+        elif run=='lpd':  tslices.extend(['_268_416', '_417_565'])
+        
+        for j, tslice in enumerate(tslices):
+            ls= ['-', '--', '-.'][j]
+            for i, idx in enumerate(['AMO', 'SOM']):    
+                fn = f'{path_samoc}/SST/{idx}_GMST_dt_raw{tslice}_{run}.nc'
+                fn_new = f'{path_samoc}/SST/{idx}{tslice}_{run}.nc'
+                da = xr.open_dataarray(fn, decode_times=False)
+                da = lowpass(da, 13)
+                print(run, j, da.std())
+                da.plot(c=f'C{i}', ls=ls)
+                da.to_netcdf(fn_new)
+            
+            fn = f'{path_samoc}/SST/TPI1_GMST_dt_raw{tslice}_{run}.nc'
+            TPI1 = da = xr.open_dataarray(fn, decode_times=False)
+            fn = f'{path_samoc}/SST/TPI2_GMST_dt_raw{tslice}_{run}.nc'
+            TPI2 = da = xr.open_dataarray(fn, decode_times=False)
+            fn = f'{path_samoc}/SST/TPI3_GMST_dt_raw{tslice}_{run}.nc'
+            TPI3 = da = xr.open_dataarray(fn, decode_times=False)
+            
+            TPI = TPI2 - (TPI1+TPI3)/2
+            lowpass(TPI, 13).plot(c='C3', ls=ls)
+            lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI{tslice}_{run}.nc')
+    
+    @staticmethod
+    def derive_yrly_autocorrelations(run):
+        tslices = ['']
+        if run=='ctrl':
+            tslices.extend(['_100_248', '_151_299'])
+            slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
+        elif run=='lpd':
+            tslices.extend(['_268_416', '_417_565'])
+            slices = [yrly_lpd_268_416, yrly_lpd_417_565]
+            
+        for j, tslice in enumerate(tslices):
+            print(j)
+            fn = f'{path_samoc}/SST/SST_GMST_dt_yrly{tslice}_{run}.nc'
+            da = xr.open_dataarray(fn, decode_times=False)
+#             if j>0:
+#                 da = da.sel(time=slice(*slices[j-1]))
+            FA = FieldAnalysis(da)
+            fn_new = f'{path_samoc}/SST/SST_autocorrelation{tslice}_{run}.nc'
+            FA.make_autocorrelation_map(fn_new)
+            
+    
+    @staticmethod
+    def make_yrly_regression_files(run, idx):
+        """ generate regression files """
+        assert idx in ['AMO', 'SOM', 'TPI']
+        assert run in ['ctrl', 'lpd', 'had']
+        
+        tslices = ['']
+        if run=='ctrl':
+            tslices.extend(['_100_248', '_151_299'])
+            slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
+        elif run=='lpd':
+            tslices.extend(['_268_416', '_417_565'])
+            slices = [yrly_lpd_268_416, yrly_lpd_417_565]
+            
+        for j, tslice in enumerate(tslices):
+            print(j)
+            fn = f'{path_samoc}/SST/{idx}{tslice}_{run}.nc'
+            index = xr.open_dataarray(fn, decode_times=False)
+            fn = f'{path_samoc}/SST/SST_GMST_dt_yrly{tslice}_{run}.nc'
+            SST_dt = xr.open_dataarray(fn, decode_times=False)
+            fn = f'{path_samoc}/SST/SST_autocorrelation{tslice}_{run}.nc'
+            autocorr = xr.open_dataarray(fn, decode_times=False)
+            
+            xA = xrAnalysis()
+            ds = xA.lag_linregress(x=index[7:-7],  # removing filter edge effects
+                                   y=SST_dt[7:-7], 
+                                   autocorrelation=autocorr,
+                                   standardize=True,
+                                  )
+            ds.to_netcdf(f'{path_samoc}/SST/{idx}_regr{tslice}_{run}.nc')
+        print('success')
+        return
             
 
 # =============================================================================

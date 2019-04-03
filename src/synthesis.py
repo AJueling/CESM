@@ -25,9 +25,9 @@ class IndexAnalysis(TimeSeriesAnalysis):
         assert index in ['AMO', 'SOM', 'TPI']
         
         self.index = index
-        self.load_indices()
-        self.load_GMST_detr_indices()
-        self.load_yrly_SST()
+#         self.load_indices()
+#         self.load_GMST_detr_indices()
+#         self.load_yrly_SST()
         
         self.plot_time_offsets = [1850, 200, 1350, -1600, 2350]
         self.plot_texts = ['CTRL','RCP','pres. day low','pre-ind. low','HadISST']
@@ -42,6 +42,7 @@ class IndexAnalysis(TimeSeriesAnalysis):
         """ loads final indices
         filtered and detrended with target region regression approach
         (Steinman et al. (2015))
+        # not true anymore for had, ctrl, and lpd (= GMST detr.)
         """
         def fn(run):
             return f'{path_samoc}/SST/{self.index}_{run}.nc'
@@ -158,25 +159,6 @@ class IndexAnalysis(TimeSeriesAnalysis):
                               'lpd' :self.autocorr_lpd,
                               'lpi' :self.autocorr_lpi,
                               'had' :self.autocorr_had}
-
-        
-    def make_regression_files(self):
-        """ generate regression files """
-        self.load_SST_autocorrelation_files()
-        self.load_yrly_dt_SST()
-        for i, run in enumerate(self.all_indices.keys()):
-            # if run in ['ctrl', 'rcp', 'lpd', 'lpi']:  continue  # for testing
-            print(run)
-            x = self.all_indices[run][-149:]  # only last 149 years like in obs.
-            y = self.all_dt_SSTs[run][-149:]
-            ds = self.lag_linregress(x=x[7:-7],  # removing filter edge effects
-                                     y=y[7:-7],
-                                     autocorrelation=self.all_autocorrs[run],
-                                     standardize=True,
-                                    )
-            ds.to_netcdf(f'{path_samoc}/SST/{self.index}_regr_{run}.nc')
-        print('success')
-        return
         
         
     def plot_all_indices(self):
@@ -294,6 +276,19 @@ class IndexAnalysis(TimeSeriesAnalysis):
             assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
             regr_map(ds=self.all_regrs[run], index=self.index,
                      run=run, fn=None)
+            
+    def plot_yrly_regr_maps(self, run):
+        assert run in ['ctrl', 'lpd', 'had']
+        
+        tslices = ['']
+        if run=='ctrl':   tslices.extend(['_100_248', '_151_299'])
+        elif run=='lpd':  tslices.extend(['_268_416', '_417_565'])
+            
+        for j, tslice in enumerate(tslices):
+            print(j)
+            fn = f'{path_samoc}/SST/{self.index}_regr{tslice}_{run}.nc'
+            ds = xr.open_dataset(fn)
+            regr_map(ds=ds, index=self.index, run=run, fn=tslice)
             
     
 # =============================================================================

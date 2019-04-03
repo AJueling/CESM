@@ -81,9 +81,9 @@ def IPO_TPI(run):
     TPI2 = SST_index_from_monthly(run=run, index_loc=None, MASK=TPI_masks(domain, 2))
     TPI3 = SST_index_from_monthly(run=run, index_loc=None, MASK=TPI_masks(domain, 3))
     
-    TPI1.to_netcdf(f'{path_samoc}/SST/TPI1_monhtly_{run}.nc')
-    TPI2.to_netcdf(f'{path_samoc}/SST/TPI2_monhtly_{run}.nc')
-    TPI3.to_netcdf(f'{path_samoc}/SST/TPI3_monhtly_{run}.nc')
+    TPI1.to_netcdf(f'{path_samoc}/SST/TPI1_monthly_{run}.nc')
+    TPI2.to_netcdf(f'{path_samoc}/SST/TPI2_monthly_{run}.nc')
+    TPI3.to_netcdf(f'{path_samoc}/SST/TPI3_monthly_{run}.nc')
     
     return
 
