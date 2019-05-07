@@ -60,5 +60,4 @@ ideas:
 - regional change vs. global change (video of SST trends; safe havens)
 - dOHC: forcing vs response under climate change
 
-side projects:
 

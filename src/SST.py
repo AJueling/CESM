@@ -217,7 +217,6 @@ def SST_index(index, run, detrend_signal='GMST', time_slice='full'):
     elif run=='had':
         domain = 'ocn_had'
         dims = ('latitude', 'longitude')
-        
     
     blats, blons, mask_nr = bounding_lats_lons(index)
         
@@ -280,9 +279,6 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
         assert run=='had'
     if run=='had':
         assert time_slice=='full'
-    
-    
-
 
     # file name and domain
     fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
@@ -297,7 +293,6 @@ def SST_remove_forced_signal(run, tres='yrly', detrend_signal='GMST', time_slice
         domain = 'ocn_had'
 
     first_year, last_year = determine_years_from_slice(run, tres, time_slice)
-    
 
 #     sys.exit("Error message")
     # 1. load data
