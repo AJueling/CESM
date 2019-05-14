@@ -2,7 +2,10 @@
 
 (model output)
 
-(how to deal with grids consistently)
+(how to deal with grids consistently?)
+
+0. supporting functions and classes
+    * IterateCESMoutput
 
 1. generation of files
     (derive_files.py)
@@ -19,9 +22,13 @@
     * FieldAnalysis
     * TimeSeriesAnalysis
     - AMOC
+    - spectrum
+    - AR(1) process
+    
     (analysis_SST.py)
     * IndexAnalysis
 
 3. synthesis of several runs / compare between model runs
     (synthesis.py)
     - common time series
+    * TimeSeriesSynthesis ?

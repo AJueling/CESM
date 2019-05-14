@@ -2,7 +2,7 @@
 
 All computations are done on Cartesius of Surfsara.
 
-The python 3.7 virtual environment used to run the analysis is saved as [] in the documentation folder.
+The python 3.7 virtual environment used to run the analysis is saved as conda_list.txt in the documentation folder.
 
 The 'run' scripts that enable scheduled (parallel) computing on Cartesius use sbatch.
 
