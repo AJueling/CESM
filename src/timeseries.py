@@ -37,7 +37,7 @@ class IterateOutputCESM:
         if tavg=='monthly':  self.month = 1
         elif tavg=='yrly':   self.month = 0
         
-        if run=='ctrl':   self.year  =  100
+        if run=='ctrl':   self.year  =    1
         elif run=='rcp':  self.year  = 2000
         elif run=='pop':  self.year  =  125
         elif run=='lpd':  self.year  =  154
