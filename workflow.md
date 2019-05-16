@@ -1,13 +1,13 @@
-derive:
- a. SST field
- b. GMST fields
+a. derivation:
+    SST fields from model output:
  
-loop over all 149 year segments:
- detrended SST field
+b. analysis:
+    detrended SST field
+    loop over all 149 year segments:
+    raw indices files
+    filtered index files + autocorrelation files
  
- raw indices files
- filtered index files + autocorrelation files
- 
- regression files + plots
- 
- spatial correlation
+c. synthesis
+    regression files + plots
+    spatial correlation
+    multiple linear regression

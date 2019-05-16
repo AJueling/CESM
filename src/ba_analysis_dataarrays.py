@@ -74,7 +74,8 @@ class AnalyzeDataArray(object):
         return cor
     
     
-    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0, 
+    @staticmethod
+    def lag_linregress(x, y, dof_corr=1, lagx=0, lagy=0, 
                        autocorrelation=None, filterperiod=None, standardize=False):
         """
         adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html

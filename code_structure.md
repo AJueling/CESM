@@ -2,11 +2,7 @@
 
 (model output)
 
-(how to deal with grids consistently?)
-
-
-
-a. generation of files
+a. derivation of fields/files from raw model output
     (derive_files.py)
     * MakeDerivedFiles
     - yrly averages
@@ -39,3 +35,5 @@ d. shared supporting functions and classes
     - paths
     
 e. specific functions for particular analyses
+
+(how to deal with grids consistently?)
