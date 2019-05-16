@@ -4,10 +4,9 @@
 
 (how to deal with grids consistently?)
 
-0. supporting functions and classes
-    * IterateCESMoutput
 
-1. generation of files
+
+a. generation of files
     (derive_files.py)
     * MakeDerivedFiles
     - yrly averages
@@ -16,9 +15,9 @@
     * GenerateSSTFields
     - detrended fields
 
-2. analysis of single runs
+b. analysis of single runs
     (analysis.py)
-    * xrAnalaysis
+    * xrAnalysis
     * FieldAnalysis
     * TimeSeriesAnalysis
     - AMOC
@@ -28,7 +27,15 @@
     (analysis_SST.py)
     * IndexAnalysis
 
-3. synthesis of several runs / compare between model runs
+c. synthesis of several runs / compare between model runs
     (synthesis.py)
     - common time series
     * TimeSeriesSynthesis ?
+    
+
+d. shared supporting functions and classes
+    * IterateCESMoutput
+    - CESM file name
+    - paths
+    
+e. specific functions for particular analyses

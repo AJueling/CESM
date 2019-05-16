@@ -8,8 +8,6 @@ from paths import path_samoc
 from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
 
-
-
 yrly_ctrl_100_248 = (36531,90551)
 yrly_ctrl_151_299 = (55146,109166)
 yrly_lpd_268_416  = (97851,151871)
@@ -17,9 +15,10 @@ yrly_lpd_417_565  = (152236,206256)
 
 from filters import chebychev, lowpass
 from analysis import FieldAnalysis, xrAnalysis
+from 2_1_analysis_dataarray import AnalyzeDataArray
+from 2_3_analysis_field import AnalyzeField
 
-
-class IndexAnalysis(object):
+class AnalyzeIndex(object):
     def __init__():
         return
     
