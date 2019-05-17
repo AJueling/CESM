@@ -3,77 +3,157 @@ import os
 import xarray as xr
 import matplotlib.pyplot as plt
 
-from SST import SST_index
 from paths import path_samoc
+from regions import boolean_mask, TPI_masks, mask_box_in_region, bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3
+from filters import chebychev, lowpass
 from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
+from xr_DataArrays import xr_AREA
 
-yrly_ctrl_100_248 = (36531,90551)
-yrly_ctrl_151_299 = (55146,109166)
-yrly_lpd_268_416  = (97851,151871)
-yrly_lpd_417_565  = (152236,206256)
-
-from filters import chebychev, lowpass
-from analysis import FieldAnalysis, xrAnalysis
-from 2_1_analysis_dataarray import AnalyzeDataArray
-from 2_3_analysis_field import AnalyzeField
+from ba_analysis_dataarrays import AnalyzeDataArray
+from bc_analysis_fields import AnalyzeField
 
 class AnalyzeIndex(object):
-    def __init__():
+    """ calculating SST indices """
+    def __init__(self):
         return
     
-    @staticmethod
-    def derive_all_SST_avg_indices(run):
-        """ generates all SST avg indices detrended with the GMST signal  for full time series """
-        AMO  = SST_index('AMO' , run, detrend_signal='GMST')
-        SOM  = SST_index('SOM' , run, detrend_signal='GMST')
-        TPI1 = SST_index('TPI1', run, detrend_signal='GMST')
-        TPI2 = SST_index('TPI2', run, detrend_signal='GMST')
-        TPI3 = SST_index('TPI3', run, detrend_signal='GMST')
     
-        if run=='ctrl':  slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
-        elif run=='lpd': slices = [yrly_lpd_268_416, yrly_lpd_417_565]
-            
-        if run in ['ctrl', 'lpd']:
-            for tslice in slices:
-                AMO  = SST_index('AMO' , run, detrend_signal='GMST', time_slice=tslice)
-                SOM  = SST_index('SOM' , run, detrend_signal='GMST', time_slice=tslice)
-                TPI1 = SST_index('TPI1', run, detrend_signal='GMST', time_slice=tslice)
-                TPI2 = SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
-                TPI3 = SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
+    def SST_area_average(self, xa_SST, AREA, AREA_index, MASK, dims=('nlat', 'nlon'), index_loc=None):
+        """ calculates the average SST over an area, possibly as a time series """
+        assert type(xa_SST)==xr.core.dataarray.DataArray
+        assert type(AREA)==xr.core.dataarray.DataArray
+        if type(index_loc)==dict:
+            index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
+        elif index_loc==None:
+            index = (xa_SST*AREA).where(MASK).sum(dim=dims)/AREA_index
+        else:
+            print('kwarg `index_loc` is not given properly.')
+        return index
+    
+    
+    def bounding_lats_lons(self, index):
+        """ bounding latitudes and longitudes """
+        if index=='AMO':
+            (blats, blons) = bll_AMO
+            mask_nr = 6
+        elif index=='SOM':
+            (blats, blons) = bll_SOM
+            mask_nr = 0
+        elif index=='TPI1':  # use monthly data
+            (blats, blons) = bll_TPI1
+            mask_nr = 2
+        elif index=='TPI2':
+            (blats, blons) = bll_TPI3
+            mask_nr = 2
+        elif index=='TPI3':
+            (blats, blons) = bll_TPI3
+            mask_nr = 2
+        return blats, blons, mask_nr
+    
+    
+    def SST_index(self, index, run, detrend_signal='GMST', time_slice='full'):
+        """ calcalates SST time series from yearly detrended SST dataset """
+        assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
+        assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
+        assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
+
+        print(index, run)
+
+        if run in ['ctrl', 'rcp']:
+            domain = 'ocn'  #check this
+            dims = ('nlat', 'nlon')
+        elif run in ['lpd', 'lpi']:
+            domain = 'ocn_low'
+            dims = ('nlat', 'nlon')
+        elif run=='had':
+            domain = 'ocn_had'
+            dims = ('latitude', 'longitude')
+
+        blats, blons, mask_nr = self.bounding_lats_lons(index)
+        MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
+        AREA = xr_AREA(domain=domain).where(MASK)
+        index_area = AREA.sum()
+
+        if detrend_signal=='GMST' or run=='had' and detrend_signal in ['AMO', 'SOM']:
+            print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
+            if detrend_signal=='GMST':
+                print('GMST(t) signal scaled at each grid point\n')
+                if run in ['ctrl', 'lpd', 'lpi']:  dt = 'sldt'
+                elif run=='rcp':                   dt = 'sqdt'
+                elif run=='had':                   dt = 'tfdt'  # 'sfdt'
+            else:
+                print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
                 
-    @staticmethod
-    def derive_final_SST_indices(run):
-        """"""
-        plt.figure()
-        tslices = ['']
-        if run=='ctrl':  tslices.extend(['_100_248', '_151_299'])
-        elif run=='lpd':  tslices.extend(['_268_416', '_417_565'])
+            if time_slice=='full':
+                fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
+            else:
+                (first_year, last_year) = time_slice
+                fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}_{first_year}_{last_year}.nc'
+
+            assert os.path.exists(fn)
+            SST_yrly = xr.open_dataarray(fn).where(MASK)
+            detr = f'_{detrend_signal}_dt'
+
+        else:  # run=='had' and detrend_signal!='GMST'
+            print('underlying SST field: no detrending, no filtering')
+            if detrend_signal in ['AMO', 'SOM']:
+                print(f'{detrend_signal} must subsequently be detrended with polynomial\n')
+            else:
+                print(f'{detrend_signal} must not be detrended since forcing signal compensated in TPI\n')
+            SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc').where(MASK)
+            detr = ''
+
+        SSTindex = self.SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
+        if time_slice=='full':
+            fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}.nc'
+        else:
+            fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}_{first_year}_{last_year}.nc'
+        SSTindex.to_netcdf(fn)
         
-        for j, tslice in enumerate(tslices):
-            ls= ['-', '--', '-.'][j]
-            for i, idx in enumerate(['AMO', 'SOM']):    
-                fn = f'{path_samoc}/SST/{idx}_GMST_dt_raw{tslice}_{run}.nc'
-                fn_new = f'{path_samoc}/SST/{idx}{tslice}_{run}.nc'
-                da = xr.open_dataarray(fn, decode_times=False)
-                da = lowpass(da, 13)
-                print(run, j, da.std())
-                da.plot(c=f'C{i}', ls=ls)
-                da.to_netcdf(fn_new)
-            
-            fn = f'{path_samoc}/SST/TPI1_GMST_dt_raw{tslice}_{run}.nc'
-            TPI1 = da = xr.open_dataarray(fn, decode_times=False)
-            fn = f'{path_samoc}/SST/TPI2_GMST_dt_raw{tslice}_{run}.nc'
-            TPI2 = da = xr.open_dataarray(fn, decode_times=False)
-            fn = f'{path_samoc}/SST/TPI3_GMST_dt_raw{tslice}_{run}.nc'
-            TPI3 = da = xr.open_dataarray(fn, decode_times=False)
-            
-            TPI = TPI2 - (TPI1+TPI3)/2
-            lowpass(TPI, 13).plot(c='C3', ls=ls)
-            lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI{tslice}_{run}.nc')
+        return SSTindex
     
-    @staticmethod
-    def derive_yrly_autocorrelations(run):
+    
+    def derive_all_SST_avg_indices(self, run, tslice):
+        """ generates all SST avg indices detrended with the GMST signal  for full time series """
+        AMO  = self.SST_index('AMO' , run, detrend_signal='GMST', time_slice=tslice)
+        SOM  = self.SST_index('SOM' , run, detrend_signal='GMST', time_slice=tslice)
+        TPI1 = self.SST_index('TPI1', run, detrend_signal='GMST', time_slice=tslice)
+        TPI2 = self.SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
+        TPI3 = self.SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
+        return
+                
+        
+    def derive_final_SST_indices(self, run, tslice):
+        """ processes raw indices: filtering and TPI summation """
+        if time_slice=='full':  ts = ''
+        else:                   ts = f'_{tslice[0]}+{tslice[1]}'
+            
+        if run in ['ctrl', 'lpd', 'lpi']:  dt = 'sldt'
+        elif run=='rcp':                   dt = 'sqdt'
+        elif run=='had':                   dt = 'tfdt'  # 'sfdt'
+            
+        # AMO & SOM
+        for i, idx in enumerate(['AMO', 'SOM']):
+            fn = f'{path_samoc}/SST/{idx}_GMST_{dt}_raw_{run}{ts}.nc'
+            fn_new = f'{path_samoc}/SST/{idx}_{run}{ts}.nc'
+            da = xr.open_dataarray(fn, decode_times=False)
+            lowpass(da, 13).to_netcdf(fn_new)
+
+        # TPI
+        fn = f'{path_samoc}/SST/TPI1_GMST_{dt}_raw_{run}{ts}.nc'
+        TPI1 = da = xr.open_dataarray(fn, decode_times=False)
+        fn = f'{path_samoc}/SST/TPI2_GMST_{dt}_raw_{run}{ts}.nc'
+        TPI2 = da = xr.open_dataarray(fn, decode_times=False)
+        fn = f'{path_samoc}/SST/TPI3_GMST_{dt}_raw_{run}{ts}.nc'
+        TPI3 = da = xr.open_dataarray(fn, decode_times=False)
+        TPI = TPI2 - (TPI1+TPI3)/2
+        lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI_{run}{ts}.nc')
+        
+        return
+    
+    
+    def derive_yrly_autocorrelations(self, run):
         tslices = ['']
         if run=='ctrl':
             tslices.extend(['_100_248', '_151_299'])
@@ -86,15 +166,13 @@ class AnalyzeIndex(object):
             print(j)
             fn = f'{path_samoc}/SST/SST_GMST_dt_yrly{tslice}_{run}.nc'
             da = xr.open_dataarray(fn, decode_times=False)
-#             if j>0:
-#                 da = da.sel(time=slice(*slices[j-1]))
             FA = FieldAnalysis(da)
             fn_new = f'{path_samoc}/SST/SST_autocorrelation{tslice}_{run}.nc'
             FA.make_autocorrelation_map(fn_new)
-            
+        return
     
-    @staticmethod
-    def make_yrly_regression_files(run, idx):
+    
+    def make_yrly_regression_files(self, run, idx):
         """ generate regression files """
         assert idx in ['AMO', 'SOM', 'TPI']
         assert run in ['ctrl', 'lpd', 'had']

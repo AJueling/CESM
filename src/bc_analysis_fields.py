@@ -17,7 +17,7 @@ from regions import boolean_mask
 from filters import lowpass
 from xr_DataArrays import dll_coords_names, xr_AREA
 
-from 2_1_analysis_dataarray import AnalyzeDataArray
+from ba_analysis_dataarrays import AnalyzeDataArray
 
 
 class AnalyzeField(AnalyzeDataArray):
