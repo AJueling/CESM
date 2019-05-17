@@ -17,13 +17,12 @@ class DeriveSST(object):
     def __init__(self):
         return
     
-    @staticmethod
-    def remove_superfluous_files(fn):
+    def remove_superfluous_files(self, fn):
+        print('removing superfluous files')
         for x in glob.glob(fn):
             os.remove(x) 
     
-    @staticmethod
-    def generate_yrly_SST_files(run):
+    def generate_yrly_SST_files(self, run):
         """ generate the SST data files from TEMP_PD yearly averaged files """
         # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
         # stacking files into one xr DataArray object
@@ -31,26 +30,26 @@ class DeriveSST(object):
             print(y)
             da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
             da = da.drop(['z_t', 'ULONG', 'ULAT'])
+            da_time = int(da.time.item())
             if run=='ctrl':
                 # years 5-50 have different TLAT/TLON grids
-                # the non-computed boxes changed
+                # somehow the non-computed boxes changed (in the continents)
                 if i==0:
-                    TLAT = da['TLAT' ].round(decimals=2)
-                    TLONG = da['TLONG' ].round(decimals=2)
-                da['TLAT' ] = TLAT
-                da['TLONG' ] = TLONG
+                    TLAT = da['TLAT'].round(decimals=2)
+                    TLONG = da['TLONG'].round(decimals=2)
+                da['TLAT'] = TLAT
+                da['TLONG'] = TLONG
             else:
                 da['TLAT' ] = da['TLAT' ].round(decimals=2)
                 da['TLONG'] = da['TLONG'].round(decimals=2)
             del da.encoding["contiguous"]
-            ds = t2ds(da=da, name='SST', t=int(round(da.time.item())))
-            ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y}.nc', mode='w')
-
+            ds = t2ds(da=da, name='SST', t=da_time)
+            ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y:04}.nc', mode='w')
         combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
                                      concat_dim='time', autoclose=True, coords='minimal')
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
-
-        GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+        self.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+        return
             
             
     @staticmethod
@@ -71,15 +70,14 @@ class DeriveSST(object):
             else:
                 xa_out = xr.concat([xa_out, xa], dim='time')
             if m==12:
-                xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}_{y}.nc')
+                xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}_{y:04}.nc')
                         
         combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{run}_*.nc',
                                      concat_dim='time', decode_times=False)
         combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}.nc')
         combined.close()
-
 #         GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
-            
+        return
             
     @staticmethod
     def generate_monthly_regional_SST_files(run):
@@ -107,17 +105,18 @@ class DeriveSST(object):
                 else:
                     xa_out = xr.concat([xa_out, xa], dim='time')
                 if m==12:
-                    xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}_{y}.nc')
+                    xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}_{y:04}.nc')
                             
             combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc',
                                          concat_dim='time', decode_times=False)
             combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
             combined.close()
             
-            GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
+#             GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
             # # remove yearly files
+        return
             
-            
+        
     @staticmethod
     def generate_monthly_mock_linear_GMST_files(run):
         """ generates xr DataArray with same time coordinates as monthly SST fields
@@ -125,17 +124,20 @@ class DeriveSST(object):
         monthly GMST
         """
         assert run in ['ctrl', 'lpd']
-        if run=='ctrl':  dims = ['t_lon', 't_lat']
+        if run=='ctrl':   dims = ['t_lon', 't_lat']
         elif run=='lpd':  dims = ['nlon', 'nlat']
         da = xr.open_dataarray(f'{path_samoc}/SST/SST_monthly_{run}.nc', decode_times=False)
         da_new = xr_lintrend(da.mean(dim=dims, skipna=True, keep_attrs=True))
         da_new.name = 'GMST'
         da_new.attrs = {'Note':'This is the linear trend of the SST evolution, not GMST'}
         da_new.to_dataset().to_netcdf(f'{path_samoc}/GMST/GMST_monthly_{run}.nc')
+        return
         
         
     def SST_remove_forced_signal(self, run, tres='yrly', detrend_signal='GMST', time_slice='full'):
-        """ removed the scaled, forced GMST signal (method by Kajtar et al. (2019))
+        """ detrending the SST field
+        a) remove the scaled, forced MMEM GMST signal (method by Kajtar et al. (2019)) at each grid point
+        b) remove MMEM SST index (Steinman et al. (2015))
 
         1. load raw SST data
         2. generate forced signal
@@ -178,12 +180,10 @@ class DeriveSST(object):
             domain = 'ocn_had'
 
 
-        # load and subselect data
+        print('load and subselect data')
         MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
-        SST = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).where(MASK)
-        
-        # subselect in time
-        self.select_time_slice(SST, time_slice)
+        SST = self.select_time_slice(xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc',\
+                                                       decode_times=False).where(MASK), time_slice)
         if time_slice!='full':
             first_year, last_year = time_slice
         
@@ -192,39 +192,49 @@ class DeriveSST(object):
                 SST[t::12,:,:] -= SST[t::12,:,:].mean(dim='time')
         SST = SST - SST.mean(dim='time')
 
-        # calculate forced signal
+        print('calculate forced signal')
         forced_signal = self.forcing_signal(run=run, tres=tres, detrend_signal=detrend_signal, time_slice=time_slice)
 
-        # Kajtar et al. (2019) scaled MMM GMST detrending method
         if detrend_signal=='GMST':
-            beta = ADA().lag_linregress(forced_signal, SST)['slope']
-            if run=='had':
-                beta = xr.where(abs(beta)<5, beta, np.median(beta))
-            ds = xr.merge([forced_signal, beta])
-            ds.to_netcdf(f'{path_samoc}/SST/SST_beta_{detrend_signal}_{tres}_{run}.nc')
-            forced_map = beta * forced_signal
-
-            # 5.
-            SST_dt = SST - forced_map
-            SST_dt -= SST_dt.mean(dim='time')
+            print('Kajtar et al. (2019) scaled MMM GMST detrending method')
+            if time_slice=='full':
+                fn = f'{path_samoc}/SST/SST_beta_{detrend_signal}_{tres}_{run}.nc'
+            else:
+                fn = f'{path_samoc}/SST/SST_beta_{detrend_signal}_{tres}_{run}_{first_year}_{last_year}.nc'
+                
+            try:
+                assert os.path.exists(fn)
+                print('reusing previously calculated beta!')
+                print(f'file exists: {fn}')
+                beta = xr.open_dataset(fn).slope
+            except:
+                beta = ADA().lag_linregress(forced_signal, SST)['slope']
+                if run=='had':
+                    beta = xr.where(abs(beta)<5, beta, np.median(beta))
+                ds = xr.merge([forced_signal, beta])
+                ds.to_netcdf(fn)
+                
+            SST_dt = SST - beta * forced_signal
+            SST_dt = SST_dt - SST_dt.mean(dim='time')
+            print('test')
 
             # output name
             if run=='had':    dt = 'sfdt'  # single factor detrending
             elif run=='rcp':  dt = 'sqdt'  # scaled quadratic detrending
             else:             dt = 'sldt'  # scaled linear detrending
             
-        # Steinman et al. (2015) method
         elif detrend_signal in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']:
+            print('Steinman et al. (2015) method')
             # these indices will be detrended afterwards
             SST_dt = SST - forced_signal
             ds = None
             dt = f'{detrend_signal}dt'
 
-        # output
+        print('writing output')
         if time_slice=='full':
             fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_{tres}_{run}.nc'
         else:
-            fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_{tres}_{first_year}_{last_year}_{run}.nc'
+            fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_{tres}_{run}_{first_year}_{last_year}.nc'
         SST_dt.to_netcdf(fn)
         print(f'detrended {run} SST file written out to:\n{fn}')
         
@@ -242,6 +252,7 @@ class DeriveSST(object):
         detrend_signal .. 
         time_slice
         """
+        print('creating forcing signal')
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
         assert tres in ['yrly', 'monthly']
         assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
@@ -249,16 +260,19 @@ class DeriveSST(object):
         # simulations: linear/quadratic fit to GMST signal
         if run in ['ctrl', 'rcp', 'lpd', 'lpi']:
             assert detrend_signal=='GMST'
-            forced_signal = xr.open_dataset(f'{path_samoc}/GMST/GMST_{tres}_{run}.nc', decode_times=False).GMST
-            if run=='rcp':
+            if run=='rcp':  # need actual GMST time series
+                forced_signal = xr.open_dataset(f'{path_samoc}/GMST/GMST_{tres}_{run}.nc', decode_times=False).GMST
                 forced_signal = xr_quadtrend(forced_signal)
-            else:
-                forced_signal = xr_lintrend(forced_signal)
-            if tres=='yrly':
-                times = forced_signal['time'] + 31 # time coordinates shifted by 31 days (SST saved end of January, GMST beginning)
-                if run=='ctrl':  # for this run, sometimes 31 days, sometimes 15/16 days offset
-                    times = xr.open_dataset(f'{path_samoc}/SST/SST_yrly_ctrl.nc', decode_times=False).time
-                forced_signal = forced_signal.assign_coords(time=times)
+            else:  # create mock linear trend 
+                times = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).time
+                forced_signal = xr.DataArray(np.linspace(0,1,len(times)), coords={'time': np.sort(times.values)}, dims=('time'))
+                forced_signal.name = 'GMST'
+                forced_signal.attrs = {'Note':'This is the mock linear trend, simply going from 0 to 1'}
+#             if tres=='yrly':
+#                 times = forced_signal['time'] + 31 # time coordinates shifted by 31 days (SST saved end of January, GMST beginning)
+#                 if run=='ctrl':  # for this run, sometimes 31 days, sometimes 15/16 days offset
+#                     times = xr.open_dataset(f'{path_samoc}/SST/SST_yrly_ctrl.nc', decode_times=False).time
+#                 forced_signal = forced_signal.assign_coords(time=times)
 
         # observations: CMIP5 multi model ensemble mean of all forcings GMST
         elif run=='had':
@@ -277,11 +291,10 @@ class DeriveSST(object):
                 times = xr.open_dataarray(f'{path_samoc}/SST/SST_monthly_had.nc', decode_times=False).time.values
                 forced_signal = forced_signal.assign_coords(time=times)
 
-        self.select_time_slice(forced_signal, time_slice)
+        forced_signal = self.select_time_slice(forced_signal, time_slice)
 
         forced_signal -= forced_signal.mean()
         forced_signal.name = 'forcing'
-
         return forced_signal
     
     
@@ -339,7 +352,6 @@ class DeriveSST(object):
         fn = f'{path_samoc}/SST/SST_GMST_{dt}_yrly_had.nc'
         SST_dt.to_netcdf(fn)
         print(f'detrended had SST file written out to:\n{fn}')
-        
         return
         
         
