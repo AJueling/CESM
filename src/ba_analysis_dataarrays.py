@@ -70,7 +70,6 @@ class AnalyzeDataArray(object):
         cov      = np.divide(np.nansum(np.multiply(x,y), axis=0), n)
         cor      = cov/(xstd*ystd)
         cor.name = 'autocorrelation'
-
         return cor
     
     

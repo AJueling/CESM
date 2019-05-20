@@ -4,7 +4,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 
 from paths import path_samoc
-from regions import boolean_mask, TPI_masks, mask_box_in_region, bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3
+from regions import boolean_mask, TPI_masks, mask_box_in_region,\
+                    bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3
 from filters import chebychev, lowpass
 from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
@@ -71,7 +72,8 @@ class AnalyzeIndex(object):
             dims = ('latitude', 'longitude')
 
         blats, blons, mask_nr = self.bounding_lats_lons(index)
-        MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
+        MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr,\
+                                  bounding_lats=blats, bounding_lons=blons)
         AREA = xr_AREA(domain=domain).where(MASK)
         index_area = AREA.sum()
 
@@ -79,9 +81,7 @@ class AnalyzeIndex(object):
             print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
             if detrend_signal=='GMST':
                 print('GMST(t) signal scaled at each grid point\n')
-                if run in ['ctrl', 'lpd', 'lpi']:  dt = 'sldt'
-                elif run=='rcp':                   dt = 'sqdt'
-                elif run=='had':                   dt = 'tfdt'  # 'sfdt'
+                dt = self.detrend_string(run)
             else:
                 print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
                 
@@ -104,13 +104,11 @@ class AnalyzeIndex(object):
             SST_yrly = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc').where(MASK)
             detr = ''
 
-        SSTindex = self.SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=index_area, MASK=MASK, dims=dims)
-        if time_slice=='full':
-            fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}.nc'
-        else:
-            fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}_{first_year}_{last_year}.nc'
+        SSTindex = self.SST_area_average(xa_SST=SST_yrly, AREA=AREA,\
+                                         AREA_index=index_area, MASK=MASK, dims=dims)
+        ts = self.time_slice_string(tslice)
+        fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}{ts}.nc'
         SSTindex.to_netcdf(fn)
-        
         return SSTindex
     
     
@@ -122,16 +120,29 @@ class AnalyzeIndex(object):
         TPI2 = self.SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
         TPI3 = self.SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
         return
-                
-        
-    def derive_final_SST_indices(self, run, tslice):
-        """ processes raw indices: filtering and TPI summation """
-        if time_slice=='full':  ts = ''
-        else:                   ts = f'_{tslice[0]}+{tslice[1]}'
+    
+    
+    def time_slice_string(self, tslice):
+        """ string for time subset """
+        if tslice=='full':         ts = ''
+        elif type(tslice)==tuple:  ts = f'_{tslice[0]}_{tslice[1]}'
+        else:                      raise ValueError()
+        return ts
             
+        
+    def detrend_string(self, run):
+        """ scaled linear/quadratic or two factor detrending string in filenames """
         if run in ['ctrl', 'lpd', 'lpi']:  dt = 'sldt'
         elif run=='rcp':                   dt = 'sqdt'
         elif run=='had':                   dt = 'tfdt'  # 'sfdt'
+        else:                              raise ValueError()
+        return dt    
+        
+        
+    def derive_final_SST_indices(self, run, tslice):
+        """ processes raw indices: filtering and TPI summation """
+        ts = self.time_slice_string(tslice)
+        dt = self.detrend_string(run)
             
         # AMO & SOM
         for i, idx in enumerate(['AMO', 'SOM']):
@@ -149,58 +160,46 @@ class AnalyzeIndex(object):
         TPI3 = da = xr.open_dataarray(fn, decode_times=False)
         TPI = TPI2 - (TPI1+TPI3)/2
         lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI_{run}{ts}.nc')
+        return
+    
+    
+    def derive_yrly_autocorrelations(self, run, tslice):
+        """ autocorrelation maps for detrended SST fields for significance tests """
+        ts = self.time_slice_string(tslice)
+        dt = self.detrend_string(run)
         
+        fn = f'{path_samoc}/SST/SST_GMST_{dt}_yrly_{run}{ts}.nc'
+        fn_new = f'{path_samoc}/SST/SST_autocorrelation_{run}{ts}.nc'
+
+        da = xr.open_dataarray(fn, decode_times=False)
+        FA = AnalyzeField(da)
+        FA.make_autocorrelation_map(fn_new)
         return
     
     
-    def derive_yrly_autocorrelations(self, run):
-        tslices = ['']
-        if run=='ctrl':
-            tslices.extend(['_100_248', '_151_299'])
-            slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
-        elif run=='lpd':
-            tslices.extend(['_268_416', '_417_565'])
-            slices = [yrly_lpd_268_416, yrly_lpd_417_565]
-            
-        for j, tslice in enumerate(tslices):
-            print(j)
-            fn = f'{path_samoc}/SST/SST_GMST_dt_yrly{tslice}_{run}.nc'
-            da = xr.open_dataarray(fn, decode_times=False)
-            FA = FieldAnalysis(da)
-            fn_new = f'{path_samoc}/SST/SST_autocorrelation{tslice}_{run}.nc'
-            FA.make_autocorrelation_map(fn_new)
-        return
-    
-    
-    def make_yrly_regression_files(self, run, idx):
+    def make_yrly_regression_files(self, run, tslice):
         """ generate regression files """
-        assert idx in ['AMO', 'SOM', 'TPI']
         assert run in ['ctrl', 'lpd', 'had']
         
-        tslices = ['']
-        if run=='ctrl':
-            tslices.extend(['_100_248', '_151_299'])
-            slices = [yrly_ctrl_100_248, yrly_ctrl_151_299]
-        elif run=='lpd':
-            tslices.extend(['_268_416', '_417_565'])
-            slices = [yrly_lpd_268_416, yrly_lpd_417_565]
-            
-        for j, tslice in enumerate(tslices):
-            print(j)
-            fn = f'{path_samoc}/SST/{idx}{tslice}_{run}.nc'
-            index = xr.open_dataarray(fn, decode_times=False)
-            fn = f'{path_samoc}/SST/SST_GMST_dt_yrly{tslice}_{run}.nc'
-            SST_dt = xr.open_dataarray(fn, decode_times=False)
-            fn = f'{path_samoc}/SST/SST_autocorrelation{tslice}_{run}.nc'
-            autocorr = xr.open_dataarray(fn, decode_times=False)
-            
-            xA = xrAnalysis()
+        ts = self.time_slice_string(tslice)
+        dt = self.detrend_string(run)
+
+        for idx in ['AMO', 'SOM', 'TPI']:
+            fn_idx = f'{path_samoc}/SST/{idx}_{run}{ts}.nc'
+            fn_SST = f'{path_samoc}/SST/SST_GMST_{dt}_yrly_{run}{ts}.nc'
+            fn_acr = f'{path_samoc}/SST/SST_autocorrelation_{run}{ts}.nc'
+
+            index = xr.open_dataarray(fn_idx, decode_times=False)
+            SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
+            autocorr = xr.open_dataarray(fn_acr, decode_times=False)
+
+            xA = AnalyzeDataArray()
             ds = xA.lag_linregress(x=index[7:-7],  # removing filter edge effects
                                    y=SST_dt[7:-7], 
                                    autocorrelation=autocorr,
                                    standardize=True,
                                   )
-            ds.to_netcdf(f'{path_samoc}/SST/{idx}_regr{tslice}_{run}.nc')
+            ds.to_netcdf(f'{path_samoc}/SST/{idx}_regr_{run}{ts}.nc')
         print('success')
         return
             
