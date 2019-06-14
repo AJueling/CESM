@@ -166,7 +166,7 @@ def regr_map(ds, index, run, fn=None):
                  rect_polygon(SST_index_bounds('TPI3')),
                 ]
         clon = 200
-        nv = .4
+        nv = .3
     
     print(run, np.max(ds.slope.values))
     
@@ -185,10 +185,9 @@ def regr_map(ds, index, run, fn=None):
     label ='regression slope [K/K]'
     text1 = f'SST({index})\nregr.'
     text2 = f'{run.upper()}\n{ds.first_year}-\n{ds.last_year}'
-    if fn==None:  filename = f'{path_results}/SST/{index}_regr_map_{run}.png'
-    else:         filename = f'{path_results}/SST/{index}_regr_map_{run}_{fn}.png'
-    if run in ['ctrl', 'rcp']:   domain = 'ocn_T'
+    if run in ['ctrl', 'rcp']:
+        domain = 'ocn_T'
         
     f, ax = make_map(xa=xa, domain=domain, proj=proj, cmap=cm, minv=-nv, maxv=nv,
-                     label=label, filename=filename, text1=text1, text2=text2,
+                     label=label, filename=fn, text1=text1, text2=text2,
                      rects=rects, sig=sig, clon=clon)

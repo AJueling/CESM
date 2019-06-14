@@ -5,10 +5,10 @@ import pandas as pd
 import statsmodels.api as sm
 
 from OHC import t2ds
-from paths import CESM_filename, path_samoc, path_data
+from paths import CESM_filename, path_samoc, path_data, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from regions import boolean_mask
 from timeseries import IterateOutputCESM
-from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
+from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU, xr_AREA
 from xr_regression import xr_lintrend, xr_quadtrend
 from ba_analysis_dataarrays import AnalyzeDataArray as ADA
 
@@ -16,11 +16,7 @@ class DeriveSST(object):
     """ generate fields """
     def __init__(self):
         return
-    
-    def remove_superfluous_files(self, fn):
-        print('removing superfluous files')
-        for x in glob.glob(fn):
-            os.remove(x) 
+
     
     def generate_yrly_SST_files(self, run):
         """ generate the SST data files from TEMP_PD yearly averaged files """
@@ -49,6 +45,25 @@ class DeriveSST(object):
                                      concat_dim='time', autoclose=True, coords='minimal')
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
         self.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+        return
+    
+    
+    def generate_yrly_global_mean_SST(self, run):
+        """ calcaultes the global mean sea surface temperature
+        ca. 37 sec for ctrl """
+        assert run in ['ctrl', 'lpd']
+        
+        da = xr.open_dataarray(f'{path_samoc}/SST/SST_yrly_{run}.nc', decode_times=False)
+        if run=='ctrl':
+            AREA = xr_AREA(domain='ocn')
+            REGION_MASK = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
+        elif run=='lpd':
+            AREA = xr_AREA(domain='ocn_low')
+            REGION_MASK = xr.open_dataset(file_ex_ocn_lpd, decode_times=False).REGION_MASK
+        AREA_total = AREA.where(REGION_MASK>0).sum(dim=['nlat', 'nlon'], skipna=True)
+        print(AREA_total)
+        da_new = (da*AREA).where(REGION_MASK>0).sum(dim=['nlat', 'nlon'], skipna=True)/AREA_total
+        da_new.to_netcdf(f'{path_samoc}/SST/GMSST_yrly_{run}.nc')
         return
             
             
@@ -79,6 +94,7 @@ class DeriveSST(object):
 #         GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
         return
             
+    
     @staticmethod
     def generate_monthly_regional_SST_files(run):
         """"""
@@ -179,11 +195,12 @@ class DeriveSST(object):
         elif run=='had':
             domain = 'ocn_had'
 
-
         print('load and subselect data')
         MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
         SST = self.select_time_slice(xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc',\
-                                                       decode_times=False).where(MASK), time_slice)
+                                                  decode_times=False).where(MASK),
+                                time_slice)
+        
         if time_slice!='full':
             first_year, last_year = time_slice
         
@@ -203,11 +220,13 @@ class DeriveSST(object):
                 fn = f'{path_samoc}/SST/SST_beta_{detrend_signal}_{tres}_{run}_{first_year}_{last_year}.nc'
                 
             try:
+                assert 1==0
                 assert os.path.exists(fn)
                 print('reusing previously calculated beta!')
                 print(f'file exists: {fn}')
                 beta = xr.open_dataset(fn).slope
             except:
+                if run=='ctrl': SST = SST[40:,:,:]
                 beta = ADA().lag_linregress(forced_signal, SST)['slope']
                 if run=='had':
                     beta = xr.where(abs(beta)<5, beta, np.median(beta))
@@ -219,9 +238,12 @@ class DeriveSST(object):
             print('test')
 
             # output name
-            if run=='had':    dt = 'sfdt'  # single factor detrending
-            elif run=='rcp':  dt = 'sqdt'  # scaled quadratic detrending
-            else:             dt = 'sldt'  # scaled linear detrending
+            if run=='had':
+                dt = 'sfdt'  # single factor detrending
+            elif run in ['ctrl', 'lpd', 'rcp']:
+                dt = 'sqdt'  # scaled quadratic detrending
+            else:
+                dt = 'sldt'  # scaled linear detrending
             
         elif detrend_signal in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']:
             print('Steinman et al. (2015) method')
@@ -263,6 +285,11 @@ class DeriveSST(object):
             if run=='rcp':  # need actual GMST time series
                 forced_signal = xr.open_dataset(f'{path_samoc}/GMST/GMST_{tres}_{run}.nc', decode_times=False).GMST
                 forced_signal = xr_quadtrend(forced_signal)
+            elif run in ['ctrl', 'lpd']:  # use global mean SST as as proxy
+                forced_signal = xr.open_dataarray(f'{path_samoc}/SST/GMSST_{tres}_{run}.nc', decode_times=False)
+                if run=='ctrl':  # strong adjustment in the first 40 years
+                    forced_signal = forced_signal[40:]
+                forced_signal = xr_quadtrend(forced_signal)
             else:  # create mock linear trend 
                 times = xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc', decode_times=False).time
                 forced_signal = xr.DataArray(np.linspace(0,1,len(times)), coords={'time': np.sort(times.values)}, dims=('time'))
@@ -298,17 +325,7 @@ class DeriveSST(object):
         return forced_signal
     
     
-    def select_time_slice(self, data, time_slice):
-        """ if time_slice is not `full`, return subselected data
-        time_slice .. either `full` or (start_year, end_year) tuple
-        """
-        assert time_slice=='full' or type(time_slice)==tuple
-        if time_slice!='full':  # use subset in time
-            time_coords = tuple(365*x+31 for x in time_slice)
-            data = data.sel(time=slice(*time_coords))
-        else:  # return original data
-            pass
-        return data
+
     
     
     def two_factor_detrending(self, SST):
@@ -353,7 +370,28 @@ class DeriveSST(object):
         SST_dt.to_netcdf(fn)
         print(f'detrended had SST file written out to:\n{fn}')
         return
-        
+    
+    
+    # AUXILIARY FUNCTIONS
+    
+    
+    def select_time_slice(self, data, time_slice):
+        """ if time_slice is not `full`, return subselected data
+        time_slice .. either `full` or (start_year, end_year) tuple
+        """
+        assert time_slice=='full' or type(time_slice)==tuple
+        if time_slice!='full':  # use subset in time
+            time_coords = tuple(365*x+31 for x in time_slice)
+            data = data.sel(time=slice(*time_coords))
+        else:  # return original data
+            pass
+        return data
+    
+    
+    def remove_superfluous_files(self, fn):
+        print('removing superfluous files')
+        for x in glob.glob(fn):
+            os.remove(x) 
         
 #     def determine_years_from_slice(run, tres, time_slice):
 #         assert time_slice is not 'full'

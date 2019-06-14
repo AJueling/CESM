@@ -8,8 +8,8 @@ from itertools import combinations
 from maps import regr_map
 from paths import path_samoc, path_results
 from constants import A_earth
-from analysis import TimeSeriesAnalysis, FieldAnalysis
-# from xr_regression import lag_linregress_3D
+from bb_analysis_timeseries import TimeSeriesAnalysis
+from bc_analysis_fields import FieldAnalysis
 
 # =============================================================================
 # =============================================================================

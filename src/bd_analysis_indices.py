@@ -11,6 +11,7 @@ from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
 from xr_DataArrays import xr_AREA
 
+from ab_derivation_SST import DeriveSST
 from ba_analysis_dataarrays import AnalyzeDataArray
 from bc_analysis_fields import AnalyzeField
 
@@ -24,6 +25,7 @@ class AnalyzeIndex(object):
         """ calculates the average SST over an area, possibly as a time series """
         assert type(xa_SST)==xr.core.dataarray.DataArray
         assert type(AREA)==xr.core.dataarray.DataArray
+        print(f'calculating average of SST in area {index_loc}')
         if type(index_loc)==dict:
             index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
         elif index_loc==None:
@@ -31,26 +33,6 @@ class AnalyzeIndex(object):
         else:
             print('kwarg `index_loc` is not given properly.')
         return index
-    
-    
-    def bounding_lats_lons(self, index):
-        """ bounding latitudes and longitudes """
-        if index=='AMO':
-            (blats, blons) = bll_AMO
-            mask_nr = 6
-        elif index=='SOM':
-            (blats, blons) = bll_SOM
-            mask_nr = 0
-        elif index=='TPI1':  # use monthly data
-            (blats, blons) = bll_TPI1
-            mask_nr = 2
-        elif index=='TPI2':
-            (blats, blons) = bll_TPI3
-            mask_nr = 2
-        elif index=='TPI3':
-            (blats, blons) = bll_TPI3
-            mask_nr = 2
-        return blats, blons, mask_nr
     
     
     def SST_index(self, index, run, detrend_signal='GMST', time_slice='full'):
@@ -80,21 +62,19 @@ class AnalyzeIndex(object):
         if detrend_signal=='GMST' or run=='had' and detrend_signal in ['AMO', 'SOM']:
             print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
             if detrend_signal=='GMST':
-                print('GMST(t) signal scaled at each grid point\n')
+                print('GMST(t) signal scaled at each grid point')
                 dt = self.detrend_string(run)
             else:
                 print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
+            detr = f'_{detrend_signal}_dt'
                 
-            if time_slice=='full':
-                fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
-            else:
-                (first_year, last_year) = time_slice
-                fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}_{first_year}_{last_year}.nc'
-
+            fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
             assert os.path.exists(fn)
             SST_yrly = xr.open_dataarray(fn).where(MASK)
-            detr = f'_{detrend_signal}_dt'
-
+            if time_slice!='full':
+                SST_yrly = DeriveSST.select_time_slice(SST_yrly, time_slice)
+            print('after loading of data')
+            
         else:  # run=='had' and detrend_signal!='GMST'
             print('underlying SST field: no detrending, no filtering')
             if detrend_signal in ['AMO', 'SOM']:
@@ -106,7 +86,7 @@ class AnalyzeIndex(object):
 
         SSTindex = self.SST_area_average(xa_SST=SST_yrly, AREA=AREA,\
                                          AREA_index=index_area, MASK=MASK, dims=dims)
-        ts = self.time_slice_string(tslice)
+        ts = self.time_slice_string(time_slice)
         fn = f'{path_samoc}/SST/{index}_{detrend_signal}_{dt}_raw_{run}{ts}.nc'
         SSTindex.to_netcdf(fn)
         return SSTindex
@@ -120,45 +100,33 @@ class AnalyzeIndex(object):
         TPI2 = self.SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
         TPI3 = self.SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
         return
-    
-    
-    def time_slice_string(self, tslice):
-        """ string for time subset """
-        if tslice=='full':         ts = ''
-        elif type(tslice)==tuple:  ts = f'_{tslice[0]}_{tslice[1]}'
-        else:                      raise ValueError()
-        return ts
-            
-        
-    def detrend_string(self, run):
-        """ scaled linear/quadratic or two factor detrending string in filenames """
-        if run in ['ctrl', 'lpd', 'lpi']:  dt = 'sldt'
-        elif run=='rcp':                   dt = 'sqdt'
-        elif run=='had':                   dt = 'tfdt'  # 'sfdt'
-        else:                              raise ValueError()
-        return dt    
-        
+  
         
     def derive_final_SST_indices(self, run, tslice):
         """ processes raw indices: filtering and TPI summation """
+        assert run in ['ctrl', 'lpd', 'had']
+        assert tslice=='full' or type(tslice)==tuple
+        
         ts = self.time_slice_string(tslice)
         dt = self.detrend_string(run)
             
         # AMO & SOM
         for i, idx in enumerate(['AMO', 'SOM']):
-            fn = f'{path_samoc}/SST/{idx}_GMST_{dt}_raw_{run}{ts}.nc'
+            fn = f'{path_samoc}/SST/{idx}_GMST_{dt}_raw_{run}.nc'
             fn_new = f'{path_samoc}/SST/{idx}_{run}{ts}.nc'
             da = xr.open_dataarray(fn, decode_times=False)
+            da = DeriveSST.select_time_slice(da, tslice)
             lowpass(da, 13).to_netcdf(fn_new)
 
         # TPI
-        fn = f'{path_samoc}/SST/TPI1_GMST_{dt}_raw_{run}{ts}.nc'
-        TPI1 = da = xr.open_dataarray(fn, decode_times=False)
-        fn = f'{path_samoc}/SST/TPI2_GMST_{dt}_raw_{run}{ts}.nc'
-        TPI2 = da = xr.open_dataarray(fn, decode_times=False)
-        fn = f'{path_samoc}/SST/TPI3_GMST_{dt}_raw_{run}{ts}.nc'
-        TPI3 = da = xr.open_dataarray(fn, decode_times=False)
+        fn1 = f'{path_samoc}/SST/TPI1_GMST_{dt}_raw_{run}.nc'
+        TPI1 = xr.open_dataarray(fn1, decode_times=False)
+        fn2 = f'{path_samoc}/SST/TPI2_GMST_{dt}_raw_{run}.nc'
+        TPI2 = xr.open_dataarray(fn2, decode_times=False)
+        fn3 = f'{path_samoc}/SST/TPI3_GMST_{dt}_raw_{run}.nc'
+        TPI3 = xr.open_dataarray(fn3, decode_times=False)
         TPI = TPI2 - (TPI1+TPI3)/2
+        TPI = DeriveSST.select_time_slice(TPI, tslice)
         lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI_{run}{ts}.nc')
         return
     
@@ -202,8 +170,51 @@ class AnalyzeIndex(object):
             ds.to_netcdf(f'{path_samoc}/SST/{idx}_regr_{run}{ts}.nc')
         print('success')
         return
+    
+    
+    ## AUXILIARY FUNCTIONS
+        
+        
+    def bounding_lats_lons(self, index):
+        """ bounding latitudes and longitudes """
+        if index=='AMO':
+            (blats, blons) = bll_AMO
+            mask_nr = 6
+        elif index=='SOM':
+            (blats, blons) = bll_SOM
+            mask_nr = 0
+        elif index=='TPI1':
+            (blats, blons) = bll_TPI1
+            mask_nr = 2
+        elif index=='TPI2':
+            (blats, blons) = bll_TPI3
+            mask_nr = 2
+        elif index=='TPI3':
+            (blats, blons) = bll_TPI3
+            mask_nr = 2
+        return blats, blons, mask_nr
             
-
+    
+    def time_slice_string(self, tslice):
+        """ string for time subset """
+        if tslice=='full':         ts = ''
+        elif type(tslice)==tuple:  ts = f'_{tslice[0]}_{tslice[1]}'
+        else:                      raise ValueError()
+        return ts
+            
+        
+    def detrend_string(self, run):
+        """ scaled linear/quadratic or two factor detrending string in filenames """
+        if run=='had':
+            dt = 'tfdt'  # two-factor detrending, or 'sfdt' single-factor detrending
+        elif run in ['ctrl', 'lpd', 'rcp']:
+            dt = 'sqdt'  # scaled quadratic detrending
+        else:
+            raise ValueError()
+        return dt  
+    
+    
+    
 # =============================================================================
 # GLOBAL MEAN TIME SERIES
 # =============================================================================
