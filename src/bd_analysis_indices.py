@@ -39,7 +39,7 @@ class AnalyzeIndex(object):
         """ calcalates SST time series from yearly detrended SST dataset """
         assert index in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
-        assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']
+        assert detrend_signal in ['GMST', 'AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3', 'quadratic']
 
         print(index, run)
 
@@ -59,21 +59,24 @@ class AnalyzeIndex(object):
         AREA = xr_AREA(domain=domain).where(MASK)
         index_area = AREA.sum()
 
-        if detrend_signal=='GMST' or run=='had' and detrend_signal in ['AMO', 'SOM']:
+        if detrend_signal=='GMST' or detrend_signal=='quadratic' or run=='had' and detrend_signal in ['AMO', 'SOM']:
             print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
             if detrend_signal=='GMST':
                 print('GMST(t) signal scaled at each grid point')
-                dt = self.detrend_string(run)
+                dt = self.detrend_string(run)  # sldt, sqdt, tfdt
+            elif detrend_signal=='quadratic':
+                dt = 'pwdt'  # pointwise detrended
+                print('quadratic fit removed at each grid point')
             else:
                 print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
+            fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
             detr = f'_{detrend_signal}_dt'
                 
-            fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
             assert os.path.exists(fn)
             SST_yrly = xr.open_dataarray(fn).where(MASK)
             if time_slice!='full':
                 SST_yrly = DeriveSST.select_time_slice(SST_yrly, time_slice)
-            print('after loading of data')
+            print('loaded data')
             
         else:  # run=='had' and detrend_signal!='GMST'
             print('underlying SST field: no detrending, no filtering')
@@ -92,42 +95,46 @@ class AnalyzeIndex(object):
         return SSTindex
     
     
-    def derive_all_SST_avg_indices(self, run, tslice):
+    def derive_all_SST_avg_indices(self, run, dts='GMST', tslice='full'):
         """ generates all SST avg indices detrended with the GMST signal  for full time series """
-        AMO  = self.SST_index('AMO' , run, detrend_signal='GMST', time_slice=tslice)
-        SOM  = self.SST_index('SOM' , run, detrend_signal='GMST', time_slice=tslice)
-        TPI1 = self.SST_index('TPI1', run, detrend_signal='GMST', time_slice=tslice)
-        TPI2 = self.SST_index('TPI2', run, detrend_signal='GMST', time_slice=tslice)
-        TPI3 = self.SST_index('TPI3', run, detrend_signal='GMST', time_slice=tslice)
+        AMO  = self.SST_index('AMO' , run, detrend_signal=dts, time_slice=tslice)
+        SOM  = self.SST_index('SOM' , run, detrend_signal=dts, time_slice=tslice)
+        TPI1 = self.SST_index('TPI1', run, detrend_signal=dts, time_slice=tslice)
+        TPI2 = self.SST_index('TPI2', run, detrend_signal=dts, time_slice=tslice)
+        TPI3 = self.SST_index('TPI3', run, detrend_signal=dts, time_slice=tslice)
         return
   
         
-    def derive_final_SST_indices(self, run, tslice):
+    def derive_final_SST_indices(self, run, dts, tslice):
         """ processes raw indices: filtering and TPI summation """
         assert run in ['ctrl', 'lpd', 'had']
+        assert dts in ['GMST', 'quadratic']
         assert tslice=='full' or type(tslice)==tuple
         
         ts = self.time_slice_string(tslice)
-        dt = self.detrend_string(run)
+        if dts=='GMST':
+            dt = self.detrend_string(run)
+        elif dts=='quadratic':
+            dt = 'pwdt'
             
         # AMO & SOM
         for i, idx in enumerate(['AMO', 'SOM']):
-            fn = f'{path_samoc}/SST/{idx}_GMST_{dt}_raw_{run}.nc'
-            fn_new = f'{path_samoc}/SST/{idx}_{run}{ts}.nc'
+            fn = f'{path_samoc}/SST/{idx}_{dts}_{dt}_raw_{run}.nc'
             da = xr.open_dataarray(fn, decode_times=False)
-            da = DeriveSST.select_time_slice(da, tslice)
-            lowpass(da, 13).to_netcdf(fn_new)
+            da = DeriveSST().select_time_slice(da, tslice)
+            lowpass(da, 13).to_netcdf(f'{path_samoc}/SST/{idx}_{dts}_{dt}_{run}{ts}.nc')
 
         # TPI
-        fn1 = f'{path_samoc}/SST/TPI1_GMST_{dt}_raw_{run}.nc'
+        fn1 = f'{path_samoc}/SST/TPI1_{dts}_{dt}_raw_{run}{ts}.nc'
+        fn2 = f'{path_samoc}/SST/TPI2_{dts}_{dt}_raw_{run}{ts}.nc'
+        fn3 = f'{path_samoc}/SST/TPI3_{dts}_{dt}_raw_{run}{ts}.nc'
+
         TPI1 = xr.open_dataarray(fn1, decode_times=False)
-        fn2 = f'{path_samoc}/SST/TPI2_GMST_{dt}_raw_{run}.nc'
         TPI2 = xr.open_dataarray(fn2, decode_times=False)
-        fn3 = f'{path_samoc}/SST/TPI3_GMST_{dt}_raw_{run}.nc'
         TPI3 = xr.open_dataarray(fn3, decode_times=False)
         TPI = TPI2 - (TPI1+TPI3)/2
-        TPI = DeriveSST.select_time_slice(TPI, tslice)
-        lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI_{run}{ts}.nc')
+        TPI = DeriveSST().select_time_slice(TPI, tslice)
+        lowpass(TPI, 13).to_netcdf(f'{path_samoc}/SST/TPI_{dts}_{dt}_{run}{ts}.nc')
         return
     
     

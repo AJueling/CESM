@@ -325,7 +325,65 @@ class DeriveSST(object):
         return forced_signal
     
     
+    def SST_pointwise_detrending(self, run, tres='yrly', degree=1, time_slice='full'):
+        """ calculates the trends of ocean fields
 
+        input:
+        SST    .. xr DataArray
+        degree .. degree of polynomial to remove
+
+        output:
+        SST_dt .. pointwise detrended SST field
+
+        7 secs for lpd run, 40 seconds)
+        """
+        print('detrending SST pointwise')
+        assert degree in [1, 2]
+        if run in ['ctrl', 'rcp']:
+            MASK = boolean_mask('ocn'     , 0)
+        elif run in ['lpi', 'lpd']:
+            MASK = boolean_mask('ocn_low' , 0)
+        (jm, im) = MASK.shape
+        fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
+        SST = self.select_time_slice(xr.open_dataarray(fn, decode_times=False).where(MASK),
+                                     time_slice)
+        SST   = SST.where(MASK>0).fillna(-9999)
+
+        Nt = SST.values.shape[0]
+        A = SST.values.reshape((Nt, im*jm))
+
+        print('before fit')
+        SST_pf = np.polyfit(SST.time, A, degree)
+        
+        print(f'after fit of degree {degree}')
+        pf0 = A[0,:].copy()
+        pf1 = A[0,:].copy()
+        pf0 = SST_pf[0,:]
+        pf1 = SST_pf[1,:]
+        print('before if')
+        if degree==1:
+#             SST_dt = pf0*SST.time - pf1
+            detrend_signal = 'linear'
+        elif degree==2:
+            pf2 = A[0,:].copy()
+            pf2 = SST_pf[2,:]
+#             SST_dt = pf0*SST.time**2 - pf1*SST.time - pf2
+#             A_dt = A - np.matmul(SST_pf[0,:],SST.time**2) - SST_pf[1,:]*SST.time - SST_pf[2,:]
+            A_dt = np.expand_dims(SST.time**2             , 1).dot(np.expand_dims(SST_pf[0,:], 0)) \
+                 + np.expand_dims(SST.time                , 1).dot(np.expand_dims(SST_pf[1,:], 0)) \
+                 + np.expand_dims(np.ones((len(SST.time))), 1).dot(np.expand_dims(SST_pf[2,:], 0))
+            
+            print('after subtracting ')
+            detrend_signal = 'quadratic'
+        dt = 'pwdt'  # pointwise detrended
+
+        fn_new = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
+        print(f'writing to {fn_new}')
+        SST_dt = SST.copy()
+        SST_dt.values = (A-A_dt).reshape((Nt,jm,im))
+        SST_dt.to_netcdf(fn_new)
+        print(f'created {fn_new}')
+        return SST_dt
     
     
     def two_factor_detrending(self, SST):
