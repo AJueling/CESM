@@ -60,17 +60,15 @@ class AnalyzeIndex(object):
         index_area = AREA.sum()
 
         if detrend_signal=='GMST' or detrend_signal=='quadratic' or run=='had' and detrend_signal in ['AMO', 'SOM']:
-            print(f'underlying SST field: detrended with {detrend_signal}, no filtering')
             if detrend_signal=='GMST':
-                print('GMST(t) signal scaled at each grid point')
+                print('underlying SST field: GMST(t) signal scaled at each grid point')
                 dt = self.detrend_string(run)  # sldt, sqdt, tfdt
             elif detrend_signal=='quadratic':
                 dt = 'pwdt'  # pointwise detrended
-                print('quadratic fit removed at each grid point')
+                print('underlying SST field: quadratic fit removed at each grid point')
             else:
                 print(f'{detrend_signal}(t) removed from all SST gridpoints without scaling\n')
             fn = f'{path_samoc}/SST/SST_{detrend_signal}_{dt}_yrly_{run}.nc'
-            detr = f'_{detrend_signal}_dt'
                 
             assert os.path.exists(fn)
             SST_yrly = xr.open_dataarray(fn).where(MASK)
@@ -97,11 +95,11 @@ class AnalyzeIndex(object):
     
     def derive_all_SST_avg_indices(self, run, dts='GMST', tslice='full'):
         """ generates all SST avg indices detrended with the GMST signal  for full time series """
-        AMO  = self.SST_index('AMO' , run, detrend_signal=dts, time_slice=tslice)
-        SOM  = self.SST_index('SOM' , run, detrend_signal=dts, time_slice=tslice)
-        TPI1 = self.SST_index('TPI1', run, detrend_signal=dts, time_slice=tslice)
-        TPI2 = self.SST_index('TPI2', run, detrend_signal=dts, time_slice=tslice)
-        TPI3 = self.SST_index('TPI3', run, detrend_signal=dts, time_slice=tslice)
+        AMO  = self.SST_index(index='AMO' , run=run, detrend_signal=dts, time_slice=tslice)
+        SOM  = self.SST_index(index='SOM' , run=run, detrend_signal=dts, time_slice=tslice)
+        TPI1 = self.SST_index(index='TPI1', run=run, detrend_signal=dts, time_slice=tslice)
+        TPI2 = self.SST_index(index='TPI2', run=run, detrend_signal=dts, time_slice=tslice)
+        TPI3 = self.SST_index(index='TPI3', run=run, detrend_signal=dts, time_slice=tslice)
         return
   
         
@@ -143,10 +141,16 @@ class AnalyzeIndex(object):
         ts = self.time_slice_string(tslice)
         dt = self.detrend_string(run)
         
-        fn = f'{path_samoc}/SST/SST_GMST_{dt}_yrly_{run}{ts}.nc'
+        if run=='had':
+            fn = f'{path_samoc}/SST/SST_GMST_sqdt_yrly_had{ts}.nc'
+        elif run in ['ctrl', 'lpd']:
+            fn = f'{path_samoc}/SST/SST_quadratic_pwdt_yrly_{run}.nc'
+        
+    
         fn_new = f'{path_samoc}/SST/SST_autocorrelation_{run}{ts}.nc'
 
         da = xr.open_dataarray(fn, decode_times=False)
+        if tslice!='full':  da = DeriveSST().select_time_slice(da, tslice)
         FA = AnalyzeField(da)
         FA.make_autocorrelation_map(fn_new)
         return
@@ -159,14 +163,19 @@ class AnalyzeIndex(object):
         ts = self.time_slice_string(tslice)
         dt = self.detrend_string(run)
 
-        for idx in ['AMO', 'SOM', 'TPI']:
-            fn_idx = f'{path_samoc}/SST/{idx}_{run}{ts}.nc'
-            fn_SST = f'{path_samoc}/SST/SST_GMST_{dt}_yrly_{run}{ts}.nc'
-            fn_acr = f'{path_samoc}/SST/SST_autocorrelation_{run}{ts}.nc'
+        fn_acr = f'{path_samoc}/SST/SST_autocorrelation_{run}{ts}.nc'
+        autocorr = xr.open_dataarray(fn_acr, decode_times=False)
 
+        if run=='had':
+            fn_SST = f'{path_samoc}/SST/SST_GMST_sqdt_yrly_had{ts}.nc'
+        elif run in ['ctrl', 'lpd']:
+            fn_SST = f'{path_samoc}/SST/SST_quadratic_pwdt_yrly_{run}.nc'
+        SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
+        
+        for idx in ['AMO', 'SOM', 'TPI']:
+            fn_idx = f'{path_samoc}/SST/{idx}_{run}.nc'
             index = xr.open_dataarray(fn_idx, decode_times=False)
-            SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
-            autocorr = xr.open_dataarray(fn_acr, decode_times=False)
+            if tslice!='full': index = DeriveSST().select_time_slice(index, tslice)
 
             xA = AnalyzeDataArray()
             ds = xA.lag_linregress(x=index[7:-7],  # removing filter edge effects
