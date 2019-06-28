@@ -123,9 +123,9 @@ class AnalyzeIndex(object):
             lowpass(da, 13).to_netcdf(f'{path_samoc}/SST/{idx}_{dts}_{dt}_{run}{ts}.nc')
 
         # TPI
-        fn1 = f'{path_samoc}/SST/TPI1_{dts}_{dt}_raw_{run}{ts}.nc'
-        fn2 = f'{path_samoc}/SST/TPI2_{dts}_{dt}_raw_{run}{ts}.nc'
-        fn3 = f'{path_samoc}/SST/TPI3_{dts}_{dt}_raw_{run}{ts}.nc'
+        fn1 = f'{path_samoc}/SST/TPI1_{dts}_{dt}_raw_{run}.nc'
+        fn2 = f'{path_samoc}/SST/TPI2_{dts}_{dt}_raw_{run}.nc'
+        fn3 = f'{path_samoc}/SST/TPI3_{dts}_{dt}_raw_{run}.nc'
 
         TPI1 = xr.open_dataarray(fn1, decode_times=False)
         TPI2 = xr.open_dataarray(fn2, decode_times=False)
