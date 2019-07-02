@@ -12,6 +12,8 @@ from paths import path_results
 from regions import boolean_mask, SST_index_bounds
 from plotting import discrete_cmap
 
+plt.rcParams['figure.constrained_layout.use'] = False
+
 
 def map_robinson(xa, domain, cmap, minv, maxv, label, filename=None, text1=None, text2=None, rects=None, sig=None, clon=0):
     fig, ax = make_map(xa=xa, domain=domain, proj='rob', cmap=cmap, minv=minv, maxv=maxv, label=label,
@@ -168,8 +170,6 @@ def regr_map(ds, index, run, fn=None):
         clon = 200
         nv = .3
     
-    print(run, np.max(ds.slope.values))
-    
     # choose two-tailed 95% significance level
     # as boolean map
     sig = ds.pval#.where(MASK)
@@ -184,7 +184,10 @@ def regr_map(ds, index, run, fn=None):
     cm = discrete_cmap(16, cmocean.cm.balance)    
     label ='regression slope [K/K]'
     text1 = f'SST({index})\nregr.'
-    text2 = f'{run.upper()}\n{ds.first_year}-\n{ds.last_year}'
+    if run=='had':
+        text2 = f'{run.upper()}\n{ds.first_year+1870}-\n{ds.last_year+1870}'
+    elif run in ['ctrl', 'lpd']:
+        text2 = f'{run.upper()}\n{ds.first_year}-\n{ds.last_year}'
     if run in ['ctrl', 'rcp']:
         domain = 'ocn_T'
         

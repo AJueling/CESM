@@ -38,9 +38,9 @@ if run=='ctrl':
 
 for i, idx in enumerate(['AMO', 'SOM', 'TPI']):
     had   = xr.open_dataset(f'{path_samoc}/SST/{idx}_regr_had.nc').slope
-    fn_new = f'{path_samoc}/SST/{idx}_spatial_correlations_{run}.nc'
     region = [{'longitude':slice(-80,0), 'latitude':slice(60,0)}, 1, 2][i]
     
+    fn_new = f'{path_samoc}/SST/{idx}_spatial_correlations_{run}.nc'
     da = xr.DataArray(data=np.zeros(len(starts)),
                       coords={'time': starts},
                       dims=('time'))
