@@ -2,7 +2,6 @@
 
 input:
     run    .. simulations 'ctrl' & 'lpd', or observations 'had'
-    tslice .. timeslice: either all years 'full' or segment '(start year, end year)'
 
 procedure:
     1. creating yearly SST files
@@ -14,8 +13,6 @@ procedure:
     4. derive final SST indices
     5. autocorrelation fields
     6. regression of SST fields on indices
-    7. regression patterns: plots, quatify difference to observations
-    8. stationarity: test pattern stbility through time
 
 detrending methods:
     'had': two-factor
@@ -41,7 +38,7 @@ def time_print():
 
 
 # ==================================================================================================
-print(f'Regression Pattern Pipeline for {run}', time_print(), '\n')
+print(f'\nRegression Pattern Pipeline for {run}', time_print(), '\n')
 # ==================================================================================================
 
 if run=='ctrl':   starts = np.arange(50, 151, 5)
@@ -130,7 +127,7 @@ if run in ['ctrl', 'lpd']:
         for idx in ['AMO', 'SOM', 'TPI1', 'TPI2', 'TPI3']:
             fn = f'{path_samoc}/SST/{idx}_quadratic_pwdt_raw_{run}.nc'
             assert os.path.exists(fn)
-        print(f'   raw index files for {run} exist')
+        print(f'   raw index file for {run} exist')
     except:
         AI().derive_all_SST_avg_indices(run, dts='quadratic', tslice='full')
 
@@ -166,13 +163,7 @@ if run in ['ctrl', 'lpd']:
     # time segments
     for t in starts:
         tslice = (t, t+148)
-        try:
-            for idx in ['AMO', 'SOM', 'TPI']:
-                fn = f'{path_samoc}/SST/{idx}_quadratic_pwdt_{run}_{tslice[0]}_{tslice[1]}.nc'
-                assert os.path.exists(fn)
-            print(f'   filtered index files for {run} of segment {tslice} exist')
-        except:
-            AI().derive_final_SST_indices(run=run, dts='quadratic', tslice=tslice)
+        
 
 
 # ==================================================================================================
@@ -186,17 +177,6 @@ try:
     print(f'   file exists: {fn}')
 except:
     AI().derive_yrly_autocorrelations(run, 'full')
-
-# time segments
-if run in ['ctrl', 'lpd']:
-    for t in starts:
-        tslice = (t, t+148)
-        try:
-            fn = f'{path_samoc}/SST/SST_autocorrelation_{run}_{tslice[0]}_{tslice[1]}.nc'
-            assert os.path.exists(fn)
-            print(f'   file exists: {fn}')
-        except:
-            AI().derive_yrly_autocorrelations(run, tslice)
 
 
 # ==================================================================================================
@@ -212,10 +192,33 @@ if run=='had':
     except:
         AI().make_yrly_regression_files(run, 'full')
 
+# ==================================================================================================
+print('6. time segments', time_print())
+# ==================================================================================================
+        
 # time segments
 if run in ['ctrl', 'lpd']:
     for t in starts:
         tslice = (t, t+148)
+        
+        print('   deriving final indices')
+        try:
+            for idx in ['AMO', 'SOM', 'TPI']:
+                fn = f'{path_samoc}/SST/{idx}_quadratic_pwdt_{run}_{tslice[0]}_{tslice[1]}.nc'
+                assert os.path.exists(fn)
+            print(f'   filtered index files for {run} of segment {tslice} exist')
+        except:
+            AI().derive_final_SST_indices(run=run, dts='quadratic', tslice=tslice)
+        
+        print('   deriving autocorrelations')
+        try:
+            fn = f'{path_samoc}/SST/SST_autocorrelation_{run}_{tslice[0]}_{tslice[1]}.nc'
+            assert os.path.exists(fn)
+            print(f'   file exists: {fn}')
+        except:
+            AI().derive_yrly_autocorrelations(run, tslice)
+        
+        print('   deriving regression fields')
         try:
             for idx in ['AMO', 'SOM', 'TPI']:
                 fn = f'{path_samoc}/SST/{idx}_regr_{run}_{tslice[0]}_{tslice[1]}.nc'
@@ -226,5 +229,5 @@ if run in ['ctrl', 'lpd']:
 
 
 # ==================================================================================================
-print('\nSuccess.', time_print())
+print('\nSuccess.', time_print(), '\n')
 # ==================================================================================================
