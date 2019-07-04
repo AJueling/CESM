@@ -58,10 +58,11 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
             assert filter_type in ['lowpass', 'chebychev']
             assert type(filter_cutoff)==int
             assert filter_cutoff>1
+            n = int(filter_cutoff/2)+1  # datapoints to remove from either end due to filter edge effects
             if filter_type=='lowpass':
-                data = lowpass(data, filter_cutoff)
+                data = lowpass(data, filter_cutoff)[n:-n]
             elif filter_type=='chebychev':
-                data = chebychev(data, filter_cutoff)
+                data = chebychev(data, filter_cutoff)[n:-n]
         
         spec, freq, jackknife, _, _ = mtspec.mtspec(
                 data=data, delta=1., time_bandwidth=4,
@@ -87,25 +88,31 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         mc = np.zeros((n, self.len))
         for i in range(n):
             mc[i,:] = AR_object.generate_sample(nsample=self.len)
-            mc[i,:] *= np.std(self.ts)/np.std(mc[i,:])
+            mc[i,:] *= np.std(self.ts.values)/np.std(mc[i,:])
         return mc
         
-    def mc_ar1_spectrum(self, n=1000, filter_type=None, filter_cutoff=None):
+    def mc_ar1_spectrum(self, N=1000, filter_type=None, filter_cutoff=None):
         """ calculates the MC avg spectrum and the 95% confidence interval """
         mc = self.mc_ar1()
         if filter_type is not None:
             assert filter_type in ['lowpass', 'chebychev']
             assert type(filter_cutoff)==int
             assert filter_cutoff>1
+            n = int(filter_cutoff/2)+1  # datapoints to remove from either end due to filter edge effects
+#             print (np.shape(mc))
+            mc = mc[:,n:-n]
+#             print (np.shape(mc))
             if filter_type=='lowpass':
                 mc = lowpass(mc.T, filter_cutoff).T
             elif filter_type=='chebychev':
                 mc = chebychev(mc.T, filter_cutoff).T
+#             print (np.shape(mc))
 
-        mc_spectra = np.zeros((n, int(self.len/2)+1))
-        for i in range(n):
+        mc_spectra = np.zeros((N, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
+#         print (np.shape(mc_spectra))
+        for i in range(N):
             (mc_spectra[i,:], freq, jk) = self.spectrum(data=mc[i,:])
-        mc_spectrum = np.zeros((4, int(self.len/2)+1))
+        mc_spectrum = np.zeros((4, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
         mc_spectrum[0,:] = np.median(mc_spectra, axis=0)
         mc_spectrum[1,:] = freq
         mc_spectrum[2,:] = np.percentile(mc_spectra,  5, axis=0)
