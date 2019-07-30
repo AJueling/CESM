@@ -13,7 +13,7 @@ from xr_regression import xr_lintrend, xr_quadtrend
 from ba_analysis_dataarrays import AnalyzeDataArray as ADA
 
 class DeriveSST(object):
-    """ generate fields """
+    """ generate SST fields """
     def __init__(self):
         return
 
@@ -335,7 +335,7 @@ class DeriveSST(object):
         output:
         SST_dt .. pointwise detrended SST field
 
-        7 secs for lpd run, 40 seconds)
+        7 secs for lpd run, 40 seconds
         """
         print('detrending SST pointwise')
         assert degree in [1, 2]

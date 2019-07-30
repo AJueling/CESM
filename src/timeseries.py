@@ -19,7 +19,7 @@ class IterateOutputCESM:
     automatically detects the last file
     
     example:
-    >for year, month, filename in IterateOutputCESM('ocn', ctrl', 'monthly'):
+    >for year, month, filename in IterateOutputCESM('ocn', 'ctrl', 'monthly'):
     >    print(year, month, filename)
     """
     
@@ -51,7 +51,7 @@ class IterateOutputCESM:
         if self.tavg=='monthly':
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
-            if self.domain=='ocn':
+            if self.domain in ['ocn', 'ocn_low']:
                 if self.name==None:
                     raise ValueError('must provide (variables part of) name for yrly file')
                 else:

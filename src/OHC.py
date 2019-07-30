@@ -56,7 +56,7 @@ def OHC_integrals(run, mask_nr=0):
     
     MASK = boolean_mask(domain, mask_nr)
     for k in range(42):
-        DZT[k,:,:]  = DZT[k,:,:].where(MASK)
+        DZT[k,:,:] = DZT[k,:,:].where(MASK)
     AREA = AREA.where(MASK)
     HTN  = HTN.where(MASK)
     LATS = LATS.where(MASK)

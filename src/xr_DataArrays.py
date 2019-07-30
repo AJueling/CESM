@@ -186,10 +186,9 @@ def xr_LATS(domain):
     """
     assert domain in ['ocn', 'ocn_low']#, 'ocn_rect', 'atm'] 
     
-    (z, lat, lon) = depth_lat_lon_names(domain)
-    
-    if domain in ['ocn', 'ocn_low']:
-        LATS = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).TLAT
+#     (z, lat, lon) = depth_lat_lon_names(domain)
+    fn = example_file(domain)
+    LATS = xr.open_dataset(fn, decode_times=False).TLAT
 
 #     elif domain=='ocn_rect':
 #         HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
