@@ -51,7 +51,7 @@ class IterateOutputCESM:
         if self.tavg=='monthly':
             filename = CESM_filename(self.domain, self.run, self.year, self.month)     
         elif self.tavg=='yrly':
-            if self.domain in ['ocn', 'ocn_low']:
+            if self.domain in ['ocn', 'ocn_low', 'ocn_rect']:
                 if self.name==None:
                     raise ValueError('must provide (variables part of) name for yrly file')
                 else:

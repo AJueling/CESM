@@ -56,7 +56,7 @@ def CESM_filename(domain, run, y, m, name=None):
     elif domain=='ocn_rect':
         if run=='ctrl':
             if m==0:  # yearly files
-                file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
+                file = f'{path_samoc}/ctrl_rect/{name}_yrly_{y:04}.interp900x602.nc'
             else:
                 file = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.{time}.interp900x602.nc'
         elif run=='rcp':

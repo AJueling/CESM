@@ -16,6 +16,11 @@ src/__pycache__/
 src/.ipynb_checkpoints/
 src/test/__pycache__/
 src/test/.ipynb_checkpoints/
+src/regrid/grid*
+src/regrid/TEMP*
+src/regrid/in*
+src/regrid/slurm*
+src/regrid/temp*
 src/run/*.out
 src/run/run.sh
 src/run/slurms
