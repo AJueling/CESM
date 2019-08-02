@@ -171,10 +171,9 @@ def xr_HTN(domain):
         HTN = C.HTN
         
     elif domain=='ocn_rect':
-        n_lat, n_lon = len(HTN.lat), len(HTN.lon)
+        n_lat, n_lon = len(HTN[lat]), len(HTN[lon])
         for j in range(n_lat):
-            HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
-
+            HTN[j,:] = zonal_length(HTN[lat][j].item(), n_lon)
     return HTN
 
 
@@ -184,18 +183,18 @@ def xr_LATS(domain):
     returns
     LATS .. 2D xr DataArray
     """
-    assert domain in ['ocn', 'ocn_low']#, 'ocn_rect', 'atm'] 
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect']#, 'atm'] 
     
-#     (z, lat, lon) = depth_lat_lon_names(domain)
-    fn = example_file(domain)
-    LATS = xr.open_dataset(fn, decode_times=False).TLAT
+    if domain in ['ocn', 'ocn_low']:
+        fn = example_file(domain)
+        LATS = xr.open_dataset(fn, decode_times=False).TLAT
 
-#     elif domain=='ocn_rect':
-#         HTN, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
-#         n_lat, n_lon = len(HTN.lat), len(HTN.lon)
-#         for j in range(n_lat):
-#             HTN[j,:] = zonal_length(HTN.lat[j].item(), n_lon)
-
+    elif domain=='ocn_rect':
+        (z, lat, lon) = depth_lat_lon_names(domain)
+        LATS, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=2, fill=0)
+        n_lat, n_lon = len(LATS[lat]), len(LATS[lon])
+        for j in range(n_lon):
+            LATS[:,j] = LATS[lat]
     return LATS
 
 

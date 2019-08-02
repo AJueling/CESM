@@ -9,7 +9,9 @@ from constants import cp_sw, rho_sw, km
 from timeseries import IterateOutputCESM
 from xr_integrate import xr_int_global, xr_int_global_level,\
                          xr_int_zonal, xr_int_zonal_level
-from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS
+from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_dims_names
+
+import matplotlib.pyplot as plt
 
 class DeriveOHC(object):
     """ generate (detrended) OHC files """
@@ -17,7 +19,7 @@ class DeriveOHC(object):
         return
     
     
-    def generate_OHC_files(self, run, parallel=0):
+    def generate_OHC_files(self, run):
         """ non-detrended OHC files for full length of simulations
         
         One file contains integrals (all global and by basin):
@@ -52,13 +54,19 @@ class DeriveOHC(object):
         print(f'\n{datetime.datetime.now()}  start OHC calculation: run={run}')
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
 
-        if run in ['ctrl', 'rcp']:   domain = 'ocn'
-        elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
+        if run=='rcp':
+            domain = 'ocn'
+        elif run=='ctrl':
+            domain = 'ocn_rect'
+        elif run in ['lpd', 'lpi']:
+            domain = 'ocn_low'
+            
+        (z, lat, lon) = dll_dims_names(domain)
 
         # geometry
-        DZT  = xr_DZ(domain)  
+        DZT  = xr_DZ(domain)
         AREA = xr_AREA(domain)
-        HTN  = xr_HTN(domain) 
+        HTN  = xr_HTN(domain)
         LATS = xr_LATS(domain)
         
         def round_tlatlon(das):
@@ -69,7 +77,7 @@ class DeriveOHC(object):
             das['TLAT']   = das['TLAT'].round(decimals=2)
             das['TLONG']  = das['TLONG'].round(decimals=2)
             return das
-        if run in ['ctrl', 'rcp']:
+        if domain=='ocn':
             round_tlatlon(HTN)
             round_tlatlon(LATS)
 
@@ -82,9 +90,6 @@ class DeriveOHC(object):
         print(f'{datetime.datetime.now()}  done with geometry')
 
         for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
-            if parallel>0:
-                if (y+parallel)%10==0: pass
-                else: continue
             
             file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y}.nc'
 
@@ -95,8 +100,10 @@ class DeriveOHC(object):
             print(f'{datetime.datetime.now()} {y}, {file}')
 
             t   = y*365  # time in days since year 0, for consistency with CESM date output
-            ds  = xr.open_dataset(file, decode_times=False).drop(['ULONG', 'ULAT'])
-            round_tlatlon(ds)
+            ds  = xr.open_dataset(file, decode_times=False)
+            if domain=='ocn':
+                ds = ds.drop(['ULONG', 'ULAT'])
+                ds = round_tlatlon(ds)
 
             if ds.PD[0,150,200].round(decimals=0)==0:
                 ds['PD'] = ds['PD']*1000 + rho_sw
@@ -115,18 +122,12 @@ class DeriveOHC(object):
             
             # global, global levels, zonal, zonal levels integrals for different regions
             for mask_nr in [0,1,2,3,6,10]:
-                print(datetime.datetime.now(), mask_nr)
                 da = OHC.where(boolean_mask(domain, mask_nr=mask_nr))
-                print(datetime.datetime.now(), mask_nr)
                 
                 da_g  = xr_int_global(da=da, AREA=AREA, DZ=DZT)
-                print(datetime.datetime.now(), mask_nr)
                 da_gl = xr_int_global_level(da=da, AREA=AREA, DZ=DZT)
-                print(datetime.datetime.now(), mask_nr)
                 da_z  = xr_int_zonal(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
-                print(datetime.datetime.now(), mask_nr)
                 da_zl = xr_int_zonal_level(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
-                print(datetime.datetime.now(), mask_nr)
                 
                 name = regions_dict[mask_nr]
                 ds_g  = t2ds(da_g , f'OHC_{name}'              , t)
@@ -138,13 +139,13 @@ class DeriveOHC(object):
                     ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl])
                 else:
                     ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl])
-            print(f'{datetime.datetime.now()}  done with calculations')
+            print(f'{datetime.datetime.now()}  done with horizontal calculations')
             
             # vertical integrals
-            da_v  = OHC_DZT.sum(dim='z_t')                         #   0-6000 m
-            da_va = OHC_DZT.isel(z_t=slice( 0, 9)).sum(dim='z_t')  #   0- 100 m
-            da_vb = OHC_DZT.isel(z_t=slice( 9,20)).sum(dim='z_t')  # 100- 700 m
-            da_vc = OHC_DZT.isel(z_t=slice(20,26)).sum(dim='z_t')  # 700-2000 m
+            da_v  = OHC_DZT.sum(dim=z)                         #   0-6000 m
+            da_va = OHC_DZT.isel({z:slice( 0, 9)}).sum(dim=z)  #   0- 100 m
+            da_vb = OHC_DZT.isel({z:slice( 9,20)}).sum(dim=z)  # 100- 700 m
+            da_vc = OHC_DZT.isel({z:slice(20,26)}).sum(dim=z)  # 700-2000 m
             
             ds_v  = t2ds(da_v , 'OHC_vertical_0_6000m'  , t)
             ds_va = t2ds(da_va, 'OHC_vertical_0_100m'   , t)
