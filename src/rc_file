@@ -6,3 +6,5 @@ xtick.labelsize               : small
 ytick.labelsize               : small
 lines.linewidth               : 1.5
 savefig.dpi                   : 300
+
+animation.html                : jshtml

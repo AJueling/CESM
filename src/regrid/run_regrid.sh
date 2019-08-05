@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 3:30:00
+#SBATCH -t 1:00:00
 #SBATCH -N 1
 cd /home/dijkbio/andre/CESM/src/regrid
 module load eb

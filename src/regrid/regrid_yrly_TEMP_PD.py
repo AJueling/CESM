@@ -18,7 +18,7 @@ def add_attrs(ds):
     return ds
 
 
-for y in np.arange(71,301):
+for y in np.arange(250,301):
     print(y)
     fn_orig = f'{path_samoc}/ctrl/ocn_yrly_TEMP_PD_{y:04d}.nc'
     fn_temp = f'{path_samoc}/ctrl_rect/TEMP_PD_yrly_{y:04d}.nc'
