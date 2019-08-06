@@ -5,7 +5,7 @@ import numpy as np
 #  75-275: /projects/0/samoc/pop/tx0.1/output/run_henk_mixedbc/tavg_rectgrid/
 # 276-326: /projects/0/samoc/pop/tx0.1/output/run_henk_mixedbc_extravars_viebahn/tavg_rectgrid/
 
-def CESM_filename(domain, run, y, m, name=None):
+def CESM_filename(domain, run, y, m, d=0, name=None):
     """ filename creation 
     
     input:
@@ -15,7 +15,9 @@ def CESM_filename(domain, run, y, m, name=None):
     m        .. (int) month; 
                       if 0, then name of yearly avg. file
                       if 13, then monthly multifile name
+    d
     name     .. (str) added to yrly file
+                      if d==31 and domain=='ocn', then 'SST' or 'SSH must be provided'
     
     output:
     file     .. (str) filename
@@ -31,100 +33,131 @@ def CESM_filename(domain, run, y, m, name=None):
     if m==13:  # returning multi-file name
         time = '*'
     
-    if domain=='ocn':
-        if run=='ctrl':
-            if m==0:  # yearly files
+    # yearly output
+    if m==0 and d==0:  
+        if domain=='ocn':
+            if run=='ctrl':
                 file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_ctrl}/{spinup}.pop.h.{time}.nc'
-        elif run=='rcp':
-            if m==0:
+            elif run=='rcp':
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_rcp}/{rcpstr}.pop.h.{time}.nc'
-        elif run=='lpd':
-            if m==0:
+            elif run=='lpd':
                 file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
-        elif run=='lpi':
-            if m==0:
+            elif run=='lpi':
                 file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
-                
-    elif domain=='ocn_rect':
-        if run=='ctrl':
-            if m==0:  # yearly files
+    
+        elif domain=='ocn_rect':
+            if run=='ctrl':
                 file = f'{path_samoc}/ctrl_rect/{name}_yrly_{y:04}.interp900x602.nc'
-            else:
-                file = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.{time}.interp900x602.nc'
-        elif run=='rcp':
-            if m==0:
+            elif run=='rcp':
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
-            else:
-                file = f'{path_ocn_rect_rcp}/{rcpstr}.pop.h.{time}.interp900x602.nc'
-        elif run=='pop':
-            if m==0:
+            elif run=='pop':
                 if y<276:
                     file = f'{path_ocn_rect_pop1}/yearly/{popstr}.avg{y:04}.nc'
                 elif y>=276:
                     file = f'{path_ocn_rect_pop2}/{popstr}.avg{y:04}.nc'
-            else:
-                if y<276:
-                    file = f'{path_ocn_rect_pop1}/monthly/{popstr}.{time2}.interp900x602.nc'
-                elif y>=276:
-                    file = f'{path_ocn_rect_pop2}/{popstr}.{time2}.interp900x602.nc'
-                
-    elif domain=='ocn_low':
-        if run=='lpd':
-            if m==0:  # yearly files
+                    
+        elif domain=='ocn_low':
+            if run=='lpd':
                 file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
-        elif run=='lpi':
-            if m==0:
+            elif run=='lpi':
                 file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
-    
-    elif domain=='atm':
-        if run=='ctrl':
-            if m==0:
+                    
+        elif domain=='atm':
+            if run=='ctrl':
                 file = f'{path_yrly_ctrl}/atm_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_atm_ctrl}/{spinup}.cam2.h0.{time}.nc'
-        elif run=='rcp':
-            if m==0:
+            elif run=='rcp':
                 file = f'{path_yrly_rcp}/atm_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
-        elif run=='lpd':
-            if m==0:
+            elif run=='lpd':
                 if name==None:
                     file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
                 else:
                     file = f'{path_atm_lpd}/atm_yrly_{name}_{y:04}.nc'
-            else:
-                raise ValueError('monthly files are not available for lpd run!')
-        elif run=='lpi':
-            if m==0:
+            elif run=='lpi':
                 file = f'{path_yrly_lpi}/atm_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
-                
-    elif domain=='ice':
-        if run=='ctrl':
-            if m==0:
+    
+        elif domain=='ice':
+            if run=='ctrl':
                 file = f'{path_yrly_ctrl}/ice_yrly_{name}_{y:04}.nc'
-            else:
-                file = f'{path_ice_ctrl}/{spinup}.cice.h.{time}.nc'
-        elif run=='rcp':
-            if m==0:
+            elif run=='rcp':
                 file = f'{path_yrly_rcp}/ice_yrly_{name}_{y:04}.nc'
-            else:
+            else:  raise ValueError('not implemented')
+    
+    # monthly output
+    elif m>0 and d==0: 
+        if domain=='ocn':
+            if run=='ctrl':
+                file = f'{path_ocn_ctrl}/{spinup}.pop.h.{time}.nc'
+            elif run=='rcp':
+                file = f'{path_ocn_rcp}/{rcpstr}.pop.h.{time}.nc'
+            elif run=='lpd':
+                file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
+            elif run=='lpi':
+                file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
+
+        elif domain=='ocn_rect':
+            if run=='ctrl':
+                file = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.{time}.interp900x602.nc'
+            elif run=='rcp':
+                file = f'{path_ocn_rect_rcp}/{rcpstr}.pop.h.{time}.interp900x602.nc'
+            elif run=='pop':
+                if y<276:
+                    file = f'{path_ocn_rect_pop1}/monthly/{popstr}.{time2}.interp900x602.nc'
+                elif y>=276:
+                    file = f'{path_ocn_rect_pop2}/{popstr}.{time2}.interp900x602.nc'
+
+        elif domain=='ocn_low':
+            if run=='lpd':
+                file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
+            elif run=='lpi':
+                file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
+
+        elif domain=='atm':
+            if run=='ctrl':
+                file = f'{path_atm_ctrl}/{spinup}.cam2.h0.{time}.nc'
+            elif run=='rcp':
+                file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
+            elif run=='lpd':
+                raise ValueError('monthly files are not available for lpd run!')
+            elif run=='lpi':
+                file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
+
+        elif domain=='ice':
+            if run=='ctrl':
+                file = f'{path_ice_ctrl}/{spinup}.cice.h.{time}.nc'
+            elif run=='rcp':
                 file = f'{path_ice_rcp}/{rcpstr}.cice.h.{time}.nc'
-            
+            else:  raise ValueError('not implemented')
+    
+    # daily output
+    elif d>0 and d<33:
+        daily_error = 'daily data only for `ctrl` and `rcp`, `ocn` implemented'
+        if domain=='ocn':
+            if d<32:  # SSH, velocity data with daily files
+                if run=='ctrl':
+                    file = f'{path_ctrl}/OUTPUT/ocn/hist/daily/{spinup}.pop.hm.{time}-{d:02d}.nc'
+                elif run=='rcp':
+                    file = f'{path_rcp}/OUTPUT/ocn/hist/daily/{rcpstr}.pop.hm.{time}-{d:02d}.nc'
+                else:  raise ValueError(daily_error)
+            elif d==32:  # SST data: monthly aggregated files with daily fields
+                if run=='ctrl':
+                    file = f'{path_ctrl}/OUTPUT/ocn/hist/daily/{spinup}.pop.h.nday1.{time}-01.nc'
+                elif run=='rcp':
+                    file = f'{path_rcp}/OUTPUT/ocn/hist/daily/{rcpstr}.pop.h.nday1.{time}-01.nc'
+                    try:
+                        assert os.path.exists(file)
+                    except:
+                        for dd in np.arange(2,32):
+                            fn = f'{path_rcp}/OUTPUT/ocn/hist/daily/{rcpstr}.pop.h.nday1.{time}-{dd:02d}.nc'
+                            if os.path.exists(fn):
+                                file = fn
+                                break
+                            else: 
+                                continue
+                else:  raise ValueError(daily_error)
+                
+        else:  raise ValueError(daily_error)
+        
+    # check existence of files
     if m<13 and os.path.exists(file)==False:
         print(f'The file "{file}" does not exist')
         
@@ -210,6 +243,12 @@ file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
 file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
 file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
+
+# daily data
+file_ex_ocn_daily_SST_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 249, m=1, d=32, name='SST')
+file_ex_ocn_daily_SSH_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 249, m=1, d=1, name='SSH')
+file_ex_ocn_daily_SST_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=32, name='SST')
+file_ex_ocn_daily_SSH_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=1, name='SSH')
 
 file_ex_ocn_rect  = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.0200-01.interp900x602.nc'
 
