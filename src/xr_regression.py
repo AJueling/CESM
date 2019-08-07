@@ -15,19 +15,27 @@ from timeseries import IterateOutputCESM, chebychev
 def xr_lintrend(x):
     """ linear trend timeseries of a timeseries """
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
-    lf = pf[1]*x.time + pf[0]
-    return lf
+    return pf[1]*x.time + pf[0]
 
 
 def xr_quadtrend(x):
-    """ quadratic trend timeseries of a timeseries """
+    """ quadratic trend timeseries of (a/an array of) time series """
+    assert 'time' in x.coords
     pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
-    lf = pf[2]*x.time**2 + pf[1]*x.time + pf[0]
-    return lf
+#     print(pf[0])
+    if np.ndim(x)>2:  # stacking coordinates
+        x = x.stack(stacked_coord=list(x.coords.keys())[1:])
+    qt = np.outer(x.time**2,pf[2]) + np.outer(x.time,pf[1]) + np.row_stack(([pf[0]]*len(x.time)))  # np.ndarray
+    if np.ndim(x)==1:  qt = qt.flatten()  # remove dimension of length 1
+    if np.ndim(x)>2:  # unstacking
+        x.data = qt
+        qt = x.unstack().values
+    da = x.copy(data=qt)
+    return da
 
 
 def xr_linear_trend(x):
-    """ function to compute a linear trend coeficient of a timeseries """
+    """ function to compute a linear trend coefficient of a timeseries """
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
     return xr.DataArray(pf[1])
 

@@ -179,8 +179,24 @@ class DeriveOHC(object):
     #         os.remove(mfname)
         print(f'{datetime.datetime.now()}  done\n')
         
+        if run=='ctrl': 
+            print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
         return
     
+    
+    def fix_ctrl_year_205():
+        """ averages year 204 and 206 to replace year 205 in ctrl run """
+        ctrl = xr.open_dataset(f'{path_samoc}/OHC/OHC_integrals_ctrl.nc')
+        for field in ['', '_levels', '_zonal', '_zonal_levels']:
+            for ocean in ['Global', 'Atlantic', 'Southern', 'Indian', 'Pacific', 'Arctic']:
+                ctrl[f'OHC{field}_{ocean}_Ocean'][204] = (ctrl[f'OHC{field}_{ocean}_Ocean'][203] + ctrl[f'OHC{field}_{ocean}_Ocean'][205])/2
+        for depths in ['0_6000m', '0_100m', '0_700m', '700_2000m']:
+            ctrl[f'OHC_vertical_{depths}'][204] = (ctrl[f'OHC_vertical_{depths}'][204] + ctrl[f'OHC_vertical_{depths}'][204])/2
+        ctrl.to_netcdf(f'{path_samoc}/OHC/OHC_integrals_ctrl_.nc')
+        ctrl.close()
+        cmd = f'mv {path_samoc}/OHC/OHC_integrals_ctrl_.nc {path_samoc}/OHC/OHC_integrals_ctrl.nc '
+        os.system(cmd)
+        return
     
     def OHC_pointwise_detrending(self, run):
         """ removes quadratic trend at each point """
