@@ -19,18 +19,24 @@ def xr_lintrend(x):
 
 
 def xr_quadtrend(x):
-    """ quadratic trend timeseries of (a/an array of) time series """
-    assert 'time' in x.coords
-    pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
-#     print(pf[0])
+    """ quadratic trend timeseries of (a/an array of) time series
+    returns xr.DataArray with the same dimensions as input """
+    assert list(x.coords)[0]=='time'
+    stacked = False
     if np.ndim(x)>2:  # stacking coordinates
         x = x.stack(stacked_coord=list(x.coords.keys())[1:])
+        stacked = True
+    pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
     qt = np.outer(x.time**2,pf[2]) + np.outer(x.time,pf[1]) + np.row_stack(([pf[0]]*len(x.time)))  # np.ndarray
     if np.ndim(x)==1:  qt = qt.flatten()  # remove dimension of length 1
-    if np.ndim(x)>2:  # unstacking
+    if stacked:  # unstacking
+        print('unstacking')
+        print(np.shape(x))
+        print(np.shape(qt))
         x.data = qt
-        qt = x.unstack().values
-    da = x.copy(data=qt)
+        da = x.unstack()
+    else:
+        da = x.copy(data=qt)
     return da
 
 
@@ -79,7 +85,6 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
     return da_trend
 
 
-
 def ocn_field_regression(xa, run):
     """ calculates the trends of ocean fields
     
@@ -95,7 +100,7 @@ def ocn_field_regression(xa, run):
     
     assert type(xa)==xr.core.dataarray.DataArray
     assert len(xa.values.shape)==3
-#     assert xa.values.shape[1:]==(jmt,imt)
+    # assert xa.values.shape[1:]==(jmt,imt)
     
     if run in ['ctrl', 'rcp']:
         MASK = boolean_mask('ocn'     , 0)
@@ -119,7 +124,6 @@ def ocn_field_regression(xa, run):
     return xa_slope, xa_interc
 
 
-
 def zonal_trend(ds):
     """ calculated tends for lat_bin field
     
@@ -137,7 +141,6 @@ def zonal_trend(ds):
     trend = trend.rename({'dim_0': 'TLAT_bins'})
     trend = trend.assign_coords(TLAT_bins=ds.TLAT_bins[min_lat:max_lat+1])
     return trend
-
 
 
 def zonal_levels_trend(ds):
@@ -158,7 +161,6 @@ def zonal_levels_trend(ds):
     print(min_lat, max_lat)
     trend = xr_linear_trends_2D(ds.OHC_zonal_levels[:,:max_depth+1,min_lat:max_lat+1], dim_names=dn)*365  #  to [yr^-1]
     return trend
-
 
 
 def find_valid_domain(da):
