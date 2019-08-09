@@ -5,6 +5,7 @@ import xarray as xr
 from paths import CESM_filename, path_samoc
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
+from xr_regression import xr_quadtrend
 
 
 class DeriveField(object):
@@ -140,6 +141,33 @@ class DeriveField(object):
                                      coords='minimal')
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{self.run}.nc')
         # remove extra netCDF files
+        return
+    
+    
+    def make_pwqd_TEMP_files(self):
+        if self.run=='ctrl':
+            yrly_TEMP_file = f'{path_samoc}/ctrl_rect/TEMP_yrly.interp900x602.nc'
+            mf_fn          = f'{path_samoc}/ctrl_rect/TEMP_PD_yrly_*.interp900x602.nc'
+            trange         = np.arange(50,300)
+        elif self.run=='lpd':
+            yrly_TEMP_file = f'{path_samoc}/lpd/TEMP_yrly.nc'
+            mf_fn          = f'{path_samoc}/lpd/ocn_yrly_TEMP_PD_*.nc'
+            trange         = np.arange(0,250)
+            
+        try:
+            assert os.path.exists(yrly_TEMP_file)
+        except:
+            da_ = xr.open_mfdataset(mf_fn, concat_dim='time').TEMP
+            da_ = da_.isel(time=trange)
+            da_.assign_coords(time=da_.time.values).to_netcdf(yrly_TEMP_file)
+            
+        da = xr.open_dataarray(yrly_TEMP_file, decode_times=False)
+        da_pwqd = da - xr_quadtrend(da)
+        for y in da_pwqd.time:
+            yy = int(y.values)
+            if self.run=='ctrl':   out = f'{path_samoc}/ctrl_rect/TEMP_pwqd_yrly_{yy:04d}.interp900x602.nc'
+            elif self.run=='lpd':  out = f'{path_samoc}/lpd/ocn_yrly_TEMP_pwqd_{yy:04d}.nc'
+            da_pwqt.isel(time=y.values).to_netcdf(out)
         return
     
     

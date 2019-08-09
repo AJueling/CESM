@@ -21,23 +21,24 @@ def xr_lintrend(x):
 def xr_quadtrend(x):
     """ quadratic trend timeseries of (a/an array of) time series
     returns xr.DataArray with the same dimensions as input """
-    assert list(x.coords)[0]=='time'
+    assert 'time' in list(x.coords)
     stacked = False
-    if np.ndim(x)>2:  # stacking coordinates
-        x = x.stack(stacked_coord=list(x.coords.keys())[1:])
+    if len(x.dims)>2:  # stacking coordinates
+        c = list(x.dims)
+        print(x.dims)
+        c.remove('time')
+        x = x.stack(stacked_coord=c)
         stacked = True
-    pf = np.polynomial.polynomial.polyfit(x.time, x, 2)
-    qt = np.outer(x.time**2,pf[2]) + np.outer(x.time,pf[1]) + np.row_stack(([pf[0]]*len(x.time)))  # np.ndarray
+    y = x.fillna(0)  # temproarily replaces nan's with 0's, but those are masked in the end again
+    pf = np.polynomial.polynomial.polyfit(y.time, y, 2)
+    qt = np.outer(y.time**2,pf[2]) + np.outer(y.time,pf[1]) + np.row_stack(([pf[0]]*len(y.time)))  # np.ndarray
     if np.ndim(x)==1:  qt = qt.flatten()  # remove dimension of length 1
     if stacked:  # unstacking
-        print('unstacking')
-        print(np.shape(x))
-        print(np.shape(qt))
         x.data = qt
         da = x.unstack()
     else:
         da = x.copy(data=qt)
-    return da
+    return da.where(x.notnull())
 
 
 def xr_linear_trend(x):

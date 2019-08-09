@@ -24,8 +24,9 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     """
     assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
     assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop']
-    assert type(y)==np.dtype(int) and type(m)==np.dtype(int)
+    assert type(y)==np.dtype(int) and type(m)==np.dtype(int) and type(d)==np.dtype(int)
     assert m>=0 and m<14
+    assert d>=0 and d<33
     
     time = f'{y:04}-{m:02}'
     time2 = f'{y:04}{m:02}'
@@ -34,7 +35,7 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
         time = '*'
     
     # yearly output
-    if m==0 and d==0:  
+    if m==0:  
         if domain=='ocn':
             if run=='ctrl':
                 file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.nc'
