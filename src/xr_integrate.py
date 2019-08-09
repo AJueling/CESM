@@ -7,7 +7,7 @@ from xr_DataArrays import dll_from_arb_da
 
 def xr_int_global(da, AREA, DZ):
     """ global volume integral *[m^3] """
-    (z, lat, lon) = dll_from_arb_da(da)    
+    (z, lat, lon) = dll_from_arb_da(da)
     return (da*AREA*DZ).sum(dim=[z, lat, lon])  # 0D
 
 

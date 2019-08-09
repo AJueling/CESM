@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 import datetime
 
+from tqdm import tqdm
 from paths import path_samoc
 from regions import boolean_mask, regions_dict
 from constants import cp_sw, rho_sw, km
@@ -91,7 +92,7 @@ class DeriveOHC(object):
 
         for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
             
-            if year!=None:
+            if year!=None:  # select specific year
                 if year==y:
                     pass
                 else:
@@ -106,20 +107,20 @@ class DeriveOHC(object):
             print(f'{datetime.datetime.now()} {y}, {file}')
 
             t   = y*365  # time in days since year 0, for consistency with CESM date output
-            ds  = xr.open_dataset(file, decode_times=False)
+            ds  = xr.open_dataset(file, decode_times=False).TEMP
             if domain=='ocn':
                 ds = ds.drop(['ULONG', 'ULAT'])
                 ds = round_tlatlon(ds)
 
-            if ds.PD[0,150,200].round(decimals=0)==0:
-                ds['PD'] = ds['PD']*1000 + rho_sw
-            elif ds.PD[0,150,200].round(decimals=0)==1:
-                ds['PD'] = ds['PD']*1000
-            else: 
-                print('density [g/cm^3] is neither close to 0 or 1')
+#             if ds.PD[0,150,200].round(decimals=0)==0:
+#                 ds['PD'] = ds['PD']*1000 + rho_sw
+#             elif ds.PD[0,150,200].round(decimals=0)==1:
+#                 ds['PD'] = ds['PD']*1000
+#             else: 
+#                 print('density [g/cm^3] is neither close to 0 or 1')
 
-            OHC = ds.TEMP*ds.PD*cp_sw
-#             OHC = ds.TEMP*rho_sw*cp_sw
+#             OHC = ds.TEMP*ds.PD*cp_sw
+            OHC = ds*rho_sw*cp_sw
             ds.close()
             OHC = OHC.where(MASK)
 
@@ -127,31 +128,55 @@ class DeriveOHC(object):
             print(f'{datetime.datetime.now()}  {y} calculated OHC & OHC_DZT')
             
             # global, global levels, zonal, zonal levels integrals for different regions
-            for mask_nr in [0,1,2,3,6,10]:
+            for mask_nr in tqdm([0,1,2,3,6,7,8,9,10]):
+                name = regions_dict[mask_nr]
                 da = OHC.where(boolean_mask(domain, mask_nr=mask_nr))
                 
-                da_g  = xr_int_global(da=da, AREA=AREA, DZ=DZT)
-                da_gl = xr_int_global_level(da=da, AREA=AREA, DZ=DZT)
-                da_z  = xr_int_zonal(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
-                da_zl = xr_int_zonal_level(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+                da_g = (da*AREA*DZT).sum(dim=[z, lat, lon])
+                da_g.attrs['units'] = '[J]'
+                ds_g  = t2ds(da_g , f'OHC_{name}', t)
+
+                da_gl = (da*AREA).sum(dim=[lat, lon])
+                da_gl.attrs['units'] = '[J m^-1]'
+                ds_gl = t2ds(da_gl, f'OHC_levels_{name}', t)
+
+                if domain=='ocn':  da_z  = xr_int_zonal(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+                else:  da_z = (da*HTN*DZT).sum(dim=[z, lon])
+                da_z.attrs['units'] = '[J m^-1]'
+                ds_z = t2ds(da_z , f'OHC_zonal_{name}', t)
                 
-                name = regions_dict[mask_nr]
-                ds_g  = t2ds(da_g , f'OHC_{name}'              , t)
-                ds_gl = t2ds(da_gl, f'OHC_levels_{name}'       , t)
-                ds_z  = t2ds(da_z , f'OHC_zonal_{name}'        , t)
-                ds_zl = t2ds(da_zl, f'OHC_zonal_levels_{name}' , t)
-                
-                if mask_nr==0:
-                    ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl])
-                else:
-                    ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl])
+                if domain=='ocn':  da_zl = xr_int_zonal_level(da=da, HTN=HTN, LATS=LATS, AREA=AREA, DZ=DZT)
+                else:  da_zl = (da*HTN).sum(dim=[lon])
+                da_zl.attrs['units'] = '[J m^-2]'
+                ds_zl = t2ds(da_zl, f'OHC_zonal_levels_{name}', t)
+                if mask_nr==0:   ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl])
+                else:            ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl])
+                    
             print(f'{datetime.datetime.now()}  done with horizontal calculations')
             
             # vertical integrals
+            # full depth
             da_v  = OHC_DZT.sum(dim=z)                         #   0-6000 m
-            da_va = OHC_DZT.isel({z:slice( 0, 9)}).sum(dim=z)  #   0- 100 m
-            da_vb = OHC_DZT.isel({z:slice( 0,20)}).sum(dim=z)  #   0- 700 m
-            da_vc = OHC_DZT.isel({z:slice(20,26)}).sum(dim=z)  # 700-2000 m
+            da_v.attrs = {'depths':f'{OHC_DZT[z][0]-OHC_DZT[z][-1]}',
+                          'units':'[J m^-2]'}
+            
+            if domain in ['ocn', 'ocn_rect']:  zsel = [[0,9], [0,20], [20,26]]
+            elif domain=='ocn_low':            zsel = [[0,9], [0,36], [36,45]]
+            
+            #   0- 100 m
+            da_va = OHC_DZT.isel({z:slice(zsel[0][0], zsel[0][1])}).sum(dim=z)  
+            da_va.attrs = {'depths':f'{OHC_DZT[z][zsel[0][0]].values:.0f}-{OHC_DZT[z][zsel[0][1]].values:.0f}',
+                           'units':'[J m^-2]'}
+            
+            #   0- 700 m
+            da_vb = OHC_DZT.isel({z:slice(zsel[1][0],zsel[1][1])}).sum(dim=z)  
+            da_vb.attrs = {'depths':f'{OHC_DZT[z][zsel[1][0]].values:.0f}-{OHC_DZT[z][zsel[1][1]].values:.0f}',
+                           'units':'[J m^-2]'}
+            
+            # 700-2000 m
+            da_vc = OHC_DZT.isel({z:slice(zsel[2][0],zsel[2][1])}).sum(dim=z)  
+            da_vc.attrs = {'depths':f'{OHC_DZT[z][zsel[2][0]].values:.0f}-{OHC_DZT[z][zsel[2][1]].values:.0f}',
+                           'units':'[J m^-2]'}
             
             ds_v  = t2ds(da_v , 'OHC_vertical_0_6000m'  , t)
             ds_va = t2ds(da_va, 'OHC_vertical_0_100m'   , t)
@@ -170,17 +195,16 @@ class DeriveOHC(object):
         # combining yearly files
         file_out = f'{path_samoc}/OHC/OHC_integrals_{run}.nc'
         mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*.nc'
-        if os.path.isfile(file_out):  os.remove(file_out)
+#         if os.path.isfile(file_out):  os.remove(file_out)
         combined = xr.open_mfdataset(mfname,
-                                    concat_dim='time',
+                                     concat_dim='time',
         #                                  autoclose=True,
-                                         coords='minimal')
+                                     coords='minimal')
         combined.to_netcdf(file_out)
-    #         os.remove(mfname)
+        if os.path.isfile(file_out): os.remove(mfname)
         print(f'{datetime.datetime.now()}  done\n')
         
-        if run=='ctrl': 
-            print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
+        if run=='ctrl':  print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
         return
     
     
