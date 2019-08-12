@@ -193,6 +193,14 @@ class DeriveOHC(object):
 #             if y in [2002, 102, 156, 1602]:  break  # for testing only
 
         # combining yearly files
+        
+        print(f'{datetime.datetime.now()}  done\n')
+        
+        if run=='ctrl':  print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
+        return
+    
+    
+    def combine_yrly_OHC_integral_files(self, run):
         file_out = f'{path_samoc}/OHC/OHC_integrals_{run}.nc'
         mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*.nc'
 #         if os.path.isfile(file_out):  os.remove(file_out)
@@ -201,10 +209,7 @@ class DeriveOHC(object):
         #                                  autoclose=True,
                                      coords='minimal')
         combined.to_netcdf(file_out)
-        if os.path.isfile(file_out): os.remove(mfname)
-        print(f'{datetime.datetime.now()}  done\n')
-        
-        if run=='ctrl':  print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
+#         if os.path.isfile(file_out): os.remove(mfname)
         return
     
     
