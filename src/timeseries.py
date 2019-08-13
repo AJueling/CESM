@@ -34,10 +34,12 @@ class IterateOutputCESM:
         self.stop   = False
         self.name   = name
         
-        if run=='ctrl':   self.year  =    1
-        elif run=='rcp':  self.year  = 2000
-        elif run=='pop':  self.year  =  125
-        elif run=='lpd':  self.year  =  154
+        if run=='ctrl':
+            if self.domain=='atm':  self.year =  100
+            else:                   self.year =    1
+        elif run=='rcp':            self.year = 2000
+        elif run=='pop':            self.year =  125
+        elif run=='lpd':            self.year =  154
         elif run=='lpi':  
             if domain in ['ocn', 'ocn_low']:
                 self.year  = 1600

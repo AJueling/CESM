@@ -2,6 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
+from tqdm import tqdm
 from paths import CESM_filename, path_samoc
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
@@ -145,29 +146,51 @@ class DeriveField(object):
     
     
     def make_pwqd_TEMP_files(self):
+        """ quadratically detrends annually averaged TEMP field at each point for selected 250 year segments of CTRL or LPD simulations
+        pwqd : `point wise quadratically detrended`
+        """
         if self.run=='ctrl':
-            yrly_TEMP_file = f'{path_samoc}/ctrl_rect/TEMP_yrly.interp900x602.nc'
-            mf_fn          = f'{path_samoc}/ctrl_rect/TEMP_PD_yrly_*.interp900x602.nc'
-            trange         = np.arange(50,300)
+            path   = f'{path_samoc}/ctrl_rect'
+            interp = '.interp900x602'
+            mf_fn  = f'{path}/TEMP_PD_yrly_*.interp900x602.nc'
+            trange = np.arange(50,300)
+            km     = 42
+            z      = 'depth_t'
         elif self.run=='lpd':
-            yrly_TEMP_file = f'{path_samoc}/lpd/TEMP_yrly.nc'
-            mf_fn          = f'{path_samoc}/lpd/ocn_yrly_TEMP_PD_*.nc'
-            trange         = np.arange(0,250)
-            
+            path   = f'{path_samoc}/lpd'
+            interp = ''
+            mf_fn  = f'{path}/ocn_yrly_TEMP_PD_*.nc'
+            trange = np.arange(0,250)
+            km     = 60
+            z      = 'z_t'
+
+        # concatenate yearly files
+        yrly_TEMP_file = f'{path}/TEMP_yrly{interp}.nc'
         try:
             assert os.path.exists(yrly_TEMP_file)
         except:
-            da_ = xr.open_mfdataset(mf_fn, concat_dim='time').TEMP
-            da_ = da_.isel(time=trange)
-            da_.assign_coords(time=da_.time.values).to_netcdf(yrly_TEMP_file)
-            
+            da = xr.open_mfdataset(mf_fn, concat_dim='time').TEMP
+            da = da.isel(time=trange)
+            da.assign_coords(time=da.time.values).to_netcdf(yrly_TEMP_file)
+            da.close()
+        
+#         # calculating detrended TEMP field for each vertical level b/c of memory limitations
+#         for k in tqdm(range(km)):
+#             da_k = xr.open_dataarray(yrly_TEMP_file, decode_times=False).isel({z:k})
+#             da_pwqd_k = da_k - xr_quadtrend(da_k)
+#             da_pwqd_k.to_netcdf(f'{path}/TEMP_yrly_pwqd_{k:02d}{interp}.nc')
+#             da_pwqd_k.close()
+#         # concatenating 
+#         da_pwqd = xr.open_mfdataset(f'{path}/TEMP_yrly_pwqd_*{interp}.nc')
+
         da = xr.open_dataarray(yrly_TEMP_file, decode_times=False)
         da_pwqd = da - xr_quadtrend(da)
-        for y in da_pwqd.time:
+
+        # writing out files for individual years
+        for y in tqdm(da_pwqd.time):
             yy = int(y.values)
-            if self.run=='ctrl':   out = f'{path_samoc}/ctrl_rect/TEMP_pwqd_yrly_{yy:04d}.interp900x602.nc'
-            elif self.run=='lpd':  out = f'{path_samoc}/lpd/ocn_yrly_TEMP_pwqd_{yy:04d}.nc'
-            da_pwqt.isel(time=y.values).to_netcdf(out)
+            da_pwqt.isel(time=y.values).to_netcdf(f'{path}/TEMP_pwqd_yrly_{yy:04d}{interp}.nc')
+        
         return
     
     
