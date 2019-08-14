@@ -23,10 +23,12 @@ src/regrid/slurm*
 src/regrid/temp*
 src/run/*.out
 src/run/run.sh
-src/run/slurms
-rc/run/run_scripts.ipynb
-
+src/run/slurms/
+src/run/run_scripts.ipynb
+src/run/dask-worker-space/
 doc/cam5_desc.pdf
+src/.vscode/
+
 doc/CESM1.04_user_guide.pdf
 doc/~$*.ods
 doc/POPRefManual.pdf

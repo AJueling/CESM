@@ -11,6 +11,7 @@ from timeseries import IterateOutputCESM
 from xr_integrate import xr_int_global, xr_int_global_level,\
                          xr_int_zonal, xr_int_zonal_level
 from xr_DataArrays import xr_DZ, xr_AREA, xr_HTN, xr_LATS, dll_dims_names
+from xr_regression import xr_quadtrend
 
 import matplotlib.pyplot as plt
 
@@ -227,6 +228,19 @@ class DeriveOHC(object):
         os.system(cmd)
         return
     
+    def quadratically_detrend_OHC_integral_fields(ds, name):
+        """ iterates through all fields in OHC_integral file
+        and quadratically detrends them in time
+        """
+        # < 1 min for both ctrl_rect and lpd
+        ds_ = ds.copy()
+        key_list = [k for k in ds.data_vars.keys()]
+        for k in tqdm(key_list):
+            ds_[k].values = (ds[k] - xr_quadtrend(ds[k])).values
+        ds_.to_netcdf(f'{path_samoc}/OHC/OHC_integrals_{name}_qd.nc')
+        return
+        
+        
     def OHC_pointwise_detrending(self, run):
         """ removes quadratic trend at each point """
         return

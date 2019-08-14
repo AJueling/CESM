@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 import scipy as sp
 import datetime
+import dask
 
 # from numba import jit
 from paths import path_samoc, path_results, CESM_filename, file_ex_ocn_ctrl
@@ -22,23 +23,40 @@ def xr_quadtrend(x):
     """ quadratic trend timeseries of (a/an array of) time series
     returns xr.DataArray with the same dimensions as input """
     assert 'time' in list(x.coords)
-    stacked = False
+    stacked, chunked = False, False
+    for dim in x.dims:  # assign coords to dimensions initially without coords
+        if dim not in x.coords:
+            x = x.assign_coords(**{dim:x[dim].values})
+    
     if len(x.dims)>2:  # stacking coordinates
+        print('before stacking')
         c = list(x.dims)
-        print(x.dims)
         c.remove('time')
-        x = x.stack(stacked_coord=c)
+        X = x.stack(stacked_coord=c).copy()
         stacked = True
-    y = x.fillna(0)  # temproarily replaces nan's with 0's, but those are masked in the end again
-    pf = np.polynomial.polynomial.polyfit(y.time, y, 2)
-    qt = np.outer(y.time**2,pf[2]) + np.outer(y.time,pf[1]) + np.row_stack(([pf[0]]*len(y.time)))  # np.ndarray
+#         print('after stacking')
+    else: X = x.copy()
+    X = X.fillna(0)  # temporarily replaces nan's with 0's, but those are masked in the end again
+    if stacked==True and len(X['stacked_coord'])%3600==0:
+        print('before chunking')
+        X = X.chunk(chunks=(len(X['time']),3600))
+        chunked = True
+#         print('after chunking')
+#     if chunked:
+#         def f(xx, yy):
+#             return np.polynomial.polynomial.polyfit(xx, yy, 2)
+#         pf = dask.array.apply_along_axis(f, 1, X.time, X).compute()        
+#     else:
+    pf = np.polynomial.polynomial.polyfit(X.time, X, 2)
+    qt = np.outer(X.time**2,pf[2]) + np.outer(X.time,pf[1]) + np.row_stack(([pf[0]]*len(X.time)))  # np.ndarray
     if np.ndim(x)==1:  qt = qt.flatten()  # remove dimension of length 1
     if stacked:  # unstacking
-        x.data = qt
-        da = x.unstack()
+        X.data = qt
+        da = X.unstack()
     else:
         da = x.copy(data=qt)
-    return da.where(x.notnull())
+    
+    return da.where(x.notnull(), np.nan)
 
 
 def xr_linear_trend(x):

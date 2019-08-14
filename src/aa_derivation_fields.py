@@ -187,9 +187,8 @@ class DeriveField(object):
         da_pwqd = da - xr_quadtrend(da)
 
         # writing out files for individual years
-        for y in tqdm(da_pwqd.time):
-            yy = int(y.values)
-            da_pwqt.isel(time=y.values).to_netcdf(f'{path}/TEMP_pwqd_yrly_{yy:04d}{interp}.nc')
+        for i, y in tqdm(enumerate(da_pwqd.time)):
+            da_pwqd.isel(time=i).to_netcdf(f'{path}/TEMP_pwqd_yrly_{int(y.values):04d}{interp}.nc')
         
         return
     
