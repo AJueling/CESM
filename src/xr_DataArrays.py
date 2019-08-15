@@ -177,6 +177,7 @@ def xr_HTN(domain):
     return HTN
 
 
+
 def xr_LATS(domain):
     """ latitudes of grid cells
     
@@ -204,6 +205,7 @@ def depth_lat_lon_names(domain):
     return dll_dims_names(domain)
 
 
+
 def dll_dims_names(domain):
     """ names for different model domain dimensions 
     
@@ -224,6 +226,7 @@ def dll_dims_names(domain):
     elif domain in ['atm', 'atm_f19', 'atm_f09']:
         dll = ('lev', 'lat', 'lon')    
     return dll
+
 
 
 def dll_coords_names(domain):
@@ -312,6 +315,7 @@ def xr_DXU(domain):
         da.to_netcdf(fn)
     
     return da
+
 
 
 def xr_DYU(domain):

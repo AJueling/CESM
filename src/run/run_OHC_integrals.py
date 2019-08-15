@@ -4,7 +4,7 @@ sys.path.append("..")
 
 from ac_derivation_OHC import DeriveOHC as DO
 
-run     = sys.argv[1]
+run  = sys.argv[1]
 
 assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
 

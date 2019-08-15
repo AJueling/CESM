@@ -1,11 +1,7 @@
 import os
 import sys
 import datetime
-print(sys.path)
-print(os.getcwd())
 sys.path.append("..")
-# sys.path.append(os.getcwd())
-# print(sys.path)
 
 # import dask
 # from dask.distributed import Client, LocalCluster
@@ -13,9 +9,10 @@ from aa_derivation_fields import DeriveField as DF
 
 run = sys.argv[1]
 # run = 'lpd'
-from dask.distributed import Client, LocalCluster
-cluster = LocalCluster(n_workers=8)
-client = Client(cluster)
+import dask
+# from dask.distributed import Client, LocalCluster
+# cluster = LocalCluster(n_workers=8)
+# client = Client(cluster)
 
 if __name__=="__main__":
     assert run in ['ctrl', 'lpd']

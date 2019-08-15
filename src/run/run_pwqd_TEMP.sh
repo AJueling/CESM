@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 12:00:00
+#SBATCH -t 20:00:00
 #SBATCH -p fat
 #SBATCH -N 1
 cd /home/dijkbio/andre/CESM/src/run

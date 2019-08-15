@@ -21,7 +21,7 @@ class DeriveOHC(object):
         return
     
     
-    def generate_OHC_files(self, run, year=None):
+    def generate_OHC_files(self, run, year=None, pwqd=False):
         """ non-detrended OHC files for full length of simulations
         
         One file contains integrals (all global and by basin):
@@ -89,23 +89,32 @@ class DeriveOHC(object):
         AREA = AREA.where(MASK)
         HTN  = HTN.where(MASK)
         LATS = LATS.where(MASK)
-        print(f'{datetime.datetime.now()}  done with geometry')
-
-        for y,m,file in IterateOutputCESM(domain, run, 'yrly', name='TEMP_PD'):
+#         print(f'{datetime.datetime.now()}  done with geometry')
+        
+        if pwqd:  name = 'TEMP_pwqd'
+        else:     name = 'TEMP_PD'
+            
+        print(run, domain, name)
+        
+        for y,m,file in IterateOutputCESM(domain=domain, run=run, tavg='yrly', name=name):
+            
+#             break
             
             if year!=None:  # select specific year
                 if year==y:
                     pass
                 else:
                     continue
-            
-            file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y:04d}.nc'
+                    
+            if pwqd:  file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y:04d}_pwqd.nc'
+            else:     file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y:04d}.nc'
+                
 
 #             if os.path.exists(file_out):
 #     #             should check here if all the fields exist
 #                 print(f'{datetime.datetime.now()} {y} skipped as files exists already')
 #                 continue
-            print(f'{datetime.datetime.now()} {y}, {file}')
+#             print(f'{datetime.datetime.now()} {y}, {file}')
 
             t   = y*365  # time in days since year 0, for consistency with CESM date output
             ds  = xr.open_dataset(file, decode_times=False).TEMP
@@ -126,7 +135,7 @@ class DeriveOHC(object):
             OHC = OHC.where(MASK)
 
             OHC_DZT = OHC*DZT
-            print(f'{datetime.datetime.now()}  {y} calculated OHC & OHC_DZT')
+#             print(f'{datetime.datetime.now()}  {y} calculated OHC & OHC_DZT')
             
             # global, global levels, zonal, zonal levels integrals for different regions
             for mask_nr in tqdm([0,1,2,3,6,7,8,9,10]):
@@ -153,7 +162,7 @@ class DeriveOHC(object):
                 if mask_nr==0:   ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl])
                 else:            ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl])
                     
-            print(f'{datetime.datetime.now()}  done with horizontal calculations')
+#             print(f'{datetime.datetime.now()}  done with horizontal calculations')
             
             # vertical integrals
             # full depth
@@ -186,8 +195,8 @@ class DeriveOHC(object):
 
             ds_new = xr.merge([ds_new, ds_v, ds_va, ds_vb, ds_vc])
 
-            print(f'{datetime.datetime.now()}  done making datasets')
-            print(f'output: {file_out}\n')
+#             print(f'{datetime.datetime.now()}  done making datasets')
+#             print(f'output: {file_out}\n')
             ds_new.to_netcdf(path=file_out, mode='w')
             ds_new.close()
 
@@ -197,18 +206,19 @@ class DeriveOHC(object):
         
         print(f'{datetime.datetime.now()}  done\n')
         
-        if run=='ctrl':  print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
+#         if run=='ctrl':  print('year 205 is wrong and should be averaged by executing `fix_ctrl_year_205()`')
         return
     
     
-    def combine_yrly_OHC_integral_files(self, run):
-        file_out = f'{path_samoc}/OHC/OHC_integrals_{run}.nc'
-        mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*.nc'
+    def combine_yrly_OHC_integral_files(self, run, pwqd=False):
+        if pwqd==True:
+            file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_pwqd.nc'
+            mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*_pwqd.nc'
+        else:
+            file_out = f'{path_samoc}/OHC/OHC_integrals_{run}.nc'
+            mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*.nc'
 #         if os.path.isfile(file_out):  os.remove(file_out)
-        combined = xr.open_mfdataset(mfname,
-                                     concat_dim='time',
-        #                                  autoclose=True,
-                                     coords='minimal')
+        combined = xr.open_mfdataset(mfname, concat_dim='time', coords='minimal')
         combined.to_netcdf(file_out)
 #         if os.path.isfile(file_out): os.remove(mfname)
         return

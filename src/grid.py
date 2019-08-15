@@ -5,7 +5,7 @@ import xarray as xr
 from paths import path_results, file_ex_ocn_ctrl, grid_file
 from constants import imt, jmt
 from read_binary import read_binary_2D_double
-from xr_DataArrays import xr_DZ
+from xr_DataArrays import xr_DZ, dll_dims_names
 
 # def generate_lats_lons(grid_file):
 #     """
@@ -53,14 +53,16 @@ def shift_field(field,shift):
 
 def create_dz_mean(domain):
     """ average depth [m] per level of """
-    assert domain=='ocn'
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect']
     
-    fn = f'{path_results}/geometry/dz_mean'
+    (z, lat, lon) = dll_dims_names(domain)
+    
+    fn = f'{path_results}/geometry/dz_mean_{domain}.nc'
     if os.path.exists(fn):
         dz_mean = xr.open_dataarray(fn, decode_times=False)
     else:
         DZT     = xr_DZ(domain)
-        dz_mean = DZT.where(DZT>0).mean(dim=('nlat', 'nlon'))
+        dz_mean = DZT.where(DZT>0).mean(dim=(lat, lon))
         dz_mean.to_netcdf(fn)
         
     return dz_mean

@@ -174,20 +174,31 @@ class DeriveField(object):
             da.assign_coords(time=da.time.values).to_netcdf(yrly_TEMP_file)
             da.close()
         
-#         # calculating detrended TEMP field for each vertical level b/c of memory limitations
-#         for k in tqdm(range(km)):
-#             da_k = xr.open_dataarray(yrly_TEMP_file, decode_times=False).isel({z:k})
-#             da_pwqd_k = da_k - xr_quadtrend(da_k)
-#             da_pwqd_k.to_netcdf(f'{path}/TEMP_yrly_pwqd_{k:02d}{interp}.nc')
-#             da_pwqd_k.close()
-#         # concatenating 
-#         da_pwqd = xr.open_mfdataset(f'{path}/TEMP_yrly_pwqd_*{interp}.nc')
+        # calculating detrended TEMP field for each vertical level b/c of memory limitations
+        for k in tqdm(range(km)):
+            fn = f'{path}/TEMP_yrly_pwqd_{k:02d}{interp}.nc'
+            try:
+                assert os.path.exists(fn)
+            except:
+                da_k = xr.open_dataarray(yrly_TEMP_file, decode_times=False).isel({z:k})
+                da_pwqd_k = da_k - xr_quadtrend(da_k)
+                da_pwqd_k.to_netcdf(fn)
+                da_pwqd_k.close()
+        # concatenating 
+        print(f'{path}/TEMP_yrly_pwqd_*{interp}.nc')
+        da_pwqd = xr.open_mfdataset(f'{path}/TEMP_yrly_pwqd_*{interp}.nc',
+                                    concat_dim=['depth_t'], chunks={'time':1})
+        if self.run=='ctrl':
+            da_pwqd = da_pwqd.assign_coords(time=np.arange(51,301))
+        elif self.run=='lpd':
+            da_pwqd = da_pwqd.assign_coords(time=np.arange(154,404))
 
-        da = xr.open_dataarray(yrly_TEMP_file, decode_times=False)
-        da_pwqd = da - xr_quadtrend(da)
+#         da = xr.open_dataarray(yrly_TEMP_file, decode_times=False)
+#         da_pwqd = da - xr_quadtrend(da)
 
         # writing out files for individual years
-        for i, y in tqdm(enumerate(da_pwqd.time)):
+        print(da_pwqd.time)
+        for i, y in tqdm(enumerate(da_pwqd.time)):  # 9 mins for ctrl
             da_pwqd.isel(time=i).to_netcdf(f'{path}/TEMP_pwqd_yrly_{int(y.values):04d}{interp}.nc')
         
         return
