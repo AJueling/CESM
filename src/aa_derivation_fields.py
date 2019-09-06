@@ -167,8 +167,10 @@ class DeriveField(object):
         # concatenate yearly files
         yrly_TEMP_file = f'{path}/TEMP_yrly{interp}.nc'
         try:
+#             assert 1==0
             assert os.path.exists(yrly_TEMP_file)
         except:
+            print('making yrly TEMP file')
             da = xr.open_mfdataset(mf_fn, concat_dim='time').TEMP
             da = da.isel(time=trange)
             da.assign_coords(time=da.time.values).to_netcdf(yrly_TEMP_file)
@@ -178,6 +180,7 @@ class DeriveField(object):
         for k in tqdm(range(km)):
             fn = f'{path}/TEMP_yrly_pwqd_{k:02d}{interp}.nc'
             try:
+#                 assert 1==0
                 assert os.path.exists(fn)
             except:
                 da_k = xr.open_dataarray(yrly_TEMP_file, decode_times=False).isel({z:k})

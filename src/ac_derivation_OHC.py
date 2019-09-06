@@ -52,8 +52,10 @@ class DeriveOHC(object):
             da = t2da(da, t)
             ds = da.to_dataset(name=name)
             return ds
-        
-        print(f'\n{datetime.datetime.now()}  start OHC calculation: run={run}')
+        start = datetime.datetime.now()
+        def tss():  # time since start
+            return datetime.datetime.now()-start
+        print(f'{start}  start OHC calculation: run={run}')
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi']
 
         if run=='rcp':
@@ -66,7 +68,7 @@ class DeriveOHC(object):
         (z, lat, lon) = dll_dims_names(domain)
 
         # geometry
-        DZT  = xr_DZ(domain)
+        DZT  = xr_DZ(domain)#.chunk(chunks={z:1})
         AREA = xr_AREA(domain)
         HTN  = xr_HTN(domain)
         LATS = xr_LATS(domain)
@@ -84,8 +86,10 @@ class DeriveOHC(object):
             round_tlatlon(LATS)
 
         MASK = boolean_mask(domain, mask_nr=0)
-        for k in range(42):
-            DZT[k,:,:]  = DZT[k,:,:].where(MASK)
+        DZT  = DZT.where(MASK)#.chunk(chunks={z:1})
+        # with chunking for ctrl_rect: 21 sec per iteration, 15 sec without
+#         for k in range(42):
+#             DZT[k,:,:]  = DZT[k,:,:].where(MASK)
         AREA = AREA.where(MASK)
         HTN  = HTN.where(MASK)
         LATS = LATS.where(MASK)
@@ -94,9 +98,10 @@ class DeriveOHC(object):
         if pwqd:  name = 'TEMP_pwqd'
         else:     name = 'TEMP_PD'
             
-        print(run, domain, name)
+#         print(run, domain, name)
         
         for y,m,file in IterateOutputCESM(domain=domain, run=run, tavg='yrly', name=name):
+            print(tss(), y)
             
 #             break
             
@@ -110,14 +115,17 @@ class DeriveOHC(object):
             else:     file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y:04d}.nc'
                 
 
-#             if os.path.exists(file_out):
+            if os.path.exists(file_out):
 #     #             should check here if all the fields exist
 #                 print(f'{datetime.datetime.now()} {y} skipped as files exists already')
-#                 continue
-#             print(f'{datetime.datetime.now()} {y}, {file}')
+#             if y not in [250,251,252,253,254,255,273,274,275]:
+                continue
+            print(f'{tss()} {y}, {file}')
 
             t   = y*365  # time in days since year 0, for consistency with CESM date output
+#             ds  = xr.open_dataset(file, decode_times=False, chunks={z:1}).TEMP
             ds  = xr.open_dataset(file, decode_times=False).TEMP
+            print(f'{tss()} opened dataset')
             if domain=='ocn':
                 ds = ds.drop(['ULONG', 'ULAT'])
                 ds = round_tlatlon(ds)
@@ -135,10 +143,11 @@ class DeriveOHC(object):
             OHC = OHC.where(MASK)
 
             OHC_DZT = OHC*DZT
-#             print(f'{datetime.datetime.now()}  {y} calculated OHC & OHC_DZT')
+            print(f'{tss()}  {y} calculated OHC & OHC_DZT')
             
             # global, global levels, zonal, zonal levels integrals for different regions
             for mask_nr in tqdm([0,1,2,3,6,7,8,9,10]):
+#             for mask_nr in [0,1,2,3,6,7,8,9,10]:
                 name = regions_dict[mask_nr]
                 da = OHC.where(boolean_mask(domain, mask_nr=mask_nr))
                 
@@ -162,7 +171,7 @@ class DeriveOHC(object):
                 if mask_nr==0:   ds_new = xr.merge([ds_g, ds_gl, ds_z, ds_zl])
                 else:            ds_new = xr.merge([ds_new, ds_g, ds_gl, ds_z, ds_zl])
                     
-#             print(f'{datetime.datetime.now()}  done with horizontal calculations')
+            print(f'{tss()}  done with horizontal calculations')
             
             # vertical integrals
             # full depth
@@ -195,7 +204,7 @@ class DeriveOHC(object):
 
             ds_new = xr.merge([ds_new, ds_v, ds_va, ds_vb, ds_vc])
 
-#             print(f'{datetime.datetime.now()}  done making datasets')
+            print(f'{tss()}  done making datasets')
 #             print(f'output: {file_out}\n')
             ds_new.to_netcdf(path=file_out, mode='w')
             ds_new.close()
@@ -211,6 +220,7 @@ class DeriveOHC(object):
     
     
     def combine_yrly_OHC_integral_files(self, run, pwqd=False):
+        print(f'{datetime.datetime.now()}  start OHC combination: run={run}')
         if pwqd==True:
             file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_pwqd.nc'
             mfname = f'{path_samoc}/OHC/OHC_integrals_{run}_*_pwqd.nc'
