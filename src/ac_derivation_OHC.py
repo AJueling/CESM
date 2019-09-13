@@ -101,7 +101,7 @@ class DeriveOHC(object):
 #         print(run, domain, name)
         
         for y,m,file in IterateOutputCESM(domain=domain, run=run, tavg='yrly', name=name):
-            print(tss(), y)
+#             print(tss(), y)
             
 #             break
             
@@ -115,7 +115,7 @@ class DeriveOHC(object):
             else:     file_out = f'{path_samoc}/OHC/OHC_integrals_{run}_{y:04d}.nc'
                 
 
-            if os.path.exists(file_out):
+            if os.path.exists(file_out) and year is None:
 #     #             should check here if all the fields exist
 #                 print(f'{datetime.datetime.now()} {y} skipped as files exists already')
 #             if y not in [250,251,252,253,254,255,273,274,275]:
