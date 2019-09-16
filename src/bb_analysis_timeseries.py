@@ -99,17 +99,11 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
             assert type(filter_cutoff)==int
             assert filter_cutoff>1
             n = int(filter_cutoff/2)+1  # datapoints to remove from either end due to filter edge effects
-#             print (np.shape(mc))
             mc = mc[:,n:-n]
-#             print (np.shape(mc))
-            if filter_type=='lowpass':
-                mc = lowpass(mc.T, filter_cutoff).T
-            elif filter_type=='chebychev':
-                mc = chebychev(mc.T, filter_cutoff).T
-#             print (np.shape(mc))
+            if filter_type=='lowpass':      mc = lowpass(mc.T, filter_cutoff).T
+            elif filter_type=='chebychev':  mc = chebychev(mc.T, filter_cutoff).T
 
         mc_spectra = np.zeros((N, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
-#         print (np.shape(mc_spectra))
         for i in range(N):
             (mc_spectra[i,:], freq, jk) = self.spectrum(data=mc[i,:])
         mc_spectrum = np.zeros((4, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
