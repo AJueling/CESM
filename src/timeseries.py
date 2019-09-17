@@ -35,9 +35,11 @@ class IterateOutputCESM:
         self.name   = name
         
         if run=='ctrl':
-            if self.domain=='atm':    self.year =  100
-            elif 'pwqd' in self.name: self.year =   51
-            else:                     self.year =    1
+#             if self.domain=='atm':    self.year =  100
+#             elif 'pwqd' in self.name: self.year =   51
+#             if 'pwqd' in self.name:   self.year =   51
+#             else:                     self.year =    1
+            self.year =    1
         elif run=='rcp':              self.year = 2000
         elif run=='pop':              self.year =  125
         elif run=='lpd':              self.year =  154
