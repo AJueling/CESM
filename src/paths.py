@@ -48,7 +48,7 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     
         elif domain=='ocn_rect':
             if run=='ctrl':
-                file = f'{path_samoc}/ctrl_rect/{name}_yrly_{y:04}.interp900x602.nc'
+                file = f'{path_prace}/ctrl_rect/{name}_yrly_{y:04}.interp900x602.nc'
             elif run=='rcp':
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.interp900x602.nc'
             elif run=='pop':
@@ -180,6 +180,8 @@ popstr = 't.t0.1_42l_nccs01'
 path_results = '/home/dijkbio/andre/CESM/results'
 path_data    = '/home/dijkbio/andre/CESM/data'
 path_samoc   = '/projects/0/samoc/andre/CESM'
+# path_samoc   = '/projects/0/prace_imau/prace_2013081679/andre'
+path_prace   = '/projects/0/prace_imau/prace_2013081679/andre'
 
 # CESM data (should read only)
 path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
@@ -230,10 +232,10 @@ path_ohc_rene      = f'{path_rene}/OceanHeatContent/Global_0.1'
 path_ohc_rene_rect = f'{path_rene}/OceanHeatContent/Global_0.4'
 
 # yearly files
-path_yrly_ctrl = f'{path_samoc}/ctrl'
-path_yrly_rcp  = f'{path_samoc}/rcp'
-path_yrly_lpd  = f'{path_samoc}/lpd'
-path_yrly_lpi  = f'{path_samoc}/lpi'
+path_yrly_ctrl = f'{path_prace}/ctrl'
+path_yrly_rcp  = f'{path_prace}/rcp'
+path_yrly_lpd  = f'{path_prace}/lpd'
+path_yrly_lpi  = f'{path_prace}/lpi'
 
 # FILES
 
@@ -266,13 +268,13 @@ file_HadISST     = f'{path_data}/HadISST/HadISST_sst.nc'
 # derived data
 file_ex_ohc_hires = f'{path_ohc_rene}/OHC_0200-01_All.nc'
 
-file_ex_ocn_TEMP_PD_yrly = f'{path_samoc}/ctrl/ocn_yrly_TEMP_PD_0200.nc'
-file_ex_atm_T_T850_U_V_yrly  = f'{path_samoc}/ctrl/atm_yrly_T_T850_U_V_0200.nc'
+file_ex_ocn_TEMP_PD_yrly = f'{path_prace}/ctrl/ocn_yrly_TEMP_PD_0200.nc'
+file_ex_atm_T_T850_U_V_yrly  = f'{path_prace}/ctrl/atm_yrly_T_T850_U_V_0200.nc'
 
 
 file_geometry = f'{path_ocn_grid}/dzbc_pbc_s2.0_200709.ieeer8'
 
-file_RMASK_ocn      = f'{path_samoc}/grid/RMASK_ocn.nc'
-file_RMASK_ocn_rect = f'{path_samoc}/grid/RMASK_ocn_rect.nc'
-file_RMASK_ocn_low  = f'{path_samoc}/grid/RMASK_ocn_low.nc'
-file_RMASK_ocn_had  = f'{path_samoc}/grid/RMASK_ocn_had.nc'
+file_RMASK_ocn      = f'{path_prace}/grid/RMASK_ocn.nc'
+file_RMASK_ocn_rect = f'{path_prace}/grid/RMASK_ocn_rect.nc'
+file_RMASK_ocn_low  = f'{path_prace}/grid/RMASK_ocn_low.nc'
+file_RMASK_ocn_had  = f'{path_prace}/grid/RMASK_ocn_had.nc'

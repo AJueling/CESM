@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 
 from tqdm import tqdm
-from paths import CESM_filename, path_samoc
+from paths import CESM_filename, path_prace
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
 from xr_regression import xr_quadtrend
@@ -134,13 +134,13 @@ class DeriveField(object):
             da['TLONG'] = da['TLONG'].round(decimals=2)
             del da.encoding["contiguous"]
             ds = t2ds(da=da, name='SST', t=int(round(da.time.item())))
-            ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{self.run}_{y}.nc', mode='w')
+            ds.to_netcdf(path=f'{path_prace}/SST/SST_yrly_{self.run}_{y}.nc', mode='w')
 
-        combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{self.run}_*.nc',
+        combined = xr.open_mfdataset(f'{path_prace}/SST/SST_yrly_{self.run}_*.nc',
                                      concat_dim='time',
                                      autoclose=True,
                                      coords='minimal')
-        combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{self.run}.nc')
+        combined.to_netcdf(f'{path_prace}/SST/SST_yrly_{self.run}.nc')
         # remove extra netCDF files
         return
     
@@ -150,14 +150,14 @@ class DeriveField(object):
         pwqd : `point wise quadratically detrended`
         """
         if self.run=='ctrl':
-            path   = f'{path_samoc}/ctrl_rect'
+            path   = f'{path_prace}/ctrl_rect'
             interp = '.interp900x602'
             mf_fn  = f'{path}/TEMP_PD_yrly_*.interp900x602.nc'
             trange = np.arange(50,300)
             km     = 42
             z      = 'depth_t'
         elif self.run=='lpd':
-            path   = f'{path_samoc}/lpd'
+            path   = f'{path_prace}/lpd'
             interp = ''
             mf_fn  = f'{path}/ocn_yrly_TEMP_PD_*.nc'
             trange = np.arange(0,250)
