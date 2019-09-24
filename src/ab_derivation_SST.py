@@ -4,8 +4,10 @@ import xarray as xr
 import pandas as pd
 import statsmodels.api as sm
 
+from tqdm import tqdm
+
 from OHC import t2ds
-from paths import CESM_filename, path_samoc, path_data, file_ex_ocn_ctrl, file_ex_ocn_lpd
+from paths import CESM_filename, path_samoc, path_prace, path_data, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from regions import boolean_mask
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU, xr_AREA
@@ -67,31 +69,26 @@ class DeriveSST(object):
         return
             
             
-    @staticmethod
-    def generate_monthly_SST_files(run):
+    def generate_monthly_SST_files(self, run):
         """ concatonate monthly files, ocn_rect for high res runs"""
         # 8 mins for 200 years of ctrl
         if run in ['ctrl', 'rcp']:  domain = 'ocn_rect'
         elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
             
         for y,m,s in IterateOutputCESM(domain=domain, tavg='monthly', run=run):
-            if run in ['ctrl', 'rcp']:
-                xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-            if run in ['lpd', 'lpi']:
-                xa = xr.open_dataset(s, decode_times=False).TEMP[0,0,:,:]
-            if m==1:
-                print(y)
-                xa_out = xa.copy()    
-            else:
-                xa_out = xr.concat([xa_out, xa], dim='time')
-            if m==12:
-                xa_out.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}_{y:04}.nc')
+            if m==1: print(y)
+            if run in ['ctrl', 'rcp']:   xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            if run in ['lpd', 'lpi']:    xa = xr.open_dataset(s, decode_times=False).TEMP[0,0,:,:]
+            if m==1:   xa_out = xa.copy()    
+            else:      xa_out = xr.concat([xa_out, xa], dim='time')
+            if m==12:  xa_out.to_netcdf(f'{path_prace}/SST/SST_monthly_{run}_{y:04}.nc')
+            # this also means only full years are written out
                         
-        combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_monthly_{run}_*.nc',
+        combined = xr.open_mfdataset(f'{path_prace}/SST/SST_monthly_{run}_*.nc',
                                      concat_dim='time', decode_times=False)
-        combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{run}.nc')
+        combined.to_netcdf(f'{path_prace}/SST/SST_monthly_{run}.nc')
         combined.close()
-#         GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
+        self.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
         return
             
     
