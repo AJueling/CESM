@@ -179,9 +179,8 @@ popstr = 't.t0.1_42l_nccs01'
 # my output (write)
 path_results = '/home/dijkbio/andre/CESM/results'
 path_data    = '/home/dijkbio/andre/CESM/data'
-path_samoc   = '/projects/0/samoc/andre/CESM'
-# path_samoc   = '/projects/0/prace_imau/prace_2013081679/andre'
 path_prace   = '/projects/0/prace_imau/prace_2013081679/andre'
+path_samoc   = path_prace
 
 # CESM data (should read only)
 path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
