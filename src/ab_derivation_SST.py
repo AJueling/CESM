@@ -14,6 +14,14 @@ from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU, xr_AREA
 from xr_regression import xr_lintrend, xr_quadtrend
 from ba_analysis_dataarrays import AnalyzeDataArray as ADA
 
+
+# 10x 149 year time segments and one 250 year segment
+times_ctrl = (list(zip(np.arange(51, 150, 10), np.arange(200, 301, 10))))
+times_lpd  = (list(zip(np.arange(154, 253, 10), np.arange(303, 452, 10))))
+times_ctrl.append((51,301))
+times_lpd .append((154,404))
+
+
 class DeriveSST(object):
     """ generate SST fields """
     def __init__(self):
@@ -47,6 +55,16 @@ class DeriveSST(object):
                                      concat_dim='time', autoclose=True, coords='minimal')
         combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
         self.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
+        return
+    
+
+    def generate_yrly_SST_ctrl_rect(self):
+        """ monthly data of ctrl run """
+        monthly_ctrl = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_ctrl.nc')
+        t_bins = np.arange(0,len(monthly_ctrl)+1,12)
+        yrly_ctrl = monthly_ctrl.groupby_bins('time', t_bins, right=False).mean(dim='time')
+        yrly_ctrl = yrly_ctrl.assign_coords(time_bins=np.arange(1, 301)).rename({'time_bins':'time'})
+        yrly_ctrl.to_netcdf(f'{path_prace}/SST/SST_yrly_rect_ctrl.nc')
         return
     
     
@@ -86,11 +104,35 @@ class DeriveSST(object):
                         
         combined = xr.open_mfdataset(f'{path_prace}/SST/SST_monthly_{run}_*.nc',
                                      concat_dim='time', decode_times=False)
+        if run=='ctrl':
+            time_ctrl = np.arange(1+1/24, 301, 1/12)
+            combined = combined.assign_coords(time=time_ctrl)
+            # something is wrong in Febraury 99, so I average 
+            n = np.where(np.isclose(time_ctrl, 99.125))[0][0]
+            print(f'month 99/2 is averaged; n={n}')
+            combined[n] = (combined[n-1]+combined[n+1])/2
+        
         combined.to_netcdf(f'{path_prace}/SST/SST_monthly_{run}.nc')
         combined.close()
         self.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{run}_*.nc')
         return
-            
+    
+    
+    def deseasonalize_monthly_data(self, run):
+        """ """
+        assert run in ['ctrl', 'lpd', 'had']
+        monthly = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}.nc')
+        if run=='ctrl:':   yrly = xr.open_dataarray(f'{path_prace}/SST/SST_yrly_rect_ctrl.nc')
+        else:              yrly = xr.open_dataarray(f'{path_prace}/SST/SST_yrly_{run}.nc')
+        assert len(monthly)/len(yrly) == 12.0
+        
+        temp = monthly.copy()
+        for j in tqdm(range(12)):
+            m = monthly.isel(time=slice(j,len(monthly)+1,12))
+            temp[j::12] -= (m-yrly.assign_coords(time=m.time)).mean(dim='time')
+        temp.to_netcdf(f'{path_prace}/SST/SST_monthly_deseasonalized_{runs}.nc')
+        return
+    
     
     @staticmethod
     def generate_monthly_regional_SST_files(run):
