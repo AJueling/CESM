@@ -134,6 +134,101 @@ class DeriveSST(object):
         return
     
     
+    def detrend_monthly_data_pointwise(self, run):
+        """ quadratically detrend monthly fields """
+        assert run in ['ctrl', 'lpd']
+        
+        da = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}.nc')
+        if run=='ctrl':   times = times_ctrl
+        elif run=='lpd':  times = times_lpd
+            
+        for j in tqdm(range(len(times))):
+            time = times[j]
+        
+            if run=='ctrl':     # ctrl
+                print(i, j)
+                da_sel = da.sel(time=slice(time[0], time[1]))
+
+            elif run=='lpd':   # lpd
+                da_sel = da.sel(time=slice(time[0]*365, time[1]*365))#+1e-4))
+                if len(da_sel.time) not in [1788, 3000]:
+                    da_sel = da.sel(time=slice(time[0]*365, time[1]*365+1e-4))
+                y1, y2 = int(time[0]/365), int(time[0]/365)
+
+            print(time, time[0], time[1], len(da_sel.time), da_sel.time[0].values, da_sel.time[-1].values)
+            (da_sel-xr_quadtrend(da_sel)).to_netcdf(f'{path_prace}/SST/SST_monthly_ds_dt_{run}_{time[0]}_{time[1]}.nc')
+        return
+    
+        
+    def detrend_monthly_obs_two_factor(self):
+        """ remove linear combination of anthropogenic and natural forcing signal from CMIP5 MMM """
+        MMM_natural = xr.open_dataarray(f'{path_samoc}/GMST/CMIP5_natural.nc', decode_times=False)
+        MMM_anthro  = xr.open_dataarray(f'{path_samoc}/GMST/CMIP5_anthro.nc' , decode_times=False)
+        monthly_MMM_natural = np.repeat(MMM_natural, 12)
+        monthly_MMM_anthro  = np.repeat(MMM_anthro , 12)
+        monthly_MMM_natural = monthly_MMM_natural.assign_coords(time=monthly_had.time)
+        monthly_MMM_anthro  = monthly_MMM_anthro .assign_coords(time=monthly_had.time)
+        
+        forcings = monthly_MMM_natural.to_dataframe(name='natural').join(
+                    monthly_MMM_anthro.to_dataframe(name='anthro'))
+
+        SST_stacked = monthly_ds_had.stack(z=('latitude', 'longitude'))
+        ds_anthro   = SST_stacked[0,:].squeeze().copy()
+        ds_natural  = SST_stacked[0,:].squeeze().copy()
+
+        # multiple linear regression
+        X = sm.add_constant(forcings[['anthro', 'natural']])
+        for i, coordinate in tqdm(enumerate(SST_stacked.z)):
+            y = SST_stacked[:, i].values
+            model = sm.OLS(y, X).fit()
+            ds_anthro[i] = model.params['anthro']
+            ds_natural[i] = model.params['natural']
+
+        beta_anthro  = ds_anthro .unstack('z')
+        beta_natural = ds_natural.unstack('z')
+
+        ds = xr.merge([{'forcing_anthro': monthly_MMM_anthro}, {'beta_anthro': beta_anthro}])
+        ds.to_netcdf(f'{path_prace}/SST/SST_beta_anthro_MMM_monthly_had.nc')
+
+        ds = xr.merge([{'forcing_natural': monthly_MMM_natural}, {'beta_natural':beta_natural}])
+        ds.to_netcdf(f'{path_prace}/SST/SST_beta_natural_MMM_monthly_had.nc')
+        
+        monthly_ds_dt_had = monthly_ds_had.assign_coords(time=monthly_MMM_anthro.time) \
+                            - beta_anthro*monthly_MMM_anthro \
+                            - beta_natural*monthly_MMM_natural
+        monthly_ds_dt_had.to_netcdf(f'{path_prace}/SST/SST_monthly_ds_tfdt_had.nc')
+        
+        return
+        
+    
+    def isolate_Pacific_SSTs(self, run, extent):
+        """"""
+        assert run in ['ctrl', 'lpd', 'had']
+        assert extent in ['38S', 'Eq', '20N']
+    
+        if run=='ctrl':
+            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_dt_ctrl_{time[0]}_{time[1]}.nc' for time in times_ctrl]
+        elif run=='lpd':
+            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_dt_lpd_{time[0]}_{time[1]}.nc' for time in times_lpd]
+        elif run=='had':
+            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_tfdt_had.nc']
+            
+        area = xr.open_dataarray(f'{path_prace}/geometry/AREA_{extent}_{domain}.nc')  # created in SST_PDO.ipynb
+        for k, fn in tqdm(enumerate(monthly_fns)):
+            da = xr.open_dataarray(fn)
+            if run=='had':  da = self.shift_had(da)
+            da = self.focus_data(da)
+            da = da.where(area)
+            if run in ['ctrl', 'lpd']:
+                time = [times_ctrl, times_lpd][j][k]
+                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
+            else:
+                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}.nc'
+            da.to_netcdf(fn)
+            
+        return
+    
+    
     @staticmethod
     def generate_monthly_regional_SST_files(run):
         """"""
@@ -167,7 +262,7 @@ class DeriveSST(object):
             combined.to_netcdf(f'{path_samoc}/SST/SST_monthly_{r}_{run}.nc')
             combined.close()
             
-#             GenerateSSTFields.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
+#             self.remove_superfluous_files(f'{path_samoc}/SST/SST_monthly_{r}_{run}_*.nc')
             # # remove yearly files
         return
             
@@ -461,6 +556,9 @@ class DeriveSST(object):
         return
     
     
+
+    
+    
     # AUXILIARY FUNCTIONS
     
     
@@ -482,6 +580,25 @@ class DeriveSST(object):
         for x in glob.glob(fn):
             os.remove(x) 
         
+        
+    def shift_had(self, da):
+        """ shifts lons to [0,360] to make Pacific contiguous """
+        return da.assign_coords(longitude=(da.longitude+360)%360).roll(longitude=180, roll_coords=True)
+
+    def focus_data(self, da):
+        """ drops data outside rectangle around Pacific """
+        if 't_lat' in da.coords:  # ctrl
+            lat, lon = 't_lat', 't_lon'
+        elif 'nlat' in da.coords:  # lpd
+            lat, lon = 'nlat', 'nlon'
+        elif 'latitude' in da.coords:  # had
+            lat, lon = 'latitude', 'longitude'
+        else:  raise ValueError('xr DataArray does not have the right lat/lon coords.')
+        da = da.dropna(dim=lat, how='all')
+        da = da.dropna(dim=lon, how='all')
+        return da
+
+
 #     def determine_years_from_slice(run, tres, time_slice):
 #         assert time_slice is not 'full'
 #         if tres=='yrly':

@@ -69,6 +69,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
                 number_of_tapers=5, statistics=True)
         return (spec, freq, jackknife)
     
+    
     def autocorrelation(self, data=None, n=1):
         """ calculates the first n lag autocorrelation coefficient """
         if data is None:
@@ -80,6 +81,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         for i in np.arange(1,n):
             acs[i] = np.corrcoef(data[:-i]-data[:-i].mean(), data[i:]-data[i:].mean())[0,1]
         return acs
+    
         
     def mc_ar1(self, n=1000):
         """ Monte-Carlo AR(1) processes """
@@ -90,6 +92,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
             mc[i,:] = AR_object.generate_sample(nsample=self.len)
             mc[i,:] *= np.std(self.ts.values)/np.std(mc[i,:])
         return mc
+    
         
     def mc_ar1_spectrum(self, N=1000, filter_type=None, filter_cutoff=None):
         """ calculates the MC avg spectrum and the 95% confidence interval """
@@ -113,12 +116,14 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         mc_spectrum[3,:] = np.percentile(mc_spectra, 95, axis=0)
         return mc_spectrum
     
+    
     @staticmethod
     def test_homoscedasticity(X, Y):
         X1, Y1 = X, Y
         if len(X)>150:  X1 = X[-150:]
         if len(Y)>150:  Y1 = Y[-150:]
         print(f'{stats.levene(X, Y)[1]:4.2e}, {stats.levene(X1, Y1)[1]:4.2e}')
+        
         
     def plot_spectrum_ar1(self, data=None):
         """ plots spectrum of single time series + AR(1) spectrum
