@@ -7,19 +7,15 @@ import statsmodels.api as sm
 from tqdm import tqdm
 
 from OHC import t2ds
-from paths import CESM_filename, path_samoc, path_prace, path_data, file_ex_ocn_ctrl, file_ex_ocn_lpd
+from paths import CESM_filename, path_samoc, path_prace, path_data, file_ex_ocn_ctrl, file_ex_ocn_lpd, file_HadISST
 from regions import boolean_mask
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU, xr_AREA
 from xr_regression import xr_lintrend, xr_quadtrend
 from ba_analysis_dataarrays import AnalyzeDataArray as ADA
+from SST_generation import times_ctrl, times_lpd 
 
 
-# 10x 149 year time segments and one 250 year segment
-times_ctrl = (list(zip(np.arange(51, 150, 10), np.arange(200, 301, 10))))
-times_lpd  = (list(zip(np.arange(154, 253, 10), np.arange(303, 452, 10))))
-times_ctrl.append((51,301))
-times_lpd .append((154,404))
 
 
 class DeriveSST(object):
@@ -32,49 +28,53 @@ class DeriveSST(object):
         """ generate the SST data files from TEMP_PD yearly averaged files """
         # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
         # stacking files into one xr DataArray object
-        for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
-            print(y)
-            da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-            da = da.drop(['z_t', 'ULONG', 'ULAT'])
-            da_time = int(da.time.item())
-            if run=='ctrl':
-                # years 5-50 have different TLAT/TLON grids
-                # somehow the non-computed boxes changed (in the continents)
-                if i==0:
-                    TLAT = da['TLAT'].round(decimals=2)
-                    TLONG = da['TLONG'].round(decimals=2)
-                da['TLAT'] = TLAT
-                da['TLONG'] = TLONG
-            else:
-                da['TLAT' ] = da['TLAT' ].round(decimals=2)
-                da['TLONG'] = da['TLONG'].round(decimals=2)
-            del da.encoding["contiguous"]
-            ds = t2ds(da=da, name='SST', t=da_time)
-            ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y:04}.nc', mode='w')
-        combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
-                                     concat_dim='time', autoclose=True, coords='minimal')
-        combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
-        self.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
-        return
-    
-
-    def generate_yrly_SST_ctrl_rect(self, fn=None, fn_out=None):
-        """ creat yrly file from monthly ctrl ocn_rect data """
-        if fn is None:
-            assert fn_out is None
-            fn = f'{path_prace}/SST/SST_monthly_ctrl.nc'
-            fn_out = f'{path_prace}/SST/SST_yrly_rect_ctrl.nc'
-        else: 
-            assert os.path.exists(fn) and type(fn_out)==str
+        
+        if run in ['ctrl', 'rcp', 'lpd', 'lpi']:
+            for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
+                print(y)
+                da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+                da = da.drop(['z_t', 'ULONG', 'ULAT'])
+                da_time = int(da.time.item())
+                if run=='ctrl':
+                    # years 5-50 have different TLAT/TLON grids
+                    # somehow the non-computed boxes changed (in the continents)
+                    if i==0:
+                        TLAT = da['TLAT'].round(decimals=2)
+                        TLONG = da['TLONG'].round(decimals=2)
+                    da['TLAT'] = TLAT
+                    da['TLONG'] = TLONG
+                else:
+                    da['TLAT' ] = da['TLAT' ].round(decimals=2)
+                    da['TLONG'] = da['TLONG'].round(decimals=2)
+                del da.encoding["contiguous"]
+                ds = t2ds(da=da, name='SST', t=da_time)
+                ds.to_netcdf(path=f'{path_samoc}/SST/SST_yrly_{run}_{y:04}.nc', mode='w')
+            combined = xr.open_mfdataset(f'{path_samoc}/SST/SST_yrly_{run}_*.nc',
+                                         concat_dim='time', autoclose=True, coords='minimal')
+            combined.to_netcdf(f'{path_samoc}/SST/SST_yrly_{run}.nc')
+            self.remove_superfluous_files(f'{path_samoc}/SST/SST_yrly_{run}_*.nc')
             
-        monthly_ctrl = xr.open_dataarray(fn, decode_times==False)
-        t_bins = np.arange(0,len(monthly_ctrl)+1,12)
-        t_coords = np.array(monthly_ctrl.time[0::12].values, dtype=int)
-        yrly_ctrl = monthly_ctrl.groupby_bins('time', t_bins, right=False).mean(dim='time')
-        yrly_ctrl = yrly_ctrl.assign_coords(time_bins=t_coords).rename({'time_bins':'time'})
-        yrly_ctrl.to_netcdf(fn_out)
+            if run=='ctrl':  # create also ocn_rect file
+                fn = f'{path_prace}/SST/SST_monthly_ctrl.nc'
+                fn_out = f'{path_prace}/SST/SST_yrly_rect_ctrl.nc'
+                monthly_ctrl = xr.open_dataarray(fn, decode_times==False)
+                t_bins = np.arange(0,len(monthly_ctrl)+1,12)
+                t_coords = np.array(monthly_ctrl.time[0::12].values, dtype=int)
+                yrly_ctrl = monthly_ctrl.groupby_bins('time', t_bins, right=False).mean(dim='time')
+                yrly_ctrl = yrly_ctrl.assign_coords(time_bins=t_coords).rename({'time_bins':'time'})
+                yrly_ctrl.to_netcdf(fn_out)
+            
+        elif run=='had':
+            ds2 = xr.open_dataset(file_HadISST)
+            ds2 = ds2.where(ds2['sst'] != -1000.)
+            ds2 = ds2.sst.where(np.isnan(ds2.sst)==False, -1.8)
+            ds2 = ds2.groupby('time.year').mean('time')
+            ds2 = ds2.rename({'year':'time'}).isel(time=slice(0,-1))
+            ds2.coords['time'] = (ds2.coords['time']-1870)*365
+            ds2.to_netcdf(f'{path_samoc}/SST/SST_yrly_had.nc')
+            
         return
-    
+
     
     def generate_yrly_global_mean_SST(self, run):
         """ calcaultes the global mean sea surface temperature
@@ -126,19 +126,28 @@ class DeriveSST(object):
         return
     
     
-    def deseasonalize_monthly_data(self, run):
-        """ """
+    def deseasonalize_monthly_data(self, run, time_slice='full'):
+        """ removes the average difference of a month to the yearly average"""
         assert run in ['ctrl', 'lpd', 'had']
+
         monthly = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}.nc')
         if run=='ctrl:':   yrly = xr.open_dataarray(f'{path_prace}/SST/SST_yrly_rect_ctrl.nc')
         else:              yrly = xr.open_dataarray(f'{path_prace}/SST/SST_yrly_{run}.nc')
+            
+        if time_slice=='full':
+            fn_out = f'{path_prace}/SST/SST_monthly_deseasonalized_{run}.nc'
+        else:
+            fn_out = f'{path_prace}/SST/SST_monthly_deseasonalized_{run}_{time_slice[0]}_{time_slice[1]}.nc'
+            yrly = self.select_time(data=yrly, time_slice=time_slice)
+            monthly = self.select_time(data=monthly, time_slice=time_slice)
+        
         assert len(monthly)/len(yrly) == 12.0
         
         temp = monthly.copy()
         for j in tqdm(range(12)):
             m = monthly.isel(time=slice(j,len(monthly)+1,12))
             temp[j::12] -= (m-yrly.assign_coords(time=m.time)).mean(dim='time')
-        temp.to_netcdf(f'{path_prace}/SST/SST_monthly_deseasonalized_{runs}.nc')
+        temp.to_netcdf(fn_out)
         return
     
     
@@ -158,7 +167,7 @@ class DeriveSST(object):
                 da_sel = da.sel(time=slice(time[0], time[1]))
 
             elif run=='lpd':   # lpd
-                da_sel = da.sel(time=slice(time[0]*365, time[1]*365))#+1e-4))
+                da_sel = da.sel(time=slice(time[0]*365, time[1]*365))
                 if len(da_sel.time) not in [1788, 3000]:
                     da_sel = da.sel(time=slice(time[0]*365, time[1]*365+1e-4))
                 y1, y2 = int(time[0]/365), int(time[0]/365)
@@ -209,30 +218,26 @@ class DeriveSST(object):
         return
         
     
-    def isolate_Pacific_SSTs(self, run, extent):
+    def isolate_Pacific_SSTs(self, run, extent, time_slice):
         """"""
         assert run in ['ctrl', 'lpd', 'had']
         assert extent in ['38S', 'Eq', '20N']
+        
+        time = time_slice
     
-        if run=='ctrl':
-            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_dt_ctrl_{time[0]}_{time[1]}.nc' for time in times_ctrl]
-        elif run=='lpd':
-            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_dt_lpd_{time[0]}_{time[1]}.nc' for time in times_lpd]
-        elif run=='had':
-            monthly_fns = [f'{path_prace}/SST/SST_monthly_ds_tfdt_had.nc']
+        if run in ['ctrl', 'lpd']: fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}_{time[0]}_{time[1]}.nc'
+        elif run=='had':           fn = f'{path_prace}/SST/SST_monthly_ds_tfdt_had.nc'
             
         area = xr.open_dataarray(f'{path_prace}/geometry/AREA_{extent}_{domain}.nc')  # created in SST_PDO.ipynb
-        for k, fn in tqdm(enumerate(monthly_fns)):
-            da = xr.open_dataarray(fn)
-            if run=='had':  da = self.shift_had(da)
-            da = self.focus_data(da)
-            da = da.where(area)
-            if run in ['ctrl', 'lpd']:
-                time = [times_ctrl, times_lpd][j][k]
-                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
-            else:
-                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}.nc'
-            da.to_netcdf(fn)
+        da = xr.open_dataarray(fn)
+        if run=='had':  da = self.shift_had(da)
+        da = self.focus_data(da)
+        da = da.where(area)
+        if run in ['ctrl', 'lpd']:
+            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
+        else:
+            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}.nc'
+        da.to_netcdf(fn)
             
         return
     
@@ -339,7 +344,7 @@ class DeriveSST(object):
 
         print('load and subselect data')
         MASK = boolean_mask(domain=domain, mask_nr=0, rounded=True)
-        SST = self.select_time_slice(xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc',\
+        SST = self.select_time(xr.open_dataarray(f'{path_samoc}/SST/SST_{tres}_{run}.nc',\
                                                   decode_times=False).where(MASK),
                                 time_slice)
         
@@ -460,14 +465,14 @@ class DeriveSST(object):
                 times = xr.open_dataarray(f'{path_samoc}/SST/SST_monthly_had.nc', decode_times=False).time.values
                 forced_signal = forced_signal.assign_coords(time=times)
 
-        forced_signal = self.select_time_slice(forced_signal, time_slice)
+        forced_signal = self.select_time(forced_signal, time_slice)
 
         forced_signal -= forced_signal.mean()
         forced_signal.name = 'forcing'
         return forced_signal
     
     
-    def SST_pointwise_detrending(self, run, tres='yrly', degree=1, time_slice='full'):
+    def SST_pointwise_detrending(self, run, tres='yrly', degree=2, time_slice='full'):
         """ calculates the trends of ocean fields
 
         input:
@@ -481,16 +486,13 @@ class DeriveSST(object):
         """
         print('detrending SST pointwise')
         assert degree in [1, 2]
-        if run in ['ctrl', 'rcp']:
-            MASK = boolean_mask('ocn'     , 0)
-        elif run in ['lpi', 'lpd']:
-            MASK = boolean_mask('ocn_low' , 0)
+        if run in ['ctrl', 'rcp']:   MASK = boolean_mask('ocn'     , 0)
+        elif run in ['lpi', 'lpd']:  MASK = boolean_mask('ocn_low' , 0)
         (jm, im) = MASK.shape
         fn = f'{path_samoc}/SST/SST_{tres}_{run}.nc'
-        SST = self.select_time_slice(xr.open_dataarray(fn, decode_times=False).where(MASK),
+        SST = self.select_time(xr.open_dataarray(fn, decode_times=False).where(MASK),
                                      time_slice)
-        SST   = SST.where(MASK>0).fillna(-9999)
-
+        SST = SST.where(MASK>0).fillna(-9999)
         Nt = SST.values.shape[0]
         A = SST.values.reshape((Nt, im*jm))
 
@@ -570,13 +572,20 @@ class DeriveSST(object):
     # AUXILIARY FUNCTIONS
     
     
-    def select_time_slice(self, data, time_slice):
+    def select_time(self, data, time_slice):
         """ if time_slice is not `full`, return subselected data
         time_slice .. either `full` or (start_year, end_year) tuple
         """
         assert time_slice=='full' or type(time_slice)==tuple
         if time_slice!='full':  # use subset in time
-            time_coords = tuple(365*x+31 for x in time_slice)
+            
+            if np.isclose(data.time[1]-data.time[0], 365, atol=1):   # yrly data with time in days
+                time_coords = tuple(365*x+31 for x in time_slice)
+            elif np.isclose(data.time[1]-data.time[0], 1/12):        # monthly data with time in years
+                time_coords = time_slice
+            elif np.isclose(data.time[1]-data.time[0], 30, atol=1):  # monthly data with time in days
+                time_coords = tuple(365*x+31 for x in time_slice)
+                
             data = data.sel(time=slice(*time_coords))
         else:  # return original data
             pass
