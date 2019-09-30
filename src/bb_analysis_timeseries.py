@@ -14,9 +14,8 @@ from statsmodels.stats.weightstats import DescrStatsW
 
 from grid import generate_lats_lons
 from regions import boolean_mask
-from filters import lowpass
+from filters import lowpass, chebychev
 from xr_DataArrays import dll_coords_names, xr_AREA
-
 
 from ba_analysis_dataarrays import AnalyzeDataArray
 
@@ -87,6 +86,8 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         """ Monte-Carlo AR(1) processes """
         phi = self.autocorrelation(n=1)[1]
         AR_object = ArmaProcess(np.array([1, -phi]), np.array([1]))
+#         sigma_eps = np.sqrt(np.var(self.ts)*(1-phi**2))
+#         AR_object = ArmaProcess(np.array([1, -phi]), np.array([1, sigma_eps]))
         mc = np.zeros((n, self.len))
         for i in range(n):
             mc[i,:] = AR_object.generate_sample(nsample=self.len)

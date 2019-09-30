@@ -58,13 +58,21 @@ class DeriveSST(object):
         return
     
 
-    def generate_yrly_SST_ctrl_rect(self):
-        """ monthly data of ctrl run """
-        monthly_ctrl = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_ctrl.nc')
+    def generate_yrly_SST_ctrl_rect(self, fn=None, fn_out=None):
+        """ creat yrly file from monthly ctrl ocn_rect data """
+        if fn is None:
+            assert fn_out is None
+            fn = f'{path_prace}/SST/SST_monthly_ctrl.nc'
+            fn_out = f'{path_prace}/SST/SST_yrly_rect_ctrl.nc'
+        else: 
+            assert os.path.exists(fn) and type(fn_out)==str
+            
+        monthly_ctrl = xr.open_dataarray(fn, decode_times==False)
         t_bins = np.arange(0,len(monthly_ctrl)+1,12)
+        t_coords = np.array(monthly_ctrl.time[0::12].values, dtype=int)
         yrly_ctrl = monthly_ctrl.groupby_bins('time', t_bins, right=False).mean(dim='time')
-        yrly_ctrl = yrly_ctrl.assign_coords(time_bins=np.arange(1, 301)).rename({'time_bins':'time'})
-        yrly_ctrl.to_netcdf(f'{path_prace}/SST/SST_yrly_rect_ctrl.nc')
+        yrly_ctrl = yrly_ctrl.assign_coords(time_bins=t_coords).rename({'time_bins':'time'})
+        yrly_ctrl.to_netcdf(fn_out)
         return
     
     
@@ -584,7 +592,8 @@ class DeriveSST(object):
     def shift_had(self, da):
         """ shifts lons to [0,360] to make Pacific contiguous """
         return da.assign_coords(longitude=(da.longitude+360)%360).roll(longitude=180, roll_coords=True)
-
+    
+    
     def focus_data(self, da):
         """ drops data outside rectangle around Pacific """
         if 't_lat' in da.coords:  # ctrl
