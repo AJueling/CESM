@@ -244,13 +244,13 @@ grid_file  = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.ieee
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
 file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
-file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
+# file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 
 # daily data
 file_ex_ocn_daily_SST_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 249, m=1, d=32, name='SST')
 file_ex_ocn_daily_SSH_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 249, m=1, d=1, name='SSH')
-file_ex_ocn_daily_SST_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=32, name='SST')
-file_ex_ocn_daily_SSH_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=1, name='SSH')
+# file_ex_ocn_daily_SST_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=32, name='SST')
+# file_ex_ocn_daily_SSH_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2001, m=1, d=1, name='SSH')
 
 file_ex_ocn_rect  = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.0200-01.interp900x602.nc'
 

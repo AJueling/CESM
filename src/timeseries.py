@@ -2,16 +2,15 @@ import os
 import numpy as np
 import xarray as xr
 
-
 from paths import path_ocn_ctrl, path_ocn_rcp
 from paths import path_atm_ctrl, path_atm_rcp
 from paths import path_yrly_ctrl, path_yrly_rcp
 from paths import rcpstr, spinup, CESM_filename
-from paths import path_samoc, path_results
 from filters import lowpass, chebychev, notch, deseasonalize  # old code imports those from here
 from constants import abs_zero
 from xr_integrate import xr_surf_mean, xr_zonal_mean
 from xr_DataArrays import xr_AREA
+
 
 
 class IterateOutputCESM:
