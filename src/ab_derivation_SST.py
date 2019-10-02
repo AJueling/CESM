@@ -212,10 +212,12 @@ class DeriveSST(object):
     
     def isolate_Pacific_SSTs(self, run, extent, time):
         """"""
+        print('isolate Pacific SSTs')
+        if time is not None: print(time, time[0], time[1])
         assert run in ['ctrl', 'lpd', 'had']
         assert extent in ['38S', 'Eq', '20N']
         
-        if run=='had':  fn = f'{path_prace}/SST/SST_monthly_ds_tfdt_had.nc'
+        if run=='had':  fn = f'{path_prace}/SST/SST_monthly_ds_dt_had.nc'
         else:           fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}_{time[0]}_{time[1]}.nc'
             
         if run=='ctrl':   domain = 'ocn_rect'
@@ -225,13 +227,14 @@ class DeriveSST(object):
         area = xr.open_dataarray(f'{path_prace}/geometry/AREA_{extent}_{domain}.nc')  # created in SST_PDO.ipynb
         da = xr.open_dataarray(fn)
         if run=='had':  da = self.shift_had(da)  # longitude: [-180,180] -> [0,360]
-        da = da.where(area)
+        da = da.where(np.isnan(area)==False)
         da = self.focus_data(da)
+        # print(da)
         if run in ['ctrl', 'lpd']:
-            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
+            fn_out = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
         else:
-            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}.nc'
-        da.to_netcdf(fn)
+            fn_out = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}.nc'
+        da.where(np.isnan(area)==False).to_netcdf(fn_out)
             
         return
 

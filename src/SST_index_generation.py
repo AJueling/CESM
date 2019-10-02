@@ -55,8 +55,8 @@ times_lpd  = list(zip(np.append(np.arange(154, 253, 10),[154]),
 times_had  = [None]
 
 if __name__=='__main__':
-    run = str(sys.argv[1])
-    idx = str(sys.argv[2])
+    run = str(sys.argv[1]).lower()
+    idx = str(sys.argv[2]).upper()
     assert run in ['ctrl', 'lpd', 'had']
     assert idx in ['AMO', 'SOM', 'TPI', 'PMV']
 
