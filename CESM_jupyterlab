@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # activates the conda CESM virtual environment and creates a jupyter kernel that can be accessed remotely
+module load pre2019
 module load eb
 module load Miniconda3
 source activate CESM
