@@ -1,5 +1,6 @@
 import glob
 import os
+import dask
 import numpy as np
 import xarray as xr
 import warnings
@@ -17,7 +18,7 @@ from xr_regression import xr_lintrend
 from xr_DataArrays import xr_AREA, dll_dims_names
 
 from ab_derivation_SST import DeriveSST
-from ba_analysis_dataarrays import AnalyzeDataArray
+from ba_analysis_dataarrays import AnalyzeDataArray as ADA
 from bc_analysis_fields import AnalyzeField
 
 warnings.simplefilter(action='ignore', category=RuntimeWarning)  # to ignore mean of nan message
@@ -34,7 +35,7 @@ class AnalyzeIndex(object):
         """ calculates the average SST over an area, possibly as a time series """
         assert type(xa_SST)==xr.core.dataarray.DataArray
         assert type(AREA)==xr.core.dataarray.DataArray
-        print(f'calculating average of SST in area {index_loc}')
+        print(f'calculating area average of SST')
         if type(index_loc)==dict:
             index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
         elif index_loc==None:
@@ -99,19 +100,19 @@ class AnalyzeIndex(object):
         """ processes raw indices: filtering and TPI summation """
         assert run in ['ctrl', 'lpd', 'had']
             
-        # AMO & SOM
-        if index in ['AMO', 'SOM']:
-            fn = f'{path_prace}/SST/{idx}_{dts}_{dt}_raw_{run}{ts}.nc'
-            da = xr.open_dataarray(fn, decode_times=False)
-            da = DeriveSST().select_time(da, time)
-            lowpass(da, 13).to_netcdf(f'{path_prace}/SST/{idx}_{dts}_{dt}_{run}{ts}.nc')
+        # # AMO & SOM
+        # if index in ['AMO', 'SOM']:
+        #     fn = f'{path_prace}/SST/{idx}_{dts}_{dt}_raw_{run}{ts}.nc'
+        #     da = xr.open_dataarray(fn, decode_times=False)
+        #     da = DeriveSST().select_time(da, time)
+        #     lowpass(da, 13).to_netcdf(f'{path_prace}/SST/{idx}_{dts}_{dt}_{run}{ts}.nc')
 
-        elif index in ['TPI']:
-            lowpass(TPI, 13*12).to_netcdf(f'{path_prace}/SST/TPI_{dts}_{dt}_{run}{ts}.nc')
+        # elif index in ['TPI']:
+        #     lowpass(TPI, 13*12).to_netcdf(f'{path_prace}/SST/TPI_{dts}_{dt}_{run}{ts}.nc')
         
-        elif index=='PMV':
-            for extent in ['38S', 'Eq', '20N']:
-                lowpass(TPI, 13*12).to_netcdf(f'{path_prace}/SST/TPI_{dts}_{dt}_{run}{ts}.nc')
+        # elif index=='PMV':
+        #     for extent in ['38S', 'Eq', '20N']:
+        #         lowpass(TPI, 13*12).to_netcdf(f'{path_prace}/SST/TPI_{dts}_{dt}_{run}{ts}.nc')
                 
         return
     
@@ -121,13 +122,18 @@ class AnalyzeIndex(object):
         assert tavg in ['yrly', 'monthly']
         
         if run=='had':
-            if tavg=='monthly':  fn = f'{path_prace}/SST/SST_monthly_ds_dt_had.nc'
-            elif tavg=='yrly':   fn = f'{path_prace}/SST/SST_yrly_tfdt_had.nc'
-            fn_new = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}.nc'
-            
+            ts = ''
         elif run in ['ctrl', 'lpd']:
-            fn = f'{path_prace}/SST/SST_{tavg}_ds_dt_{run}_{time[0]}_{time[1]}.nc'
-            fn_new = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}_{time[0]}_{time[1]}.nc'
+            ts = f'_{time[0]}_{time[1]}'
+
+
+        if tavg=='monthly':  dt = f'ds_dt'
+        elif tavg=='yrly':
+            if run=='had':   dt = 'tfdt'
+            else:            dt = 'pwdt'
+        fn = f'{path_prace}/SST/SST_{tavg}_{dt}_{run}{ts}.nc'
+        fn_new = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}{ts}.nc'
+            
             
         da = xr.open_dataarray(fn, decode_times=False)
         if time is not None:  da = DeriveSST().select_time(da, time)
@@ -135,34 +141,49 @@ class AnalyzeIndex(object):
         return
     
     
-    def make_regression_files(self, run, index, time=None):
+    def make_regression_files(self, run, idx, time=None):
         """ generate regression files """
         assert run in ['ctrl', 'lpd', 'had']
-        
-        ts = self.time_slice_string(time)
-        dt = self.detrend_string(run)
+        if idx in ['AMO', 'SOM']:    tavg = 'yrly'
+        elif idx in ['TPI', 'PMV']:  tavg = 'monthly'
 
-        fn_acr = f'{path_prace}/SST/SST_autocorrelation_{run}{ts}.nc'
+        ts = self.time_string(time)
+        fn_acr = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}{ts}.nc'
         autocorr = xr.open_dataarray(fn_acr, decode_times=False)
-
-        if run=='had':
-            fn_SST = f'{path_prace}/SST/SST_GMST_sqdt_yrly_had{ts}.nc'
-        elif run in ['ctrl', 'lpd']:
-            fn_SST = f'{path_prace}/SST/SST_quadratic_pwdt_yrly_{run}.nc'
+        
+        if tavg=='yrly':
+            if run=='had':     dt = 'tfdt'
+            else:              dt = 'pwdt'
+        elif tavg=='monthly':  dt = 'ds_dt'
+        fn_SST = f'{path_prace}/SST/SST_{tavg}_{dt}_{run}{ts}.nc'
         SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
         
+        def calculate_regression(SST_dt, index, tavg, fn_out):
+            if tavg=='yrly':       sfreq =  1  # sampling frequency [per year]
+            elif tavg=='monthly':  sfreq = 12
+            filter_cutoff = 13
+            edge = int(filter_cutoff/2)+1      # 7
+            remove_edge = edge*sfreq           # removing filter edge effects
+            ds = ADA().lag_linregress(x=index[remove_edge:-remove_edge],  
+                                      y=SST_dt[remove_edge:-remove_edge], 
+                                      autocorrelation=autocorr,
+                                      filterperiod=sfreq*filter_cutoff,
+                                      standardize=True)
+            ds.to_netcdf(fn_out)
+            return
+        if tavg=='yrly':  dt= 'dt'
         if idx in ['AMO', 'SOM', 'TPI']:
-            fn_idx = f'{path_prace}/SST/{idx}_{run}.nc'
-            index = xr.open_dataarray(fn_idx, decode_times=False)
-            if time!='full':  index = DeriveSST().select_time(index, time)
+            index = xr.open_dataarray(f'{path_prace}/SST/{idx}_{dt}_raw_{run}{ts}.nc',
+                                      decode_times=False)
+            fn_out = f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc'
+            calculate_regression(SST_dt, index, tavg, fn_out)
+        elif idx=='PMV':
+            for extent in ['38S', 'Eq', '20N']:
+                index = xr.open_dataset(f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc',
+                                        decode_times=False).pcs.squeeze()
+                fn_out = f'{path_prace}/SST/{idx}_{extent}_regr_{run}{ts}.nc'
+                calculate_regression(SST_dt, index, tavg, fn_out)
 
-            xA = AnalyzeDataArray()
-            ds = xA.lag_linregress(x=index[7:-7],  # removing filter edge effects
-                                   y=SST_dt[7:-7], 
-                                   autocorrelation=autocorr,
-                                   standardize=True,
-                                  )
-            ds.to_netcdf(f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc')
         print('success')
         return
     
@@ -241,11 +262,11 @@ class AnalyzeIndex(object):
         return blats, blons, mask_nr
             
     
-    def time_slice_string(self, time):
+    def time_string(self, time):
         """ string for time subset """
-        if time=='full':         ts = ''
-        elif type(time)==tuple:  ts = f'_{time[0]}_{time[1]}'
-        else:                      raise ValueError()
+        if time==None:      ts = ''
+        elif len(time)==2:  ts = f'_{time[0]}_{time[1]}'
+        else:               raise ValueError()
         return ts
             
         

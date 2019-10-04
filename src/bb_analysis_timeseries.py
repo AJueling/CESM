@@ -34,7 +34,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         ts .. (np.ndarray) regularly sampled time series data
         """
         self.ts = ts
-#         assert type(self.ts)==np.ndarray
+        # assert type(self.ts)==np.ndarray
         assert 'time' in ts.coords
         self.len = len(self.ts)
         
@@ -86,8 +86,8 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         """ Monte-Carlo AR(1) processes """
         phi = self.autocorrelation(n=1)[1]
         AR_object = ArmaProcess(np.array([1, -phi]), np.array([1]))
-#         sigma_eps = np.sqrt(np.var(self.ts)*(1-phi**2))
-#         AR_object = ArmaProcess(np.array([1, -phi]), np.array([1, sigma_eps]))
+        # sigma_eps = np.sqrt(np.var(self.ts)*(1-phi**2))
+        # AR_object = ArmaProcess(np.array([1, -phi]), np.array([1, sigma_eps]))
         mc = np.zeros((n, self.len))
         for i in range(n):
             mc[i,:] = AR_object.generate_sample(nsample=self.len)

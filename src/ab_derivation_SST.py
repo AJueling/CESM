@@ -170,18 +170,19 @@ class DeriveSST(object):
         
     def detrend_monthly_obs_two_factor(self):
         """ remove linear combination of anthropogenic and natural forcing signal from CMIP5 MMM """
+        monthly_ds_had = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_ds_had.nc')
+        SST_stacked = monthly_ds_had.stack(z=('latitude', 'longitude'))
+        
         MMM_natural = xr.open_dataarray(f'{path_prace}/GMST/CMIP5_natural.nc', decode_times=False)
         MMM_anthro  = xr.open_dataarray(f'{path_prace}/GMST/CMIP5_anthro.nc' , decode_times=False)
         monthly_MMM_natural = np.repeat(MMM_natural, 12)
         monthly_MMM_anthro  = np.repeat(MMM_anthro , 12)
-        monthly_ds_had = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_ds_had.nc')
         monthly_MMM_natural = monthly_MMM_natural.assign_coords(time=monthly_ds_had.time)
         monthly_MMM_anthro  = monthly_MMM_anthro .assign_coords(time=monthly_ds_had.time)
-        
         forcings = monthly_MMM_natural.to_dataframe(name='natural').join(
                     monthly_MMM_anthro.to_dataframe(name='anthro'))
 
-        SST_stacked = monthly_ds_had.stack(z=('latitude', 'longitude'))
+        ds_constant = SST_stacked[0,:].squeeze().copy()
         ds_anthro   = SST_stacked[0,:].squeeze().copy()
         ds_natural  = SST_stacked[0,:].squeeze().copy()
 
@@ -190,21 +191,23 @@ class DeriveSST(object):
         for i, coordinate in tqdm(enumerate(SST_stacked.z)):
             y = SST_stacked[:, i].values
             model = sm.OLS(y, X).fit()
-            ds_anthro[i] = model.params['anthro']
-            ds_natural[i] = model.params['natural']
+            ds_constant[i] = model.params['const']
+            ds_natural[i]  = model.params['natural']
+            ds_anthro[i]   = model.params['anthro']
 
-        beta_anthro  = ds_anthro .unstack('z')
-        beta_natural = ds_natural.unstack('z')
+        constant     = ds_constant.unstack('z')
+        beta_anthro  = ds_anthro  .unstack('z')
+        beta_natural = ds_natural .unstack('z')
 
-        ds = xr.merge([{'forcing_anthro': monthly_MMM_anthro}, {'beta_anthro': beta_anthro}])
-        ds.to_netcdf(f'{path_prace}/SST/SST_beta_anthro_MMM_monthly_had.nc')
-
-        ds = xr.merge([{'forcing_natural': monthly_MMM_natural}, {'beta_natural':beta_natural}])
-        ds.to_netcdf(f'{path_prace}/SST/SST_beta_natural_MMM_monthly_had.nc')
+        ds = xr.merge([{'forcing_anthro' : monthly_MMM_anthro} ,{'beta_anthro' :beta_anthro} ,
+                       {'forcing_natural': monthly_MMM_natural},{'beta_natural':beta_natural},
+                       {'constant':constant}])
+        ds.to_netcdf(f'{path_prace}/SST/SST_monthly_MMM_fit_had.nc')
         
         monthly_ds_dt_had = monthly_ds_had.assign_coords(time=monthly_MMM_anthro.time) \
                             - beta_anthro*monthly_MMM_anthro \
-                            - beta_natural*monthly_MMM_natural
+                            - beta_natural*monthly_MMM_natural \
+                            - constant
         monthly_ds_dt_had.to_netcdf(f'{path_prace}/SST/SST_monthly_ds_dt_had.nc')
         
         return

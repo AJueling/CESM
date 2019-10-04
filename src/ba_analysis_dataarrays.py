@@ -2,6 +2,7 @@
 contains 3 classes:
 """
 
+import dask
 import numpy as np
 import xesmf as xe
 import mtspec
@@ -73,15 +74,16 @@ class AnalyzeDataArray(object):
         return cor
     
     
-    @staticmethod
-    def lag_linregress(x, y, dof_corr=1, lagx=0, lagy=0, 
+    def lag_linregress(self, x, y, dof_corr=1, lagx=0, lagy=0,\
                        autocorrelation=None, filterperiod=None, standardize=False):
-        """
+        """  (lagged) linear regression of y on x (e.g. y=SST on x=index)
+
         adapted from: https://hrishichandanpurkar.blogspot.com/2017/09/vectorized-functions-for-correlation.html
         
         input:
-        x               .. 1D time series, or three dimensions (time,lat,lon).
-        y               .. (first dim must be time)
+        x               .. 1D time series
+        y               .. time series (first dim must be time),
+                           can be three dimensions (time,lat,lon)
         dof_corr        .. (0,1] correction factor for reduced degrees of freedom
         lagx, lagy      .. lags for x or y
         autocorrelation .. 2D map
@@ -98,6 +100,7 @@ class AnalyzeDataArray(object):
         """
         np.warnings.filterwarnings('ignore')  # silencing numpy warning for NaNs
         assert dof_corr<=1 and dof_corr>0
+        assert 'time' in x.coords and 'time' in y.coords
         
         # aligning data on time axis
         x,y = xr.align(x,y)
@@ -153,5 +156,6 @@ class AnalyzeDataArray(object):
         ds.attrs['last_year']  = int(y.time[-1]/365)
         ds.attrs['lagx'] = lagx
         ds.attrs['lagy'] = lagy
+        ds.attrs['standardized'] = int(standardize)
 
         return ds

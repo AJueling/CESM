@@ -19,6 +19,7 @@ detrending methods:
 
 import os
 import sys
+import dask
 import datetime
 import numpy as np
 
@@ -68,6 +69,7 @@ if __name__=='__main__':
     elif run=='lpd':  times = times_lpd
     elif run=='had':  times = times_had
 
+
     # ==============================================================================================
     print('1. create monthly and yearly SST files', time_print())
     # ==============================================================================================
@@ -97,38 +99,38 @@ if __name__=='__main__':
 
     # yrly data
     for time in times:
+        ts = AI().time_string(time)
         if run=='had':  # two-factor detrending
-            fn = f'{path_prace}/SST/SST_yrly_tfdt_had.nc'
+            dt = 'tfdt'
             fct = DS().SST_remove_forced_signal
             kwargs = dict(run='had', tavg='yrly', detrend_signal='GMST', time=None)
         elif run in ['ctrl', 'lpd']:  # quadratic detrending
-            fn = f'{path_prace}/SST/SST_yrly_pwdt_{run}_{time[0]}_{time[1]}.nc'
+            dt = 'pwdt'
             fct = DS().SST_pointwise_detrending
             kwargs = dict(run=run, tavg='yrly', degree=2, time=time)
+        fn = f'{path_prace}/SST/SST_yrly_{dt}_{run}{ts}.nc'
         trex(fn=fn, fct=fct, kwargs=kwargs)
 
     # monthly data
     if idx in ['TPI', 'PMV']:
         for time in times:
+            ts = AI().time_string(time)
+
             # deseasonalize
             fct = DS().deseasonalize_monthly_data
-            if run=='had':
-                fn = f'{path_prace}/SST/SST_monthly_ds_had.nc'
-                kwargs = dict(run='had')
-            elif run in ['ctrl', 'lpd']:
-                fn = f'{path_prace}/SST/SST_monthly_ds_{run}_{time[0]}_{time[1]}.nc'
-                kwargs = dict(run=run, time=tuple(time))
+            fn = f'{path_prace}/SST/SST_monthly_ds_{run}{ts}.nc'
+            kwargs = dict(run=run)
+            if run in ['ctrl', 'lpd']: kwargs['time'] = time
             trex(fn=fn, fct=fct, kwargs=kwargs)
                     
             # detrend
+            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
             if run=='had':
-                fn = f'{path_prace}/SST/SST_monthly_ds_dt_had.nc'
                 fct = DS().detrend_monthly_obs_two_factor
                 kwargs = {}
             elif run in ['ctrl', 'lpd']:
-                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}_{time[0]}_{time[1]}.nc'
                 fct = DS().detrend_monthly_data_pointwise
-                kwargs = dict(run=run, time=tuple(time))
+                kwargs = dict(run=run, time=time)
             trex(fn=fn, fct=fct, kwargs=kwargs)
             
             # subselect Pacific data
@@ -136,10 +138,7 @@ if __name__=='__main__':
                 fct = DS().isolate_Pacific_SSTs
                 for extent in ['38S', 'Eq', '20N']:
                     kwargs = dict(run=run, extent=extent, time=time)
-                    if run=='had':
-                        fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_had.nc'
-                    elif run in ['ctrl', 'lpd']:
-                        fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
+                    fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}{ts}.nc'
                     trex(fn=fn, fct=fct, kwargs=kwargs)    
 
             
@@ -154,11 +153,9 @@ if __name__=='__main__':
     if idx in ['AMO', 'SOM', 'TPI']:
         fct = AI().derive_SST_avg_index
         for time in times:
+            ts = AI().time_string(time)
             kwargs = dict(run=run, index=idx, time=time)
-            if run=='had':
-                fn = f'{path_prace}/SST/{idx}_{dt}_raw_had.nc'
-            elif run in ['ctrl', 'lpd']:
-                fn = f'{path_prace}/SST/{idx}_{dt}_raw_{run}_{time[0]}_{time[1]}.nc'
+            fn = f'{path_prace}/SST/{idx}_{dt}_raw_{run}{ts}.nc'
             trex(fn=fn, fct=fct, kwargs=kwargs) 
 
     # EOF analysis
@@ -166,11 +163,9 @@ if __name__=='__main__':
         fct = AI().Pacific_EOF_analysis
         for extent in ['38S', 'Eq', '20N']:
             for time in times:
+                ts = AI().time_string(time)
                 kwargs = dict(run=run, extent=extent, time=time)
-                if run=='had':
-                    fn = f'{path_prace}/SST/PMV_EOF_{extent}_had.nc'
-                elif run in ['ctrl', 'lpd']:
-                    fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}_{time[0]}_{time[1]}.nc'
+                fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
                 trex(fn=fn, fct=fct, kwargs=kwargs)
 
                      
@@ -181,19 +176,15 @@ if __name__=='__main__':
     fct = AI().derive_final_SST_indices
 
     for time in times:
+        ts = AI().time_string(time)
         kwargs = dict(run=run, index=idx, time=time)
         if idx=='PMV':
             for extent in ['38S', 'Eq', '20N']:
-                if run=='had':
-                    fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}.nc'
-                elif run in ['ctrl', 'lpd']:
-                    fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}_{time[0]}_{time[1]}.nc'
+                fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
+                trex(fn=fn, fct=fct, kwargs=kwargs)
         else:
-            if run=='had':
-                fn = f'{path_prace}/SST/{idx}_{run}.nc'
-            elif run in ['ctrl', 'lpd']:
-                fn = f'{path_prace}/SST/{idx}_{run}_{time[0]}_{time[1]}.nc'
-        trex(fn=fn, fct=fct, kwargs=kwargs)
+            fn = f'{path_prace}/SST/{idx}_{run}{ts}.nc'
+            trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
     # ==============================================================================================
@@ -206,36 +197,28 @@ if __name__=='__main__':
     if idx in ['TPI', 'PMV']:  tavg = 'monthly'
 
     for time in times:
+        ts = AI().time_string(time)
         kwargs = dict(run=run, tavg=tavg, time=time)
-        if run=='had':
-            fn = f'{path_prace}/SST/SST_{tavg}_autocorrelation_had.nc'
-        elif run in ['ctrl', 'lpd']:
-            fn = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}_{time[0]}_{time[1]}.nc'
+        fn = f'{path_prace}/SST/SST_{tavg}_autocorrelation_had{ts}.nc'
         trex(fn=fn, fct=fct, kwargs=kwargs)
-
 
 
     # ==============================================================================================
     print('6. SST regression on indices', time_print())
     # ==============================================================================================
 
-    # fct = AI().make_regression_files
+    fct = AI().make_regression_files
 
-    # for time in times:
-    #     kwargs = dict(run=run, index=idx, time=None)
-    #     if idx=='PMV':
-    #         for extent in ['38S', 'Eq', '20N']:
-    #             if run=='had':
-    #                 fn = f'{path_prace}/SST/{idx}_{extent}_regr_{run}.nc'
-    #             elif run in ['ctrl', 'lpd']:
-    #                 fn = f'{path_prace}/SST/{idx}_{extent}_regr_{run}_{time[0]}_{time[1]}.nc'
-    #     else:
-    #         if run=='had':
-    #             fn = f'{path_prace}/SST/{idx}_regr_{run}.nc'
-    #         elif run in ['ctrl', 'lpd']:
-    #             fn = f'{path_prace}/SST/{idx}_regr_{run}_{time[0]}_{time[1]}.nc'
-    #     trex(fn=fn, fct=fct, kwargs=kwargs)
-
+    for time in times:
+        ts = AI().time_string(time)
+        kwargs = dict(run=run, idx=idx, time=time)
+        if idx=='PMV':
+            for extent in ['38S', 'Eq', '20N']:
+                fn = f'{path_prace}/SST/{idx}_{extent}_regr_{run}{ts}.nc'
+                trex(fn=fn, fct=fct, kwargs=kwargs)
+        else:
+            fn = f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc'
+            trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
     # ==============================================================================================
