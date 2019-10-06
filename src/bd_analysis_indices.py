@@ -158,33 +158,39 @@ class AnalyzeIndex(object):
         fn_SST = f'{path_prace}/SST/SST_{tavg}_{dt}_{run}{ts}.nc'
         SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
         
-        def calculate_regression(SST_dt, index, tavg, fn_out):
-            if tavg=='yrly':       sfreq =  1  # sampling frequency [per year]
-            elif tavg=='monthly':  sfreq = 12
-            filter_cutoff = 13
-            edge = int(filter_cutoff/2)+1      # 7
-            remove_edge = edge*sfreq           # removing filter edge effects
-            ds = ADA().lag_linregress(x=index[remove_edge:-remove_edge],  
-                                      y=SST_dt[remove_edge:-remove_edge], 
-                                      autocorrelation=autocorr,
-                                      filterperiod=sfreq*filter_cutoff,
-                                      standardize=True)
-            ds.to_netcdf(fn_out)
-            return
         if tavg=='yrly':  dt= 'dt'
         if idx in ['AMO', 'SOM', 'TPI']:
             index = xr.open_dataarray(f'{path_prace}/SST/{idx}_{dt}_raw_{run}{ts}.nc',
                                       decode_times=False)
             fn_out = f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc'
-            calculate_regression(SST_dt, index, tavg, fn_out)
+            self.calculate_regression(SST_dt, index, tavg, fn_out, autocorr)
+            
         elif idx=='PMV':
             for extent in ['38S', 'Eq', '20N']:
                 index = xr.open_dataset(f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc',
                                         decode_times=False).pcs.squeeze()
+                if 'mode' in index.coords:   index = index.drop('mode')
+                print(index.time)
+                print('test3', SST_dt.time)
                 fn_out = f'{path_prace}/SST/{idx}_{extent}_regr_{run}{ts}.nc'
-                calculate_regression(SST_dt, index, tavg, fn_out)
+                self.calculate_regression(SST_dt, index, tavg, fn_out, autocorr)
 
         print('success')
+        return
+    
+    def calculate_regression(self, SST_dt, index, tavg, fn_out, autocorr):
+        if tavg=='yrly':       sfreq =  1  # sampling frequency [per year]
+        elif tavg=='monthly':  sfreq = 12
+        filter_cutoff = 13
+        edge = int(filter_cutoff/2)+1      # 7
+        remove_edge = edge*sfreq           # removing filter edge effects
+        print('\n\ntest: ', np.all(SST_dt.time==index.time))
+        ds = ADA().lag_linregress(x=index[remove_edge:-remove_edge],  
+                                  y=SST_dt[remove_edge:-remove_edge], 
+                                  autocorrelation=autocorr,
+                                  filterperiod=sfreq*filter_cutoff,
+                                  standardize=True)
+        ds.to_netcdf(fn_out)
         return
     
     

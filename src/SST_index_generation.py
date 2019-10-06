@@ -199,7 +199,7 @@ if __name__=='__main__':
     for time in times:
         ts = AI().time_string(time)
         kwargs = dict(run=run, tavg=tavg, time=time)
-        fn = f'{path_prace}/SST/SST_{tavg}_autocorrelation_had{ts}.nc'
+        fn = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}{ts}.nc'
         trex(fn=fn, fct=fct, kwargs=kwargs)
 
 

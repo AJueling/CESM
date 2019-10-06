@@ -103,12 +103,12 @@ class AnalyzeDataArray(object):
         assert 'time' in x.coords and 'time' in y.coords
         
         # aligning data on time axis
-        x,y = xr.align(x,y)
+        # x,y = xr.align(x,y)  # assert this earlier
 
         # lags
         if lagx!=0:  x = x.shift(time = -lagx).dropna(dim='time')
         if lagy!=0:  y = y.shift(time = -lagy).dropna(dim='time')
-        x,y = xr.align(x,y)
+        if lagx!=0 or lagy!=0:  x,y = xr.align(x,y)
         
         # standardize
         if standardize==True:
