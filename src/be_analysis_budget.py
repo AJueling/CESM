@@ -1,16 +1,22 @@
+import os
+import dask
 import numpy as np
 import xarray as xr
 
 from tqdm import tqdm
 from paths import path_prace
 from regions import regions_dict, boolean_mask
+from constants import rho_sw, cp_sw
+from xr_DataArrays import xr_DZ, xr_AREA, dll_dims_names
+from timeseries import IterateOutputCESM
 
 
 neighbours = [(1,2), (1,3), (1,6),
               (2,3), (2,10),
               (3,5),
               (6,7), (6,8), (6,9),
-              (8,10), (8,11)
+              (8,10), (8,11),
+              (9,10),
              ]
 
 
@@ -56,10 +62,10 @@ class AnalyzeBudget(object):
     def all_advection_cells(self, domain):
         fn = f'{path_prace}/OHC/advection_cells_{domain}.nc'
         try:
-            assert os.path.exists(fn)
+            assert os.path.exists(fn), f'{fn} does not exist'
             adv = xr.open_dataset(fn)
         except:
-            for i, pair in tqdm(enumerate(neighbours)):
+            for i, pair in enumerate(tqdm(neighbours)):
                 from_basin_mask = boolean_mask(domain, pair[0])
                 to_basin_mask   = boolean_mask(domain, pair[1])
                 name = f'{regions_dict[pair[0]]}_to_{regions_dict[pair[1]]}'
@@ -72,32 +78,78 @@ class AnalyzeBudget(object):
         return adv
     
     
-    def all_transports(self, domain, basin, VN_adv, UE_adv):
+    def all_transports(self, run, quantity):
         """ computes heat or salt fluxes """
-        print(f'fluxes into {basin}')
-        assert domain in ['ocn', 'ocn_low']
-        assert VN_adv.units==UE_adv.units
-        if VN_adv.units=='degC/s':
+        assert run in ['ctrl', 'lpd']
+        
+
+        assert quantity in ['SALT', 'OHC']
+
+        if quantity=='OHC':
+            VN, UE = 'VNT', 'UET'
             conversion = rho_sw*cp_sw
-            unit = 'W'
-        elif VN_adv.units=='gram/kilogram/s':
+            qstr = 'heat'
+            unit_out = 'W'
+        elif quantity=='SALT':
+            VN, UE = 'VNS', 'UES'
             conversion = rho_sw*1e-3
-            unit = 'kg/s'
-        else:
-            raise ValueError('units need to be in "degC/s" or "gram/kilogram/s"')
+            qstr = 'salt'
+            unit_out = 'kg/s'
+            
+        if run=='ctrl':
+            domain='ocn'
+            all_transports_list = []
+            
+        elif run=='lpd':
+            domain='ocn_low'
+            mf_fn = f'{path_prace}/{run}/ocn_yrly_{VN}_{UE}_*.nc'
+            kwargs = {'concat_dim':'time',
+                      'decode_times':False,
+                      'drop_variables':['TLONG', 'TLAT', 'ULONG', 'ULAT'],
+                      'parallel':True}
+            ds = xr.open_mfdataset(mf_fn, **kwargs)
 
-        dims = [dim for dim in dll_dims_names(domain=domain)]
         DZ = xr_DZ(domain=domain)
+        adv = self.all_advection_cells(domain=domain)
         AREA = xr_AREA(domain=domain)
+        dims = [dim for dim in dll_dims_names(domain=domain)]
 
-        adv_E, adv_N = advection_cells(from_basin_mask=neighbour_mask, to_basin_mask=basin_mask)
-        transport = ((adv_E*UE_adv + adv_N*VN_adv)*AREA*DZ).sum(dim=dims)*conversion
-        transport.name = f'{regions_dict[n]}'
-        transport.attrs['units'] = unit
-        if i==0: temp=transport
-        else: temp = xr.merge([temp, transport])
-    
-        return temp
+        for i, pair in enumerate(tqdm(neighbours)):
+            name = f'{qstr}_flux_{regions_dict[pair[0]]}_to_{regions_dict[pair[1]]}'
+#             if i>2:  continue
+            adv_E = adv[f'adv_E_{regions_dict[pair[0]]}_to_{regions_dict[pair[1]]}']
+            adv_N = adv[f'adv_N_{regions_dict[pair[0]]}_to_{regions_dict[pair[1]]}']
+            MASK  = ((abs(adv_E)+abs(adv_N))/(abs(adv_E)+abs(adv_N))).copy()
+            adv_E = adv_E.where(MASK==1, drop=True)
+            adv_N = adv_N.where(MASK==1, drop=True)
+            DZ_    = DZ.where(MASK==1, drop=True)
+            AREA_  = AREA.where(MASK==1, drop=True)
+            if run=='ctrl':
+                for j, (y,m,f) in tqdm(enumerate(IterateOutputCESM(domain='ocn', run='ctrl',\
+                                                                   tavg='yrly', name=f'{VN}_{UE}'))):
+                    if j>1: continue
+                    ds = xr.open_dataset(f, decode_times=False).where(MASK==1, drop=True)
+                    transport = ((adv_E*ds[UE] + adv_N*ds[VN])*AREA_*DZ_).sum(dim=dims)*conversion
+                    transport.name = name
+                    transport.attrs['units'] = unit_out
+                    if j==0:  transport_t = transport
+                    else:     transport_t = xr.concat([transport_t, transport], dim='time')
+                
+                all_transports_list.append(transport_t)
+                    
+            elif run=='lpd':
+                ds_ = ds.where(MASK==1, drop=True)
+                transport = ((adv_E*ds_[UE] + adv_N*ds_[VN])*AREA_*DZ_).sum(dim=dims)*conversion
+                
+                transport.name = name
+                transport.attrs['units'] = unit_out
+                if i==0: all_transports = transport
+                else: all_transports = xr.merge([all_transports, transport])
+        
+        if run=='ctrl':  all_transports = xr.merge(all_transports_list)
+                
+        all_transports.to_netcdf(f'{path_prace}/{quantity}/{quantity}_fluxes_{run}.nc')
+        return all_transports
     
     
     def surface_heat_flux(self, run):
