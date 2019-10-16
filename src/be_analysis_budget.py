@@ -127,7 +127,7 @@ class AnalyzeBudget(object):
             if run=='ctrl':
                 for j, (y,m,f) in tqdm(enumerate(IterateOutputCESM(domain='ocn', run='ctrl',\
                                                                    tavg='yrly', name=f'{VN}_{UE}'))):
-                    if j>1: continue
+#                     if j>1: continue
                     ds = xr.open_dataset(f, decode_times=False).where(MASK==1, drop=True)
                     transport = ((adv_E*ds[UE] + adv_N*ds[VN])*AREA_*DZ_).sum(dim=dims)*conversion
                     transport.name = name

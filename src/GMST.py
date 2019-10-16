@@ -7,7 +7,7 @@ import urllib.request
 import datetime
 
 
-from paths import path_results, CESM_filename
+from paths import path_prace, path_results, CESM_filename
 from constants import abs_zero
 from timeseries import IterateOutputCESM
 from xr_DataArrays import xr_AREA
@@ -88,7 +88,7 @@ def GMST_timeseries(run):
         ds_new[f'lin_fit'][t]  =                lfit[0]*t + lfit[1]
         ds_new[f'quad_fit'][t] = qfit[0]*t**2 + qfit[1]*t + qfit[2]
         
-    ds_new.to_netcdf(path=f'{path_results}/GMST/GMST_{run}.nc', mode='w')
+    ds_new.to_netcdf(path=f'{path_prace}/GMST/GMST_{run}.nc', mode='w')
     
     return ds_new
 

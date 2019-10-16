@@ -10,9 +10,9 @@ module load Miniconda3
 source activate CESM
 
 (
-python run_OHC_integrals.py ctrl OHC
+python run_inter_basin_fluxes.py ctrl OHC
 )&
 (
-python run_OHC_integrals.py ctrl SALT
+python run_inter_basin_fluxes.py ctrl SALT
 )&
 wait
