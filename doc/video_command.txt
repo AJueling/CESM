@@ -1,3 +1,6 @@
 module load ffmpeg
 
 ffmpeg -framerate 8 -start_number 278 -i SOM_plots_ann_spaeqd_%03d.png -r 8 -qscale:v 0 SOM_spaeqd.avi
+
+# this works for Keynote with transparancy
+ffmpeg -framerate 12 -start_number 1870 -i SST_AMO_area_%03d.png -r 8 -vcodec png SST_AMO.mov

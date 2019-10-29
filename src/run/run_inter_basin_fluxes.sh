@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 06:00:00
+#SBATCH -t 24:00:00
 #SBATCH -p normal
 #SBATCH -N 1
 cd /home/dijkbio/andre/CESM/src/run

@@ -67,6 +67,13 @@ regions_dict = {-14: 'Caspian_Sea',
                  12: 'Baltic_Sea',
                }
 
+OSNAP = {'IC0':(-35.1, 59.2),
+         'IC1':(-33.7, 59.2),
+         'IC2':(-32.7, 59.0),
+         'IC3':(-31.95, 58.96),
+         'IC4':(-31.3, 58.9)
+        }
+
 
 def boolean_mask(domain, mask_nr, rounded=False):
     """ selects a region by number, returns xr DataArray """
