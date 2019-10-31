@@ -49,10 +49,10 @@ def trex(fn, fct, kwargs={}):
     return
 
 # 10x 149 year time segments and one 250 year segment
-times_ctrl = list(zip(np.append(np.arange( 51, 150, 10),[ 51]),
-                      np.append(np.arange(200, 299, 10),[301])))
-times_lpd  = list(zip(np.append(np.arange(154, 253, 10),[154]),
-                      np.append(np.arange(303, 402, 10),[404])))
+times_ctrl = list(zip(np.append(np.arange( 51, 150, 10), [ 51]),
+                      np.append(np.arange(200, 299, 10), [301])))
+times_lpd  = list(zip(np.append(np.arange(154, 253, 10), [154]),
+                      np.append(np.arange(303, 402, 10), [404])))
 times_had  = [None]
 
 if __name__=='__main__':
@@ -61,6 +61,7 @@ if __name__=='__main__':
     assert run in ['ctrl', 'lpd', 'had']
     assert idx in ['AMO', 'SOM', 'TPI', 'PMV']
 
+    
     # ==============================================================================================
     print(f'\nRegression Pattern Pipeline for {run} {idx}', time_print(), '\n')
     # ==============================================================================================
@@ -81,24 +82,23 @@ if __name__=='__main__':
     fct = DS().generate_yrly_SST_files
     trex(fn=fn, fct=fct, kwargs=kwargs)
 
-    # ocn rect 
+    # ocn rect of ctrl run
     if run=='ctrl':
         fn = f'{path_prace}/SST/SST_yrly_rect_ctrl.nc'
         trex(fn=fn, fct=fct, kwargs=kwargs)
         
-    # monthly data necessary for TPI and PMV
-    if idx in ['TPI', 'PMV']:
-        fn = f'{path_prace}/SST/SST_monthly_{run}.nc'
-        fct = DS().generate_monthly_SST_files
-        trex(fn=fn, fct=fct, kwargs=kwargs)
+    # monthly data
+    fn = f'{path_prace}/SST/SST_monthly_{run}.nc'
+    fct = DS().generate_monthly_SST_files
+    trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
     # ==============================================================================================
     print('\n2. deseasonalize and detrended SST field', time_print())
     # ==============================================================================================
 
-    # yrly data
     for time in times:
+        # yrly data
         ts = AI().time_string(time)
         if run=='had':  # two-factor detrending
             dt = 'tfdt'
@@ -111,80 +111,72 @@ if __name__=='__main__':
         fn = f'{path_prace}/SST/SST_yrly_{dt}_{run}{ts}.nc'
         trex(fn=fn, fct=fct, kwargs=kwargs)
 
-    # monthly data
-    if idx in ['TPI', 'PMV']:
-        for time in times:
-            ts = AI().time_string(time)
+        # monthly data
+        # deseasonalize
+        fct = DS().deseasonalize_monthly_data
+        fn = f'{path_prace}/SST/SST_monthly_ds_{run}{ts}.nc'
+        kwargs = dict(run=run)
+        if run in ['ctrl', 'lpd']: kwargs['time'] = time
+        trex(fn=fn, fct=fct, kwargs=kwargs)
 
-            # deseasonalize
-            fct = DS().deseasonalize_monthly_data
-            fn = f'{path_prace}/SST/SST_monthly_ds_{run}{ts}.nc'
-            kwargs = dict(run=run)
-            if run in ['ctrl', 'lpd']: kwargs['time'] = time
-            trex(fn=fn, fct=fct, kwargs=kwargs)
-                    
-            # detrend
-            fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
-            if run=='had':
-                fct = DS().detrend_monthly_obs_two_factor
-                kwargs = {}
-            elif run in ['ctrl', 'lpd']:
-                fct = DS().detrend_monthly_data_pointwise
-                kwargs = dict(run=run, time=time)
-            trex(fn=fn, fct=fct, kwargs=kwargs)
-            
-            # subselect Pacific data
-            if idx=='PMV':
-                fct = DS().isolate_Pacific_SSTs
-                for extent in ['38S', 'Eq', '20N']:
-                    kwargs = dict(run=run, extent=extent, time=time)
-                    fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}{ts}.nc'
-                    trex(fn=fn, fct=fct, kwargs=kwargs)    
+        # detrend
+        fn = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
+        if run=='had':
+            fct = DS().detrend_monthly_obs_two_factor
+            kwargs = {}
+        elif run in ['ctrl', 'lpd']:
+            fct = DS().detrend_monthly_data_pointwise
+            kwargs = dict(run=run, time=time)
+        trex(fn=fn, fct=fct, kwargs=kwargs)
+
+        # subselect Pacific data
+        if idx=='PMV':
+            fct = DS().isolate_Pacific_SSTs
+            for extent in ['38S', 'Eq', '20N']:
+                kwargs = dict(run=run, extent=extent, time=time)
+                fn = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}{ts}.nc'
+                trex(fn=fn, fct=fct, kwargs=kwargs)    
 
             
     # ==============================================================================================
     print('\n3. raw SST indices', time_print())
     # ==============================================================================================
 
-    if idx in ['AMO', 'SOM']:    dt = 'dt'
-    elif idx in ['TPI', 'PMV']:  dt = 'ds_dt'
-
-    # area average SST indices
-    if idx in ['AMO', 'SOM', 'TPI']:
-        fct = AI().derive_SST_avg_index
-        for time in times:
-            ts = AI().time_string(time)
+    for time in times:
+        ts = AI().time_string(time)
+        
+        # area average SST indices
+        if idx in ['AMO', 'SOM', 'TPI']:
+            fct = AI().derive_SST_avg_index
             kwargs = dict(run=run, index=idx, time=time)
-            fn = f'{path_prace}/SST/{idx}_{dt}_raw_{run}{ts}.nc'
+            fn = f'{path_prace}/SST/{idx}_ds_dt_raw_{run}{ts}.nc'
             trex(fn=fn, fct=fct, kwargs=kwargs) 
 
-    # EOF analysis
-    if idx=='PMV':
-        fct = AI().Pacific_EOF_analysis
-        for extent in ['38S', 'Eq', '20N']:
-            for time in times:
-                ts = AI().time_string(time)
+        # EOF analysis
+        if idx=='PMV':
+            fct = AI().Pacific_EOF_analysis
+            for extent in ['38S', 'Eq', '20N']:
                 kwargs = dict(run=run, extent=extent, time=time)
-                fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
+                fn = f'{path_prace}/SST/PMV_{extent}_EOF_{run}{ts}.nc'
                 trex(fn=fn, fct=fct, kwargs=kwargs)
 
                      
-    # ==============================================================================================
-    print('\n4. final indices', time_print())
-    # ==============================================================================================
+#     # ==============================================================================================
+#     print('\n4. final indices', time_print())
+#     # ==============================================================================================
 
-    fct = AI().derive_final_SST_indices
+#     fct = AI().derive_final_SST_indices
 
-    for time in times:
-        ts = AI().time_string(time)
-        kwargs = dict(run=run, index=idx, time=time)
-        if idx=='PMV':
-            for extent in ['38S', 'Eq', '20N']:
-                fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
-                trex(fn=fn, fct=fct, kwargs=kwargs)
-        else:
-            fn = f'{path_prace}/SST/{idx}_{run}{ts}.nc'
-            trex(fn=fn, fct=fct, kwargs=kwargs)
+#     for time in times:
+#         ts = AI().time_string(time)
+#         kwargs = dict(run=run, index=idx, time=time)
+#         if idx=='PMV':
+#             for extent in ['38S', 'Eq', '20N']:
+#                 fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
+#                 trex(fn=fn, fct=fct, kwargs=kwargs)
+#         else:
+#             fn = f'{path_prace}/SST/{idx}_{run}{ts}.nc'
+#             trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
     # ==============================================================================================
@@ -193,8 +185,9 @@ if __name__=='__main__':
 
     fct = AI().derive_autocorrelation_maps
 
-    if idx in ['AMO', 'SOM']:  tavg = 'yrly'
-    if idx in ['TPI', 'PMV']:  tavg = 'monthly'
+#     if idx in ['AMO', 'SOM']:  tavg = 'yrly'
+#     if idx in ['TPI', 'PMV']:  
+    tavg = 'monthly'
 
     for time in times:
         ts = AI().time_string(time)

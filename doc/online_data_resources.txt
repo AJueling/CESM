@@ -5,9 +5,12 @@ climate indices
 
 
 SAT observational datasets:
-
 - GISTEMP:
     https://data.giss.nasa.gov/gistemp/
-
-- HadCRUT4 data
+- HadCRUT4 data:
     http://hadobs.metoffice.com/hadcrut4/index.html
+    
+SST
+- HadISST3:
+    https://www.metoffice.gov.uk/hadobs/hadisst/data/download.html
+    Rayner et al. (2013)
