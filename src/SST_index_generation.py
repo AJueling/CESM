@@ -156,6 +156,7 @@ if __name__=='__main__':
         if idx=='PMV':
             fct = AI().Pacific_EOF_analysis
             for extent in ['38S', 'Eq', '20N']:
+                print('test')
                 kwargs = dict(run=run, extent=extent, time=time)
                 fn = f'{path_prace}/SST/PMV_{extent}_EOF_{run}{ts}.nc'
                 trex(fn=fn, fct=fct, kwargs=kwargs)

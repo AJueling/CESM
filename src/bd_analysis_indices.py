@@ -36,12 +36,9 @@ class AnalyzeIndex(object):
         assert type(xa_SST)==xr.core.dataarray.DataArray
         assert type(AREA)==xr.core.dataarray.DataArray
         print(f'calculating area average of SST')
-        if type(index_loc)==dict:
-            index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
-        elif index_loc==None:
-            index = (xa_SST*AREA).where(MASK).sum(dim=dims)/AREA_index
-        else:
-            print('kwarg `index_loc` is not given properly.')
+        if type(index_loc)==dict:  index = (xa_SST*AREA).where(MASK).sel(index_loc).sum(dim=dims)/AREA_index
+        elif index_loc==None:      index = (xa_SST*AREA).where(MASK).sum(dim=dims)/AREA_index
+        else:                      print('kwarg `index_loc` is not given properly.')
         return index
     
 
@@ -49,29 +46,10 @@ class AnalyzeIndex(object):
         """ generates all area avg indices from detrended SST data """
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
         assert time is None or len(time)==2
-        if run=='had':               domain, dims, ts = 'ocn_had', ('latitude', 'longitude'), ''
-#             fn_yrly = f'{path_prace}/SST/SST_yrly_tfdt_had.nc'
-        if run in ['ctrl', 'rcp']:   domain, dims, ts= 'ocn_rect', ('t_lat', 't_lon'), f'_{time[0]}_{time[1]}'
-        elif run in ['lpd', 'lpi']:  domain, dims, ts= 'ocn_low' , ('nlat', 'nlon')  , f'_{time[0]}_{time[1]}'
-#         else:
-#             assert len(time)==2
-#             ts = f'_{time[0]}_{time[1]}'
-#             fn_yrly = f'{path_prace}/SST/SST_yrly_pwdt_{run}{ts}.nc'
-        
-#         if index in ['AMO', 'SOM']:  # yrly data
-#             SST_yrly = xr.open_dataarray(fn_yrly, decode_times=False)
-#             if run in ['ctrl', 'rcp']:
-#                 domain = 'ocn'
-#                 dims = ('nlat', 'nlon')
-#             blats, blons, mask_nr = self.bounding_lats_lons(index)
-#             MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
-#             AREA = xr_AREA(domain=domain).where(MASK)
-#             SST_index = self.SST_area_average(xa_SST=SST_yrly, AREA=AREA, AREA_index=AREA.sum(), MASK=MASK, dims=dims)
-#             SST_index.to_netcdf(f'{path_prace}/SST/{index}_dt_raw_{run}{ts}.nc')
-        
-        
-        
-        
+        if run=='had':                domain, dims, ts = 'ocn_had' , ('latitude', 'longitude'), ''
+        elif run in ['ctrl', 'rcp']:  domain, dims, ts = 'ocn_rect', ('t_lat', 't_lon'), f'_{time[0]}_{time[1]}'
+        elif run in ['lpd', 'lpi']:   domain, dims, ts = 'ocn_low' , ('nlat', 'nlon')  , f'_{time[0]}_{time[1]}'
+
         fn_monthly = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
         SST_monthly = xr.open_dataarray(fn_monthly, decode_times=False)
         
@@ -91,7 +69,7 @@ class AnalyzeIndex(object):
                 if i==0:    SST_index = -0.5*TPI_
                 elif i==1:  SST_index = SST_index + TPI_
                 elif i==2:  SST_index = SST_index - 0.5*TPI_
-        SST_index.to_netcdf(f'{path_prace}/SST/TPI_ds_dt_raw_{run}{ts}.nc')
+        SST_index.to_netcdf(f'{path_prace}/SST/{index}_ds_dt_raw_{run}{ts}.nc')
             
         return SST_index
   
@@ -144,24 +122,17 @@ class AnalyzeIndex(object):
     def make_regression_files(self, run, idx, time=None):
         """ generate regression files """
         assert run in ['ctrl', 'lpd', 'had']
-#         if idx in ['AMO', 'SOM']:    tavg = 'yrly'
-#         elif idx in ['TPI', 'PMV']:
-        tavg = 'monthly'
 
+        tavg='monthly'
         ts = self.time_string(time)
-        fn_acr = f'{path_prace}/SST/SST_{tavg}_autocorrelation_{run}{ts}.nc'
+        fn_acr = f'{path_prace}/SST/SST_monthly_autocorrelation_{run}{ts}.nc'
         autocorr = xr.open_dataarray(fn_acr, decode_times=False)
         
-        if tavg=='yrly':
-            if run=='had':     dt = 'tfdt'
-            else:              dt = 'pwdt'
-        elif tavg=='monthly':  dt = 'ds_dt'
-        fn_SST = f'{path_prace}/SST/SST_{tavg}_{dt}_{run}{ts}.nc'
+        fn_SST = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
         SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
         
-        if tavg=='yrly':  dt= 'dt'
         if idx in ['AMO', 'SOM', 'TPI']:
-            index = xr.open_dataarray(f'{path_prace}/SST/{idx}_{dt}_raw_{run}{ts}.nc',
+            index = xr.open_dataarray(f'{path_prace}/SST/{idx}_ds_dt_raw_{run}{ts}.nc',
                                       decode_times=False)
             fn_out = f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc'
             self.calculate_regression(SST_dt, index, tavg, fn_out, autocorr)
@@ -171,13 +142,12 @@ class AnalyzeIndex(object):
                 index = xr.open_dataset(f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc',
                                         decode_times=False).pcs.isel(mode=0).squeeze()
                 if 'mode' in index.coords:   index = index.drop('mode')
-                print(index.time)
-                print('test3', SST_dt.time)
                 fn_out = f'{path_prace}/SST/{idx}_{extent}_regr_{run}{ts}.nc'
                 self.calculate_regression(SST_dt, index, tavg, fn_out, autocorr)
 
         print('success')
         return
+    
     
     def calculate_regression(self, SST_dt, index, tavg, fn_out, autocorr):
         if tavg=='yrly':       sfreq =  1  # sampling frequency [per year]
@@ -221,18 +191,14 @@ class AnalyzeIndex(object):
         # 4:45 for 38S_ctrl, 5:07 for 38S_lpd, 3:42 for 38S_had : total 11:08
         assert run in ['ctrl', 'lpd', 'had']
         assert extent in ['38S', 'Eq', '20N']
+        assert time is None or len(time)==2
 
-        if run in ['ctrl', 'lpd']:
-            assert time is not None
-            fn     = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}_{time[0]}_{time[1]}.nc'
-            fn_EOF = f'{path_prace}/SST/PMV_EOF_{extent}_{run}_{time[0]}_{time[1]}.nc'
-            if run=='ctrl':   domain = 'ocn_rect'
-            elif run=='lpd':  domain = 'ocn_low'
-        elif run=='had':
-            assert time is None
-            fn     = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_had.nc'
-            fn_EOF = f'{path_prace}/SST/PMV_EOF_{extent}_had.nc'
-            domain = 'ocn_had'
+        if run=='ctrl':   domain, ts = 'ocn_rect', f'_{time[0]}_{time[1]}'
+        elif run=='lpd':  domain, ts = 'ocn_low' , f'_{time[0]}_{time[1]}'
+        elif run=='had':  domain, ts = 'ocn_had' , ''
+
+        fn     = f'{path_prace}/SST/SST_monthly_ds_dt_{extent}_{run}{ts}.nc'
+        fn_EOF = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
             
         area = xr.open_dataarray(f'{path_prace}/geometry/AREA_{extent}_{domain}.nc')
         (d, lat, lon) = dll_dims_names(domain)
@@ -246,12 +212,10 @@ class AnalyzeIndex(object):
         else:      factor= 1
         if run in ['lpd', 'had'] and extent=='20N':  factor = factor*-1
 
-        ds['eofs'] = ds.eofs*factor
-        ds['pcs']  = ds.pcs*factor
-#         ds = xr.merge([eofs*factor, pcs*factor])
+        ds['eofs'] *= factor
+        ds['pcs']  *= factor
         ds.to_netcdf(fn_EOF)
-            
-        return
+        return ds
     
         
     def bounding_lats_lons(self, index):
