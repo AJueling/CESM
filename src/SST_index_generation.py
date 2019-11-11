@@ -10,7 +10,8 @@ procedure:
         - model data: pointwise quadratic fit
         - observations: two-factor detrending
     3. derive raw SST indices
-    4. derive final SST indices
+    4. autocorrelation maps
+    5. regression patterns
 
 detrending methods:
     'had'          :  two-factor => anthro & natural CMIP5 MMM
@@ -156,32 +157,13 @@ if __name__=='__main__':
         if idx=='PMV':
             fct = AI().Pacific_EOF_analysis
             for extent in ['38S', 'Eq', '20N']:
-                print('test')
                 kwargs = dict(run=run, extent=extent, time=time)
-                fn = f'{path_prace}/SST/PMV_{extent}_EOF_{run}{ts}.nc'
+                fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
                 trex(fn=fn, fct=fct, kwargs=kwargs)
-
-                     
-#     # ==============================================================================================
-#     print('\n4. final indices', time_print())
-#     # ==============================================================================================
-
-#     fct = AI().derive_final_SST_indices
-
-#     for time in times:
-#         ts = AI().time_string(time)
-#         kwargs = dict(run=run, index=idx, time=time)
-#         if idx=='PMV':
-#             for extent in ['38S', 'Eq', '20N']:
-#                 fn = f'{path_prace}/SST/PMV_EOF_{extent}_{run}{ts}.nc'
-#                 trex(fn=fn, fct=fct, kwargs=kwargs)
-#         else:
-#             fn = f'{path_prace}/SST/{idx}_{run}{ts}.nc'
-#             trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
     # ==============================================================================================
-    print('\n5. autocorrelation fields', time_print())
+    print('\n4. autocorrelation fields', time_print())
     # ==============================================================================================
 
     fct = AI().derive_autocorrelation_maps
@@ -198,7 +180,7 @@ if __name__=='__main__':
 
 
     # ==============================================================================================
-    print('6. SST regression on indices', time_print())
+    print('5. SST regression on indices', time_print())
     # ==============================================================================================
 
     fct = AI().make_regression_files
@@ -216,7 +198,7 @@ if __name__=='__main__':
 
 
     # ==============================================================================================
-    print('7. spectra', time_print())
+#     print('7. spectra', time_print())
     # ==============================================================================================
 
 
