@@ -125,6 +125,13 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         if len(Y)>150:  Y1 = Y[-150:]
         print(f'{stats.levene(X, Y)[1]:4.2e}, {stats.levene(X1, Y1)[1]:4.2e}')
         
+    
+    def plot_spectrum(self, ax=None):
+        spec, freq, _ = self.spectrum()
+        if ax is None:  ax = plt.gca()
+        l, = ax.loglog(freq, spec)
+        return l
+        
         
     def plot_spectrum_ar1(self, data=None):
         """ plots spectrum of single time series + AR(1) spectrum

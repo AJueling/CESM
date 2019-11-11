@@ -16,7 +16,10 @@ from timeseries import IterateOutputCESM, chebychev
 def xr_lintrend(x):
     """ linear trend timeseries of a timeseries """
     pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
-    return pf[1]*x.time + pf[0]
+    lt = np.outer(x.time, pf[1]) + np.row_stack(([pf[0]]*len(x.time)))
+    if np.ndim(x)==1:  lt = lt.flatten()  # remove dimension of length 1
+    da = x.copy(data=lt)
+    return da.where(x.notnull(), np.nan)
 
 
 def xr_quadtrend(x):
