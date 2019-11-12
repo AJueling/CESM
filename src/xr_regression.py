@@ -10,7 +10,6 @@ import dask
 from paths import path_samoc, path_results, CESM_filename, file_ex_ocn_ctrl
 from regions import boolean_mask
 from constants import imt, jmt, km
-from timeseries import IterateOutputCESM, chebychev
 
 # @jit(nopython=True)
 def xr_lintrend(x):
