@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sp
 import xarray as xr
 
-def xr_lfca(x, cutoff, truncation, scale):
+def xlfca(x, cutoff, truncation, scale):
     """ xarray wrapper of the `lfca` function
     input:
         x          xr.DataArrays    dataset with dimensions [time, latitude, longitude]
@@ -13,9 +13,12 @@ def xr_lfca(x, cutoff, truncation, scale):
     returns:
         ds         xr.Dataset       holds all variables
     """
+    dims = list(x.dims)
+    assert len(dims) in [2,3]
+    dims.remove('time')
     ds = xr.Dataset()
-    ds['x'] = x.stack(space=('latitude', 'longitude')).dropna(dim='space')
-    ds['scale'] = scale.stack(space=('latitude', 'longitude')).dropna(dim='space')
+    ds['x'] = x.stack(space=dims).dropna(dim='space')
+    ds['scale'] = scale.stack(space=dims).dropna(dim='space')
     lfcs, lfps, weights, r, pvar, pvec, eof, ntr, pvar_slow, pvar_lfc, r_eofs, pvar_slow_eofs =\
     lfca(ds.x.values, cutoff, truncation, ds.scale.values)
 

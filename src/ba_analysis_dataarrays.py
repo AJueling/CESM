@@ -1,7 +1,3 @@
-"""
-contains 3 classes:
-"""
-
 import dask
 import numpy as np
 import xesmf as xe

@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 def lowpass(ts, period):
     """ lowpass filter
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-    ts      .. time series array with axis 0 as time axis
-    perdiod .. cutoff period
+    ts     .. time series array with axis 0 as time axis
+    period .. cutoff period
     """
     N  = 2         # Filter order
     Wn = 1/period  # Cutoff frequency
@@ -29,8 +29,8 @@ def lowpass(ts, period):
 def highpass(ts, period):
     """ highpass filter
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-    ts      .. time series array with axis 0 as time axis
-    perdiod .. cutoff period
+    ts     .. time series array with axis 0 as time axis
+    period .. cutoff period
     """
     N  = 2         # Filter order
     Wn = 1/period  # Cutoff frequency
@@ -49,8 +49,8 @@ def highpass(ts, period):
 def bandpass(ts, periods):
     """ highpass filter
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-    ts      .. time series array with axis 0 as time axis
-    perdiod .. cutoff period
+    ts     .. time series array with axis 0 as time axis
+    period .. cutoff period
     """
     N  = 2         # Filter order
     Wn = 1/periods  # Cutoff frequencies

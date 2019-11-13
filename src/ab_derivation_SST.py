@@ -543,6 +543,22 @@ class DeriveSST(object):
         """ shifts lons to [0,360] to make Pacific contiguous """
         return da.assign_coords(longitude=(da.longitude+360)%360).roll(longitude=180, roll_coords=True)
     
+    def shift_ocn_rect(self, da, back=False):
+        """ shifts t_lon between original [0,360] and [-180, 180] intervals
+        the latter makes the Altantic points contiguous """
+        if back==False:
+            return da.assign_coords(t_lon=(da.t_lon - 360*((da.t_lon-da.t_lon[0])//180))).roll(t_lon=450, roll_coords=True)
+        else:
+            return da.assign_coords(t_lon=(da.t_lon+360)%360).roll(t_lon=180, roll_coords=True)
+    
+    def shift_ocn_low(self, da, back=False):
+        """ shifts nlon between curvilinear [0,320] and [-160,160] frame
+        the latter allows for a contiguous Atlantic """
+        if back==False:
+            return da.assign_coords(nlon=(da.nlon - 320*(da.nlon//160))).roll(nlon=160, roll_coords=True)
+        else: 
+            return da.assign_coords(nlon=(da.nlon+320)%320).roll(nlon=160, roll_coords=True)
+    
     
     def focus_data(self, da):
         """ drops data outside rectangle around Pacific """
