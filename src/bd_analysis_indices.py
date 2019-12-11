@@ -42,7 +42,7 @@ class AnalyzeIndex(object):
         return index
     
 
-    def derive_SST_avg_index(self, run, index, time=None):
+    def derive_SST_avg_index(self, run, index, dsdt='ds_dt', time=None):
         """ generates all area avg indices from detrended SST data """
         assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'had']
         assert time is None or len(time)==2
@@ -50,7 +50,7 @@ class AnalyzeIndex(object):
         elif run in ['ctrl', 'rcp']:  domain, dims, ts = 'ocn_rect', ('t_lat', 't_lon'), f'_{time[0]}_{time[1]}'
         elif run in ['lpd', 'lpi']:   domain, dims, ts = 'ocn_low' , ('nlat', 'nlon')  , f'_{time[0]}_{time[1]}'
 
-        fn_monthly = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
+        fn_monthly = f'{path_prace}/SST/SST_monthly_{dsdt}_{run}{ts}.nc'
         SST_monthly = xr.open_dataarray(fn_monthly, decode_times=False)
         
         if index in ['AMO', 'SOM']:
@@ -69,7 +69,7 @@ class AnalyzeIndex(object):
                 if i==0:    SST_index = -0.5*TPI_
                 elif i==1:  SST_index = SST_index + TPI_
                 elif i==2:  SST_index = SST_index - 0.5*TPI_
-        SST_index.to_netcdf(f'{path_prace}/SST/{index}_ds_dt_raw_{run}{ts}.nc')
+        SST_index.to_netcdf(f'{path_prace}/SST/{index}_{dsdt}_raw_{run}{ts}.nc')
             
         return SST_index
   
@@ -160,7 +160,7 @@ class AnalyzeIndex(object):
                                   y=SST_dt[remove_edge:-remove_edge], 
                                   autocorrelation=autocorr,
                                   filterperiod=sfreq*filter_cutoff,
-                                  standardize=True)
+                                  standardize=False)
         ds.to_netcdf(fn_out)
         return
     
