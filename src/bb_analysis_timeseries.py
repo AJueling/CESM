@@ -2,13 +2,15 @@
 contains 3 classes:
 """
 
+import scipy as sp
 import numpy as np
 import xesmf as xe
 import mtspec
 import xarray as xr
-
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+
+from statsmodels.tsa.arima_model import ARMA
 from statsmodels.tsa.arima_process import ArmaProcess
 from statsmodels.stats.weightstats import DescrStatsW
 
@@ -49,25 +51,64 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         return da
     
     
+    def periodogram(self, d=1., data=None):
+        """ naive absolute squared Fourier components 
+
+        input:
+        ts .. time series
+        d  .. sampling period
+        """
+        if data is None:  data = np.array(self.ts)
+        assert type(data)==np.ndarray
+        freq = np.fft.rfftfreq(len(data))
+        Pxx = 2*np.abs(np.fft.rfft(data))**2/len(data)
+        return freq, Pxx
+    
+
+    def Welch(self, d=1, window='hann', data=None):
+        """ Welch spectrum """
+        if data is None:  data = np.array(self.ts)
+        assert type(data)==np.ndarray
+        return sp.signal.welch(data, window=window)
+    
+
+    def mtspectrum(self, data=None, d=1., tb=4, nt=4):
+        """ multi-taper spectrum 
+
+        input:
+        ts .. time series
+        d  .. sampling period
+        tb .. time bounds (bandwidth)
+        nt .. number of tapers
+        """
+        if data is None:  data = np.array(self.ts)
+        assert type(data)==np.ndarray
+        spec, freq, jackknife, _, _ = mtspec.mtspec(
+                    data=data, delta=d, time_bandwidth=tb,
+                    number_of_tapers=nt, statistics=True)
+        return freq, spec
+    
+    
     def spectrum(self, data=None, filter_type=None, filter_cutoff=None):
         """ multitaper spectrum """
         if data is None:  data = np.array(self.ts)
         assert type(data)==np.ndarray
-        if filter_type is not None:
-            assert filter_type in ['lowpass', 'chebychev']
-            assert type(filter_cutoff)==int
-            assert filter_cutoff>1
-            n = int(filter_cutoff/2)+1  # datapoints to remove from either end due to filter edge effects
-            if filter_type=='lowpass':
-                data = lowpass(data, filter_cutoff)[n:-n]
-            elif filter_type=='chebychev':
-                data = chebychev(data, filter_cutoff)[n:-n]
-        
+        if filter_type is not None:  data = self.filter_timeseries(data, filter_type, filter_cutoff)
         spec, freq, jackknife, _, _ = mtspec.mtspec(
                 data=data, delta=1., time_bandwidth=4,
                 number_of_tapers=5, statistics=True)
         return (spec, freq, jackknife)
     
+    
+    def filter_timeseries(self, data, filter_type, filter_cutoff):
+        assert filter_type in ['lowpass', 'chebychev']
+        assert type(filter_cutoff)==int
+        assert filter_cutoff>1
+        n = int(filter_cutoff/2)+1  # datapoints to remove from either end due to filter edge effects
+        if filter_type=='lowpass':      data = lowpass(data, filter_cutoff)[n:-n]
+        elif filter_type=='chebychev':  data = chebychev(data, filter_cutoff)[n:-n]
+        return data
+
     
     def autocorrelation(self, data=None, n=1):
         """ calculates the first n lag autocorrelation coefficient """
@@ -82,22 +123,42 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         return acs
     
         
-    def mc_ar1(self, n=1000):
-        """ Monte-Carlo AR(1) processes """
-        phi = self.autocorrelation(n=1)[1]
-        AR_object = ArmaProcess(np.array([1, -phi]), np.array([1]))
-        # sigma_eps = np.sqrt(np.var(self.ts)*(1-phi**2))
-        # AR_object = ArmaProcess(np.array([1, -phi]), np.array([1, sigma_eps]))
-        mc = np.zeros((n, self.len))
-        for i in range(n):
-            mc[i,:] = AR_object.generate_sample(nsample=self.len)
-            mc[i,:] *= np.std(self.ts.values)/np.std(mc[i,:])
+    def mc_ar1_ARMA(self, phi, std, n, N=1000):
+        """ Monte-Carlo AR(1) processes
+
+        input:
+        phi .. (estimated) lag-1 autocorrelation
+        std .. (estimated) standard deviation of noise
+        n   .. length of original time series
+        N   .. number of MC simulations 
+        """
+        AR_object = ArmaProcess(np.array([1, -phi]), np.array([1]), nobs=n)
+        mc = AR_object.generate_sample(nsample=(N,n), scale=std, axis=1, burnin=1000)
         return mc
     
+    
         
-    def mc_ar1_spectrum(self, N=1000, filter_type=None, filter_cutoff=None):
-        """ calculates the MC avg spectrum and the 95% confidence interval """
-        mc = self.mc_ar1()
+    def mc_ar1_spectrum(self, data=None, N=1000, filter_type=None, filter_cutoff=None, spectrum='mtm'):
+        """ calculates the Monte-Carlo spectrum
+        with 1, 2.5, 5, 95, 97.5, 99 percentiles
+
+        input:
+        x             .. time series
+        spectrum      .. spectral density estimation function
+        N             .. number of MC simulations
+        filter_type   ..
+        filter_cutoff ..
+        spectrum      .. 'mtm': multi-taper method, 'per': periodogram, 'Welch'
+
+        output:
+        mc_spectrum   .. 
+        """
+        if data is None:  data = np.array(self.ts)
+        assert type(data)==np.ndarray
+        AM = ARMA(endog=data, order=(1,0)).fit()
+        phi, std = AM.arparams[0], np.sqrt(AM.sigma2)
+        mc = self.mc_ar1_ARMA(phi=phi, std=std, n=len(data), N=N)
+
         if filter_type is not None:
             assert filter_type in ['lowpass', 'chebychev']
             assert type(filter_cutoff)==int
@@ -107,14 +168,22 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
             if filter_type=='lowpass':      mc = lowpass(mc.T, filter_cutoff).T
             elif filter_type=='chebychev':  mc = chebychev(mc.T, filter_cutoff).T
 
-        mc_spectra = np.zeros((N, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
+        if spectrum=='mtm':     freq, _ = self.mtspectrum()
+        elif spectrum=='per':   freq, _ = self.periodogram()
+        elif spectrum=='Welch': freq, _ = self.Welch()
+                
+        mc_spectra = np.zeros((N, len(freq)))
+#         mc_spectra = np.zeros((N, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
+
         for i in range(N):
-            (mc_spectra[i,:], freq, jk) = self.spectrum(data=mc[i,:])
-        mc_spectrum = np.zeros((4, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
-        mc_spectrum[0,:] = np.median(mc_spectra, axis=0)
-        mc_spectrum[1,:] = freq
-        mc_spectrum[2,:] = np.percentile(mc_spectra,  5, axis=0)
-        mc_spectrum[3,:] = np.percentile(mc_spectra, 95, axis=0)
+            if spectrum=='mtm': freq, mc_spectra[i,:] = self.mtspectrum(data=mc[i,:])
+            elif spectrum=='per': freq, mc_spectra[i,:] = self.periodogram(data=mc[i,:])
+            elif spectrum=='Welch': freq, mc_spectra[i,:] = self.Welch(data=mc[i,:])
+        mc_spectrum = {}
+        mc_spectrum['median'] = np.median(mc_spectra, axis=0)
+        mc_spectrum['freq'] = freq
+        for p in [1,2.5,5,95,97.5,99]:
+            mc_spectrum[str(p)] = np.percentile(mc_spectra, p, axis=0)
         return mc_spectrum
     
     

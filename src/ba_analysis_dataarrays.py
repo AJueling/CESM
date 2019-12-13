@@ -97,6 +97,8 @@ class AnalyzeDataArray(object):
         np.warnings.filterwarnings('ignore')  # silencing numpy warning for NaNs
         assert dof_corr<=1 and dof_corr>0
         assert 'time' in x.coords and 'time' in y.coords
+        if not np.all(x.time.values==y.time.values):
+            x = x.assign_coords(time=y.time.values)
         
         # aligning data on time axis
         # x,y = xr.align(x,y)  # assert this earlier

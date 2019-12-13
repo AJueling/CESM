@@ -155,7 +155,7 @@ class AnalyzeIndex(object):
         filter_cutoff = 13
         edge = int(filter_cutoff/2)+1      # 7
         remove_edge = edge*sfreq           # removing filter edge effects
-        print('\n\ntest: ', np.all(SST_dt.time==index.time))
+#         print('\n\ntest: ', np.all(SST_dt.time==index.time))
         ds = ADA().lag_linregress(x=index[remove_edge:-remove_edge],  
                                   y=SST_dt[remove_edge:-remove_edge], 
                                   autocorrelation=autocorr,
