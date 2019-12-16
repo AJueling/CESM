@@ -61,6 +61,7 @@ files = ['AHC',
          'timeseries',
          'TOA',
          'WIND',
+         'Woosok',
         ]
 
 for x in files:
