@@ -37,8 +37,8 @@ def AMOC_max(AMOC):
     """ AMOC maximum at 26 deg N, 1000 m """
     lats    = approx_lats('ocn')
     tdepths = create_tdepth('ocn')
-    j26   = find_array_idx(lats, 26)
-    z1000 = find_array_idx(tdepths, 1000)
+    j26   = find_array_idx(lats, 26)       # 1451
+    z1000 = find_array_idx(tdepths, 1000)  #   21
     
     return AMOC.isel({'z_t':z1000, 'nlat':j26})
 

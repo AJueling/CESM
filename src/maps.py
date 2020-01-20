@@ -33,17 +33,23 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     """
     assert type(xa)==xr.core.dataarray.DataArray
     assert domain in ['atm', 'ocn_T', 'ocn_U', 'ocn_rect', 'ocn_low', 'ocn_had']
-    assert proj in ['ee', 'rob']
+    assert proj in ['ee', 'rob', 'aa']
     
-    fig = plt.figure(figsize=(8,5))
-    if proj=='ee':
-        ax  = fig.add_subplot(1, 1, 1, 
-                              projection=ccrs.EqualEarth(central_longitude=clon))
-    elif proj=='rob':
-        ax  = fig.add_subplot(1, 1, 1,
-                              projection=ccrs.Robinson(central_longitude=clon))
-    ax.set_position([.02,.05,.96,.93])
-    cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
+    if proj=='aa':
+        fig = plt.figure(figsize=(4,6.5), constrained_layout=True)
+        ax = plt.axes(projection=ccrs.LambertAzimuthalEqualArea(central_longitude=-30, central_latitude=20))
+        ax.set_extent((-6e6, 3.5e6, -8.5e6, 1e7), crs=ccrs.LambertAzimuthalEqualArea())
+        cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.01,shrink=0.9)
+    else:
+        fig = plt.figure(figsize=(8,5))
+        if proj=='ee':
+            ax  = fig.add_subplot(1, 1, 1, 
+                                  projection=ccrs.EqualEarth(central_longitude=clon))
+        elif proj=='rob':
+            ax  = fig.add_subplot(1, 1, 1,
+                                  projection=ccrs.Robinson(central_longitude=clon))
+        ax.set_position([.02,.05,.96,.93])
+        cax, kw = mpl.colorbar.make_axes(ax,location='bottom',pad=0.03,shrink=0.8)
     
     if domain in ['atm']:#, 'ocn_low']:
         lats = xa.lat

@@ -1,24 +1,45 @@
 # from https://gist.github.com/rabernat/bc4c6990eb20942246ce967e6c9c3dbe
 
-import xarray as xr
+import dask
 import numpy as np
 import scipy as sp
+import xarray as xr
+import cftime
 import datetime
-import dask
 
 # from numba import jit
 from paths import path_samoc, path_results, CESM_filename, file_ex_ocn_ctrl
 from regions import boolean_mask
 from constants import imt, jmt, km
 
+
+def datetime_to_float(x):
+    """ converts datetime values to float for regression """
+    time_ = x.time.values
+    if type(x.time.values[0])==np.datetime64:
+        x.time.values = np.array(x.time.values - np.datetime64('0001-01-01'), dtype=np.float)
+    elif type(x.time.values[0])==cftime._cftime.Datetime360Day:
+        x.time.values = cftime.date2num(x.time.values, units='months since 0001-01-01', calendar='360_day')
+#         print(x.time)
+    return x, time_
+
+
 # @jit(nopython=True)
 def xr_lintrend(x):
     """ linear trend timeseries of a timeseries """
-    pf = np.polynomial.polynomial.polyfit(x.time, x, 1)
+    y = x
+#     print(x.time)
+    time_to_float  = False
+    if type(x.time.values[0]) in [np.datetime64, cftime._cftime.Datetime360Day]:
+        x, time_ = datetime_to_float(x)
+        time_to_float = True
+    pf = np.polynomial.polynomial.polyfit(x.time.values, x.values, 1)
     lt = np.outer(x.time, pf[1]) + np.row_stack(([pf[0]]*len(x.time)))
     if np.ndim(x)==1:  lt = lt.flatten()  # remove dimension of length 1
+    if time_to_float:  x.time.values = time_
     da = x.copy(data=lt)
-    return da.where(x.notnull(), np.nan)
+#     return da.where(x.notnull(), np.array(len(x.time)*[np.nan])
+    return da
 
 
 def xr_quadtrend(x):
@@ -77,7 +98,10 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
     output:
     da_trend  .. slope of linear regression
     """
-    
+    if type(da.time.values[0]) in [np.datetime64, cftime._cftime.Datetime360Day]:
+        x, time_ = datetime_to_float(da)
+#         time_to_float = True
+        
     def xr_linear_trend_with_nans(x):
         """ function to compute a linear trend coeficient of a timeseries """
         if np.isnan(x).any():
@@ -102,7 +126,10 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
         trend = stacked.groupby('allpoints').apply(xr_linear_trend_with_nans)
         # unstack back to lat lon coordinates
         da_trend = trend.unstack('allpoints')
-    da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
+#     if time_to_float:  da_trend.time.values = time_
+#     print(da_trend)
+    if 'allpoints_level_0' in da_trend.coords.keys():
+        da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
     return da_trend
 
 

@@ -65,11 +65,11 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         return freq, Pxx
     
 
-    def Welch(self, d=1, window='hann', data=None):
+    def Welch(self, d=1, window='hann', data=None, nperseg=256):
         """ Welch spectrum """
         if data is None:  data = np.array(self.ts)
         assert type(data)==np.ndarray
-        return sp.signal.welch(data, window=window)
+        return sp.signal.welch(data, window=window, nperseg=nperseg)
     
 
     def mtspectrum(self, data=None, d=1., tb=4, nt=4):
@@ -95,8 +95,8 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         assert type(data)==np.ndarray
         if filter_type is not None:  data = self.filter_timeseries(data, filter_type, filter_cutoff)
         spec, freq, jackknife, _, _ = mtspec.mtspec(
-                data=data, delta=1., time_bandwidth=4,
-                number_of_tapers=5, statistics=True)
+                data=data, delta=1., time_bandwidth=2,
+                number_of_tapers=3, statistics=True)
         return (spec, freq, jackknife)
     
     
@@ -138,7 +138,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
     
     
         
-    def mc_ar1_spectrum(self, data=None, N=1000, filter_type=None, filter_cutoff=None, spectrum='mtm'):
+    def mc_ar1_spectrum(self, data=None, N=1000, filter_type=None, filter_cutoff=None, spectrum='mtm', nperseg=256):
         """ calculates the Monte-Carlo spectrum
         with 1, 2.5, 5, 95, 97.5, 99 percentiles
 
@@ -170,7 +170,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
 
         if spectrum=='mtm':     freq, _ = self.mtspectrum()
         elif spectrum=='per':   freq, _ = self.periodogram()
-        elif spectrum=='Welch': freq, _ = self.Welch()
+        elif spectrum=='Welch': freq, _ = self.Welch(nperseg=nperseg, window='hann')
                 
         mc_spectra = np.zeros((N, len(freq)))
 #         mc_spectra = np.zeros((N, int(len(mc[0,:])/2)+1))#int(self.len/2)+1))
@@ -178,7 +178,7 @@ class AnalyzeTimeSeries(AnalyzeDataArray):
         for i in range(N):
             if spectrum=='mtm': freq, mc_spectra[i,:] = self.mtspectrum(data=mc[i,:])
             elif spectrum=='per': freq, mc_spectra[i,:] = self.periodogram(data=mc[i,:])
-            elif spectrum=='Welch': freq, mc_spectra[i,:] = self.Welch(data=mc[i,:])
+            elif spectrum=='Welch': freq, mc_spectra[i,:] = self.Welch(data=mc[i,:], nperseg=nperseg, window='hann')
         mc_spectrum = {}
         mc_spectrum['median'] = np.median(mc_spectra, axis=0)
         mc_spectrum['freq'] = freq
