@@ -25,7 +25,7 @@ class IterateOutputCESM:
     
     def __init__(self, domain, run, tavg, name=None):
         assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
-        assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop']
+        assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop', 'lr1', 'lr2', 'hq', 'ld']
         assert tavg in ['monthly', 'yrly', 'daily']
         
         self.domain = domain
@@ -34,20 +34,17 @@ class IterateOutputCESM:
         self.stop   = False
         self.name   = name
         
-        if run=='ctrl':
-#             if self.domain=='atm':    self.year =  100
-#             elif 'pwqd' in self.name: self.year =   51
-#             if 'pwqd' in self.name:   self.year =   51
-#             else:                     self.year =    1
-            self.year =    1
-        elif run=='rcp':              self.year = 2000
-        elif run=='pop':              self.year =  125
-        elif run=='lpd':              self.year =  154
+        if run=='ctrl':   self.year =    1            
+        elif run=='rcp':  self.year = 2000
+        elif run=='pop':  self.year =  125
+        elif run=='lpd':  self.year =  154
+        elif run=='lr1':  self.year = 2000
+        elif run=='lr2':  self.year = 2000
+        elif run=='hq':   self.year = 2000
+        elif run=='ld':   self.year = 2000
         elif run=='lpi':  
-            if domain in ['ocn', 'ocn_low']:
-                self.year  = 1600
-            if domain=='atm':
-                self.year  = 2876
+            if domain in ['ocn', 'ocn_low']:  self.year  = 1600
+            if domain=='atm':                 self.year  = 2876
                 
         if tavg=='daily':         
 #             elif run=='rcp':  pass  # `self.year` set before; all years should have daily data

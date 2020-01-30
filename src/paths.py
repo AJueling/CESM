@@ -23,7 +23,14 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     file     .. (str) filename
     """
     assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
-    assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop']
+    assert run in ['ctrl',         # high res present day control run
+                   'rcp',          # high res RCP8.5 run
+                   'lpd',          # low res present day control run
+                   'lpi',          # low res pre-industrial control run
+                   'pop',          # high res ocean only run
+                   'lr1', 'lr2',   # low res RCP8.5 runs
+                   'hq',           # high res quadroupling run
+                   'ld']           # low res doubling run
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int) and type(d)==np.dtype(int)
     assert m>=0 and m<14
     assert d>=0 and d<33
@@ -75,6 +82,14 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                     file = f'{path_atm_lpd}/atm_yrly_{name}_{y:04}.nc'
             elif run=='lpi':
                 file = f'{path_yrly_lpi}/atm_yrly_{name}_{y:04}.nc'
+            elif run=='lr1':
+                file = f'{path_yrly_lr1}/atm_yrly_{name}_{y:04}.nc'
+            elif run=='lr2':
+                file = f'{path_yrly_lr2}/atm_yrly_{name}_{y:04}.nc'
+            elif run=='hq':
+                file = f'{path_yrly_hq}/atm_yrly_{name}_{y:04}.nc'
+            elif run=='ld':
+                file = f'{path_yrly_ld}/atm_yrly_{name}_{y:04}.nc'
     
         elif domain=='ice':
             if run=='ctrl':
@@ -90,10 +105,19 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_ocn_ctrl}/{spinup}.pop.h.{time}.nc'
             elif run=='rcp':
                 file = f'{path_ocn_rcp}/{rcpstr}.pop.h.{time}.nc'
+            elif run=='hq':
+                file = f'{path_ocn_hq}/{hqstr}.pop.h.{time}.nc'
+            # the following are technically `ocn_low`
             elif run=='lpd':
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
             elif run=='lpi':
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
+            elif run=='lr1':
+                file = f'{path_ocn_lr1}/{lr1str}.pop.h.{time}.nc'
+            elif run=='lr2':
+                file = f'{path_ocn_lr2}/{lr2str}.pop.h.{time}.nc'
+            elif run=='ld':
+                file = f'{path_ocn_ld}/{ldstr}.pop.h.{time}.nc'
 
         elif domain=='ocn_rect':
             if run=='ctrl':
@@ -111,6 +135,12 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
             elif run=='lpi':
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
+            elif run=='lr1':
+                file = f'{path_ocn_lr1}/{lr1str}.pop.h.{time}.nc'
+            elif run=='lr2':
+                file = f'{path_ocn_lr2}/{lr2str}.pop.h.{time}.nc'
+            elif run=='ld':
+                file = f'{path_ocn_ld}/{ldstr}.pop.h.{time}.nc'
 
         elif domain=='atm':
             if run=='ctrl':
@@ -121,6 +151,14 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 raise ValueError('monthly files are not available for lpd run!')
             elif run=='lpi':
                 file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
+            elif run=='lr1':
+                file = f'{path_atm_lr1}/{lr1str}.cam.h0.{time}.nc'
+            elif run=='lr2':
+                file = f'{path_atm_lr2}/{lr2str}.cam.h0.{time}.nc'
+            elif run=='hq':
+                file = f'{path_atm_hq}/{hqstr}.cam2.h0.{time}.nc'
+            elif run=='ld':
+                file = f'{path_atm_ld}/{ldstr}.cam.h0.{time}.nc'
 
         elif domain=='ice':
             if run=='ctrl':
@@ -167,11 +205,15 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
 
 # STRINGS
 
-spinup = 'spinup_pd_maxcores_f05_t12'
-rcpstr = 'rcp8.5_co2_f05_t12'
-lpdstr = 'spinup_B_2000_cam5_f09_g16'
-lpistr = 'b.PI_1pic_f19g16_NESSC_control'
-popstr = 't.t0.1_42l_nccs01'
+spinup  = 'spinup_pd_maxcores_f05_t12'
+rcpstr  = 'rcp8.5_co2_f05_t12'
+lr1str  = 'rcp8.5_co2_f09_g16'
+lr2str  = 'rcp8.5_co2_f09_g16.002'
+lpdstr  = 'spinup_B_2000_cam5_f09_g16'
+lpistr  = 'b.PI_1pic_f19g16_NESSC_control'
+popstr  = 't.t0.1_42l_nccs01'
+hqstr   = 'b.e10.B2000_CAM5.f05_t12.pd_control.4xco2.001'
+ldstr   = 'b.e10.B2000_CAM5.f09_g16.pd_control.2xco2.001'
 
 
 # PATHS
@@ -183,15 +225,21 @@ path_prace   = '/projects/0/prace_imau/prace_2013081679/andre'
 path_samoc   = path_prace
 
 # CESM data (should read only)
-path_CESM = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
-path_ctrl = f'{path_CESM}/{spinup}'
-path_rcp  = f'{path_CESM}/{rcpstr}'
-path_lpd  = f'/projects/0/acc/cesm/cesm1_1_2/{lpdstr}'
-path_lpi  = f'/projects/0/acc/cesm/cesm1_0_5/{lpistr}'
+path_CESM104 = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
+path_CESM112 = '/projects/0/acc/cesm/cesm1_1_2'
+path_CESM105 = '/projects/0/acc/cesm/cesm1_0_5'
+path_ctrl = f'{path_CESM104}/{spinup}'
+path_rcp  = f'{path_CESM104}/{rcpstr}'
+path_lpd  = f'{path_CESM112}/{lpdstr}'
+path_lpi  = f'{path_CESM105}/{lpistr}'
 path_pop  = f'/projects/0/samoc/pop/tx0.1'
+path_lr1  = f'{path_CESM112}/{lr1str}'
+path_lr2  = f'{path_CESM112}/{lr2str}'
+path_hq   = f'{path_CESM104}/{hqstr}'
+path_ld   = f'{path_CESM112}/{ldstr}'
 
 # grid
-path_ocn_grid = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/'
+path_ocn_grid = f'{path_CESM104}/inputdata/ocn/pop/tx0.1v2/grid/'
 
 # currently running
 path_run_ctrl = f'{path_ctrl}/run'
@@ -213,6 +261,23 @@ path_ice_lpd  = f'{path_lpd}/OUTPUT/ice/hist'
 path_ocn_lpi  = f'{path_lpi}/OUTPUT/ocn/hist/monthly'
 path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist/monthly'
 
+path_ocn_lr1  = f'{path_lr1}/OUTPUT/ocn/hist/monthly'
+path_atm_lr1  = f'{path_lr1}/OUTPUT/atm/hist/monthly'
+path_ice_lr1  = f'{path_lr1}/OUTPUT/ice/hist/monthly'
+
+# path_ocn_lr2  = f'{path_lr2}/OUTPUT/ocn/hist/monthly'
+path_ocn_lr2  = f'{path_lr2}/run'
+# path_atm_lr2  = f'{path_lr2}/OUTPUT/atm/hist/monthly'
+path_atm_lr2  = f'{path_lr2}/run'
+path_ice_lr2  = f'{path_lr2}/OUTPUT/ice/hist/monthly'
+
+path_ocn_hq   = f'{path_hq}/OUTPUT/ocn/hist/monthly'
+path_atm_hq   = f'{path_hq}/OUTPUT/atm/hist/monthly'
+path_ice_hq   = f'{path_hq}/OUTPUT/ice/hist/monthly'
+
+path_ocn_ld   = f'{path_ld}/OUTPUT/ocn/hist/monthly'
+path_atm_ld   = f'{path_ld}/OUTPUT/atm/hist/monthly'
+path_ice_ld   = f'{path_ld}/OUTPUT/ice/hist/monthly'
 
 # interpolated to rectangular 0.4 deg grid
 path_ocn_rect_ctrl = f'{path_ctrl}/OUTPUT/ocn/hist/monthly_rect'
@@ -235,16 +300,20 @@ path_yrly_ctrl = f'{path_prace}/ctrl'
 path_yrly_rcp  = f'{path_prace}/rcp'
 path_yrly_lpd  = f'{path_prace}/lpd'
 path_yrly_lpi  = f'{path_prace}/lpi'
+path_yrly_lr1  = f'{path_prace}/lr1'
+path_yrly_lr2  = f'{path_prace}/lr2'
+path_yrly_hq   = f'{path_prace}/hq'
+path_yrly_ld   = f'{path_prace}/ld'
 
 # FILES
 
-grid_file  = f'{path_CESM}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.ieeer8'
+grid_file  = f'{path_CESM104}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.ieeer8'
 
 # example files to use for tests
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
 file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
-# file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
+file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 
 # daily data
 file_ex_ocn_daily_SST_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 249, m=1, d=32, name='SST')
