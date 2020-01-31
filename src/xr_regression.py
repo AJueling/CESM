@@ -152,7 +152,7 @@ def ocn_field_regression(xa, run):
     
     if run in ['ctrl', 'rcp']:
         MASK = boolean_mask('ocn'     , 0)
-    elif run in ['lpi', 'lpd']:
+    elif run in ['lpi', 'lpd', 'lr1', 'lr2', 'ld']:
         MASK = boolean_mask('ocn_low' , 0)
     (jm, im) = MASK.shape
     xa   = xa.where(MASK>0).fillna(-9999)

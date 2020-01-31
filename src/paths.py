@@ -48,10 +48,18 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.nc'
             elif run=='rcp':
                 file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.nc'
+            elif run=='hq':
+                file = f'{path_yrly_hq}/ocn_yrly_{name}_{y:04}.nc'
             elif run=='lpd':
                 file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
             elif run=='lpi':
                 file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
+            elif run=='lr1':
+                file = f'{path_yrly_lr1}/ocn_yrly_{name}_{y:04}.nc'
+            elif run=='lr2':
+                file = f'{path_yrly_lr2}/ocn_yrly_{name}_{y:04}.nc'
+            elif run=='ld':
+                file = f'{path_yrly_ld}/ocn_yrly_{name}_{y:04}.nc'
     
         elif domain=='ocn_rect':
             if run=='ctrl':
