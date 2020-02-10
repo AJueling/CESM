@@ -114,9 +114,8 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     gl.xlocator = mticker.FixedLocator([-180, -120, -60, 0, 60, 120, 180])
     
     # colorbar
-    cbar = fig.colorbar(im, cax=cax, extend='both', **kw)
-    cbar.ax.tick_params(labelsize=14)
-    label = cbar.set_label(label, size=16)
+    ax.add_feature(cartopy.feature.LAND,
+                       zorder=2, edgecolor='black', facecolor='w')
     
     # output
     if filename!=None: plt.savefig(filename, dpi=100)
