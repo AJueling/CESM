@@ -28,7 +28,7 @@ class DeriveField(object):
         return
     
     
-    def yrly_avg_nc(self, domain, fields, test=False):
+    def yrly_avg_nc(self, domain, fields, test=False, years=None):
         """ creates yearly average file from monthly
         input:    fields .. list of field names
         output:   [writes netCDF file]
@@ -72,6 +72,7 @@ class DeriveField(object):
             first_year = IterateOutputCESM(domain=domain, run=self.run, tavg='monthly').year
 
             for y, m, s in IterateOutputCESM(domain=domain, run=self.run, tavg='monthly'):
+                if years is not None and y not in years:  continue
                 if m==1:
                     new_filename = CESM_filename(domain=domain, run=self.run, y=y, m=0, name=name)
                 if os.path.exists(new_filename):
