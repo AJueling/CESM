@@ -2,7 +2,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from tqdm import tqdm
+from tqdm import tqdm, tqdm_notebook
 from paths import CESM_filename, path_prace
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
@@ -207,6 +207,35 @@ class DeriveField(object):
         
         return
     
+    
+    def make_TEMP_SALT_transport_section(self, i, j, fn=None):
+        """ zonal or meridional sections along grid lines
+        {'nlat':j_34, 'nlon':slice(i_SA,i_CGH)}
+        """
+        assert self.domain in ['ocn', 'ocn_low'], 'only implemented for ocn and ocn_low grids'
+        if type(i)==int and type(j)==tuple: 
+            print('meridional section')
+            sel_dict = {'nlat':slice(j[0],j[1]), 'nlon':i}
+            list1 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET', 'DYT', 'DYU', 'z_t', 'dz']
+            list2 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET']
+        if type(i)==tuple and type(j)==int:
+            print('zonal section')
+            sel_dict = {'nlat':j, 'nlon':slice(i[0],i[1])}
+            list1 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT', 'DXT', 'DXU', 'z_t', 'dz']
+            list2 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT']
+        else: raise ValueError('one of i/j needs to be length 2 tuple of ints and the other an int')
+            
+        for j, (y,m,fn) in tqdm_notebook(enumerate(IterateOutputCESM(run=self.run, domain=self.domain, tavg='monthly'))):
+            if j==0:
+                ds = xr.open_dataset(fn, decode_times=False)[list1].isel(sel_dict)
+                TLAT_, TLONG_ = ds.TLAT, ds.TLONG
+            else:
+                ds_ = xr.open_dataset(fn, decode_times=False)[list2].isel(sel_dict)
+                ds_['TLAT'], ds_['TLONG'] = TLAT_, TLONG_
+                ds = xr.merge([ds, ds_])#, compat='override')  # override results in empty fields
+        if fn is not None:  ds.to_netcdf(fn)
+        return ds
+        
     
     def make_detrended_SST_file(self):
         return

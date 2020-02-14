@@ -99,3 +99,15 @@ def find_array_idx(array, val):
     idx = (np.abs(array - val)).argmin()
     return idx
     
+
+def find_indices_near_coordinate(ds, lat, lon):
+    """ finding the nlon/nlat indices for a given lon/lat position
+    returns floats
+    """
+    distance = np.sqrt((ds.TLAT.where(ds.REGION_MASK>0)-lat)**2 + (ds.TLONG.where(ds.REGION_MASK>0)-lon)**2)
+    nlons, nlats = np.meshgrid(ds.nlon, ds.nlat)
+    nlons_, nlats_ = ds.TLONG.copy(), ds.TLAT.copy()
+    nlons_.values, nlats_.values = nlons, nlats
+    nlon_ = nlons_.where(distance==distance.min(), drop=True)
+    nlat_ = nlats_.where(distance==distance.min(), drop=True)
+    return (nlon_.values[0,0], nlat_.values[0,0])
