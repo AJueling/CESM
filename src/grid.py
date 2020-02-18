@@ -111,3 +111,12 @@ def find_indices_near_coordinate(ds, lat, lon):
     nlon_ = nlons_.where(distance==distance.min(), drop=True)
     nlat_ = nlats_.where(distance==distance.min(), drop=True)
     return (nlon_.values[0,0], nlat_.values[0,0])
+
+
+def shift_ocn_low(da, back=False):
+    """ shifts nlon between curvilinear [0,320] and [-160,160] frame
+    the latter allows for a contiguous Atlantic """
+    if back==False:
+        return da.assign_coords(nlon=(da.nlon - 320*(da.nlon//160))).roll(nlon=160, roll_coords=True)
+    else: 
+        return da.assign_coords(nlon=(da.nlon+320)%320).roll(nlon=160, roll_coords=True)

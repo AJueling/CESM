@@ -3,11 +3,11 @@ import numpy as np
 import xarray as xr
 
 from tqdm import tqdm, tqdm_notebook
-from paths import CESM_filename, path_prace
+from paths import CESM_filename, path_prace, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
 from xr_regression import xr_quadtrend
-
+from grid import shift_ocn_low
 
 class DeriveField(object):
     """ functions to generate netcdf files derived from CESM output / obs. """
@@ -208,32 +208,70 @@ class DeriveField(object):
         return
     
     
-    def make_TEMP_SALT_transport_section(self, i, j, fn=None):
+    def make_TEMP_SALT_transport_section(self, section_dict, years=None):
         """ zonal or meridional sections along grid lines
         {'nlat':j_34, 'nlon':slice(i_SA,i_CGH)}
         """
         assert self.domain in ['ocn', 'ocn_low'], 'only implemented for ocn and ocn_low grids'
-        if type(i)==int and type(j)==tuple: 
-            print('meridional section')
-            sel_dict = {'nlat':slice(j[0],j[1]), 'nlon':i}
-            list1 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET', 'DYT', 'DYU', 'z_t', 'dz']
-            list2 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET']
-        if type(i)==tuple and type(j)==int:
-            print('zonal section')
-            sel_dict = {'nlat':j, 'nlon':slice(i[0],i[1])}
-            list1 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT', 'DXT', 'DXU', 'z_t', 'dz']
-            list2 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT']
-        else: raise ValueError('one of i/j needs to be length 2 tuple of ints and the other an int')
+        if years is None:  years = np.arange(2000,2101)
+        dss = {}
+#         for k, (y,m,fn) in tqdm_notebook(enumerate(IterateOutputCESM(run=self.run, domain=self.domain, tavg='monthly'))):
+        DZT = xr_DZ(domain=self.domain)
+        DZT.name = 'DZT'
+        if self.run in ['ctrl', 'rcp']:   fn = file_ex_ocn_ctrl
+        elif self.run in ['lpd', 'lr1']:  fn = file_ex_ocn_lpd
+        geometry = xr.open_dataset(fn, decode_times=False).drop('time')[['DYT', 'DYU', 'DXT', 'DXU', 'z_t', 'dz']]
+
+        for k, y in enumerate(years):
+            if k==2:  break
+            print(y)
+#             ds = xr.open_dataset(fn, decode_times=False)
+            UVEL_VVEL = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False).drop('time')
+            SALT_VNS_UES = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_SALT_VNS_UES_{y:04d}.nc', decode_times=False).drop('time')
+            TEMP = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_TEMP_{y:04d}.nc', decode_times=False).drop('time')
+            VNT_UET = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_VNT_UET_{y:04d}.nc', decode_times=False).drop('time')
             
-        for j, (y,m,fn) in tqdm_notebook(enumerate(IterateOutputCESM(run=self.run, domain=self.domain, tavg='monthly'))):
-            if j==0:
-                ds = xr.open_dataset(fn, decode_times=False)[list1].isel(sel_dict)
-                TLAT_, TLONG_ = ds.TLAT, ds.TLONG
-            else:
-                ds_ = xr.open_dataset(fn, decode_times=False)[list2].isel(sel_dict)
-                ds_['TLAT'], ds_['TLONG'] = TLAT_, TLONG_
-                ds = xr.merge([ds, ds_])#, compat='override')  # override results in empty fields
-        if fn is not None:  ds.to_netcdf(fn)
+            ds = xr.merge([UVEL_VVEL, SALT_VNS_UES, TEMP, VNT_UET, geometry, DZT],compat='override')
+            ds = ds.assign_coords(time=365*y+31).expand_dims('time')  # 31.1. of each year
+            
+            for key in section_dict.keys():
+                (i,j) = section_dict[key]
+                ds_ = ds
+                
+                if type(i)==int and type(j)==tuple: 
+                    sel_dict = {'nlat':slice(j[0],j[1]), 'nlon':i}
+                    if k==0:  print(f'{key:10} merid section:   {str(sel_dict):50},  {ds_.TLONG.sel(nlon=i).values[0]:6.1f}E, {ds_.TLAT.sel(nlat=j[0]).values[0]:6.1f}N - {ds_.TLAT.sel(nlat=j[1]).values[0]:6.1f}N')
+                    list1 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET', 'DZT', 'DYT', 'DYU', 'z_t', 'dz']
+                    list2 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET']
+                elif type(i)==tuple and type(j)==int:
+                    if i[1]<i[0]:
+                        ds_ = shift_ocn_low(ds_)
+                        if i[0]>160:
+                            i = (i[0]-320, i[1])
+                    
+                    sel_dict = {'nlat':j, 'nlon':slice(i[0],i[1])}
+                    if k==0:  print(f'{key:10} zonal section:   {str(sel_dict):50},  {ds_.TLONG.sel(nlon=i[0]).values[0]:6.1f}E - {ds_.TLONG.sel(nlon=i[1]).values[0]:6.1f}E, {ds_.TLAT.sel(nlat=j).values[0]:6.1f}N')
+                    list1 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT', 'DZT', 'DXT', 'DXU', 'z_t', 'dz']
+                    list2 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT']
+                else: raise ValueError('one of i/j needs to be length 2 tuple of ints and the other an int')
+                
+                
+                
+                if k==0:
+                    ds_ = ds_[list1].sel(sel_dict)
+                    dss[key] = [ds_]
+                    dss[key+'TLAT'], dss[key+'TLONG'] = ds_.TLAT, ds_.TLONG
+                else:
+                    ds_ = ds_[list1].sel(sel_dict)
+                    ds_['TLAT'], ds_['TLONG'] = dss[key+'TLAT'], dss[key+'TLONG'] 
+                    dss[key].append(ds_)
+#                 if key=='34S':  print('\n','\n','\n >>>ds_',ds_,'\n','\n','\n')
+            for key in section_dict.keys():
+                ds = xr.concat(dss[key], dim='time')  #, compat='override')  # override results in empty fields
+                run = self.run
+                fn = f'{path_prace}/{run}/section_{key}_{run}.nc'
+                ds.to_netcdf(fn)
+                    
         return ds
         
     
@@ -242,7 +280,7 @@ class DeriveField(object):
     
     
     def make_GMST_with_trends_file(self):
-        """ builds a timesries of the GMST and saves it to a netCDF
+        """ builds a timeseries of the GMST and saves it to a netCDF
     
         input:
         run    .. (str) ctrl or cp
