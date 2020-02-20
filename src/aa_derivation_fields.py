@@ -6,7 +6,7 @@ from tqdm import tqdm, tqdm_notebook
 from paths import CESM_filename, path_prace, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from timeseries import IterateOutputCESM
 from xr_DataArrays import depth_lat_lon_names, xr_DZ, xr_DXU
-from xr_regression import xr_quadtrend
+from xr_regression import xr_quadtrend, xr_linear_trends_2D
 from grid import shift_ocn_low
 
 class DeriveField(object):
@@ -212,10 +212,10 @@ class DeriveField(object):
         """ zonal or meridional sections along grid lines
         {'nlat':j_34, 'nlon':slice(i_SA,i_CGH)}
         """
+        print(self.run)
         assert self.domain in ['ocn', 'ocn_low'], 'only implemented for ocn and ocn_low grids'
         if years is None:  years = np.arange(2000,2101)
         dss = {}
-#         for k, (y,m,fn) in tqdm_notebook(enumerate(IterateOutputCESM(run=self.run, domain=self.domain, tavg='monthly'))):
         DZT = xr_DZ(domain=self.domain)
         DZT.name = 'DZT'
         if self.run in ['ctrl', 'rcp']:   fn = file_ex_ocn_ctrl
@@ -223,59 +223,99 @@ class DeriveField(object):
         geometry = xr.open_dataset(fn, decode_times=False).drop('time')[['DYT', 'DYU', 'DXT', 'DXU', 'z_t', 'dz']]
 
         for k, y in enumerate(years):
-            if k==2:  break
+#             if k==2:  break
             print(y)
-#             ds = xr.open_dataset(fn, decode_times=False)
-            UVEL_VVEL = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False).drop('time')
-            SALT_VNS_UES = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_SALT_VNS_UES_{y:04d}.nc', decode_times=False).drop('time')
-            TEMP = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_TEMP_{y:04d}.nc', decode_times=False).drop('time')
-            VNT_UET = xr.open_dataset(f'{path_prace}/{self.run}/ocn_yrly_VNT_UET_{y:04d}.nc', decode_times=False).drop('time')
+            fn_UVEL_VVEL = f'{path_prace}/{self.run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc'
+            fn_SALT_VNS_VNE = f'{path_prace}/{self.run}/ocn_yrly_SALT_VNS_UES_{y:04d}.nc'
+            fn_TEMP = f'{path_prace}/{self.run}/ocn_yrly_TEMP_{y:04d}.nc'
+            fn_VNT_UET = f'{path_prace}/{self.run}/ocn_yrly_VNT_UET_{y:04d}.nc'
+            
+            UVEL_VVEL = xr.open_dataset(fn_UVEL_VVEL, decode_times=False).drop('time')
+            SALT_VNS_UES = xr.open_dataset(fn_SALT_VNS_VNE, decode_times=False).drop('time')
+            TEMP = xr.open_dataset(fn_TEMP, decode_times=False).drop('time')
+            VNT_UET = xr.open_dataset(fn_VNT_UET, decode_times=False).drop('time')
             
             ds = xr.merge([UVEL_VVEL, SALT_VNS_UES, TEMP, VNT_UET, geometry, DZT],compat='override')
             ds = ds.assign_coords(time=365*y+31).expand_dims('time')  # 31.1. of each year
             
             for key in section_dict.keys():
-                (i,j) = section_dict[key]
-                ds_ = ds
-                
-                if type(i)==int and type(j)==tuple: 
-                    sel_dict = {'nlat':slice(j[0],j[1]), 'nlon':i}
-                    if k==0:  print(f'{key:10} merid section:   {str(sel_dict):50},  {ds_.TLONG.sel(nlon=i).values[0]:6.1f}E, {ds_.TLAT.sel(nlat=j[0]).values[0]:6.1f}N - {ds_.TLAT.sel(nlat=j[1]).values[0]:6.1f}N')
-                    list1 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET', 'DZT', 'DYT', 'DYU', 'z_t', 'dz']
-                    list2 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET']
-                elif type(i)==tuple and type(j)==int:
-                    if i[1]<i[0]:
-                        ds_ = shift_ocn_low(ds_)
-                        if i[0]>160:
-                            i = (i[0]-320, i[1])
-                    
-                    sel_dict = {'nlat':j, 'nlon':slice(i[0],i[1])}
-                    if k==0:  print(f'{key:10} zonal section:   {str(sel_dict):50},  {ds_.TLONG.sel(nlon=i[0]).values[0]:6.1f}E - {ds_.TLONG.sel(nlon=i[1]).values[0]:6.1f}E, {ds_.TLAT.sel(nlat=j).values[0]:6.1f}N')
-                    list1 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT', 'DZT', 'DXT', 'DXU', 'z_t', 'dz']
-                    list2 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT']
-                else: raise ValueError('one of i/j needs to be length 2 tuple of ints and the other an int')
-                
-                
-                
-                if k==0:
-                    ds_ = ds_[list1].sel(sel_dict)
-                    dss[key] = [ds_]
-                    dss[key+'TLAT'], dss[key+'TLONG'] = ds_.TLAT, ds_.TLONG
+                fn =  f'{path_prace}/{self.run}/section_{key}_{self.run}_{y:04d}.nc'
+                if y>years[0] and os.path.exists(fn):  continue
                 else:
+                    (i,j) = section_dict[key]
+                    ds_ = ds
+
+                    if type(i)==int and type(j)==tuple: 
+                        sel_dict = {'nlat':slice(j[0],j[1]), 'nlon':i}
+                        if k==0:
+                            lon1 = f'{ds_.TLONG.sel(nlon=i,nlat=j[0]).values:6.1f}'
+                            lon2 = f'{ds_.TLONG.sel(nlon=i,nlat=j[1]).values:6.1f}'
+                            lat1 = f'{ds_.TLAT.sel(nlon=i,nlat=j[0]).values:6.1f}'
+                            lat2 = f'{ds_.TLAT.sel(nlon=i,nlat=j[1]).values:6.1f}'
+                            print(f'{key:10} merid section: {str(sel_dict):50},{lon1}/{lon2}E,{lat1}N-{lat2}N')
+                        list1 = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET', 'DZT', 'DYT', 'DYU', 'z_t', 'dz']
+                    elif type(i)==tuple and type(j)==int:
+                        if i[1]<i[0]:
+                            ds_ = shift_ocn_low(ds_)
+                            if i[0]>160:
+                                i = (i[0]-320, i[1])
+
+                        sel_dict = {'nlat':j, 'nlon':slice(i[0],i[1])}
+                        if k==0:
+                            lon1 = f'{ds_.TLONG.sel(nlon=i[0],nlat=j).values:6.1f}'
+                            lon2 = f'{ds_.TLONG.sel(nlon=i[1], nlat=j).values:6.1f}'
+                            lat1 = f'{ds_.TLAT.sel(nlon=i[0],nlat=j).values:6.1f}'
+                            lat2 = f'{ds_.TLAT.sel(nlon=i[1],nlat=j).values:6.1f}'
+                            print(f'{key:10} zonal section: {str(sel_dict):50},{lon1}E-{lon2}E,{lat1}/{lat2}N')
+                        list1 = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT', 'DZT', 'DXT', 'DXU', 'z_t', 'dz']
+                    else: raise ValueError('one of i/j needs to be length 2 tuple of ints and the other an int')
                     ds_ = ds_[list1].sel(sel_dict)
-                    ds_['TLAT'], ds_['TLONG'] = dss[key+'TLAT'], dss[key+'TLONG'] 
-                    dss[key].append(ds_)
-#                 if key=='34S':  print('\n','\n','\n >>>ds_',ds_,'\n','\n','\n')
-            for key in section_dict.keys():
-                ds = xr.concat(dss[key], dim='time')  #, compat='override')  # override results in empty fields
-                run = self.run
-                fn = f'{path_prace}/{run}/section_{key}_{run}.nc'
-                ds.to_netcdf(fn)
-                    
-        return ds
-        
+
+                    if k==0:
+                        TLAT, TLONG = ds_.TLAT, ds_.TLONG
+                    else:
+                        ds_['TLAT'], ds_['TLONG'] = TLAT, TLONG 
+                    ds_.to_netcdf(fn)
+        return
     
-    def make_detrended_SST_file(self):
+    
+    def combine_sections(self, sections, years):
+        """ """
+        for key in tqdm_notebook(sections):
+            sects = []
+            for y in tqdm_notebook(years):
+                fn_ =  f'{path_prace}/{self.run}/section_{key}_{self.run}_{y:04d}.nc'
+                da = xr.open_dataset(fn_, decode_times=False)
+                if np.shape(np.array(da.coords['nlon'].values))==():  da = da.drop('nlon')
+                if np.shape(np.array(da.coords['nlat'].values))==():  da = da.drop('nlat')
+                sects.append(da)
+            print(len(sects))
+            ds = xr.concat(sects, dim='time')#, compat='override')
+            ds.to_netcdf(f'{path_prace}/{self.run}/section_{key}_{self.run}.nc')
+        return
+
+    
+    def make_section_trend_file(self, sections):
+        """ calculate trends"""
+        for key in tqdm_notebook(sections):
+            fn = f'{path_prace}/{self.run}/section_{key}_trend_{self.run}.nc'
+            if os.path.exists(fn):  continue
+            ds = xr.open_dataset(f'{path_prace}/{self.run}/section_{key}_{self.run}.nc')
+            if 'VVEL' in ds:
+                ls = ['VVEL', 'SALT', 'TEMP', 'VNS', 'VNT']
+                dim_names = ['nlon', 'z_t']
+            else:
+                ls = ['UVEL', 'SALT', 'TEMP', 'UES', 'UET']
+                dim_names = ['nlat', 'z_t']
+
+            for i, l in tqdm_notebook(enumerate(ls)):
+                da = xr_linear_trends_2D(ds[l], dim_names=dim_names, with_nans=True)
+                da.name = l+'_trend'
+                if i==0:
+                    ds_ = da.to_dataset()
+                else:
+                    ds_ = xr.merge([ds_, da])
+            ds_.to_netcdf(fn)
         return
     
     

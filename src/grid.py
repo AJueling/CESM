@@ -120,3 +120,10 @@ def shift_ocn_low(da, back=False):
         return da.assign_coords(nlon=(da.nlon - 320*(da.nlon//160))).roll(nlon=160, roll_coords=True)
     else: 
         return da.assign_coords(nlon=(da.nlon+320)%320).roll(nlon=160, roll_coords=True)
+    
+def shift_had(da, back=False):
+    """ shifts lons from [-180,180] to [0,360] to make Pacific contiguous """
+    if back==True:
+        return da.assign_coords(longitude=(da.longitude-360*(da.longitude//180))).roll(longitude=180, roll_coords=True)        
+    else:
+        return da.assign_coords(longitude=(da.longitude+360)%360).roll(longitude=180, roll_coords=True)
