@@ -11,7 +11,7 @@ from eofs.xarray import Eof
 
 from paths import path_prace
 from regions import boolean_mask, TPI_masks, mask_box_in_region,\
-                    bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3
+                    bll_AMO, bll_SOM, bll_TPI1, bll_TPI2, bll_TPI3, bll_SMV
 from filters import chebychev, lowpass
 from timeseries import IterateOutputCESM
 from xr_regression import xr_lintrend
@@ -53,7 +53,7 @@ class AnalyzeIndex(object):
         fn_monthly = f'{path_prace}/SST/SST_monthly_{dsdt}_{run}{ts}.nc'
         SST_monthly = xr.open_dataarray(fn_monthly, decode_times=False)
         
-        if index in ['AMO', 'SOM']:
+        if index in ['AMO', 'SOM', 'SMV']:
             blats, blons, mask_nr = self.bounding_lats_lons(index)
             MASK = mask_box_in_region(domain=domain, mask_nr=mask_nr, bounding_lats=blats, bounding_lons=blons)
             AREA = xr_AREA(domain=domain).where(MASK)
@@ -131,7 +131,7 @@ class AnalyzeIndex(object):
         fn_SST = f'{path_prace}/SST/SST_monthly_ds_dt_{run}{ts}.nc'
         SST_dt = xr.open_dataarray(fn_SST, decode_times=False)
         
-        if idx in ['AMO', 'SOM', 'TPI']:
+        if idx in ['AMO', 'SOM', 'TPI', 'SMV']:
             index = xr.open_dataarray(f'{path_prace}/SST/{idx}_ds_dt_raw_{run}{ts}.nc',
                                       decode_times=False)
             fn_out = f'{path_prace}/SST/{idx}_regr_{run}{ts}.nc'
@@ -225,6 +225,9 @@ class AnalyzeIndex(object):
             mask_nr = 6
         elif index=='SOM':
             (blats, blons) = bll_SOM
+            mask_nr = 0
+        elif index=='SMV':
+            (blats, blons) = bll_SMV
             mask_nr = 0
         elif index=='TPI1':
             (blats, blons) = bll_TPI1

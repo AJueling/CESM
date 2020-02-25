@@ -60,7 +60,7 @@ if __name__=='__main__':
     run = str(sys.argv[1]).lower()
     idx = str(sys.argv[2]).upper()
     assert run in ['ctrl', 'lpd', 'had']
-    assert idx in ['AMO', 'SOM', 'TPI', 'PMV']
+    assert idx in ['AMO', 'SOM', 'TPI', 'PMV', 'SMV']
 
     
     # ==============================================================================================
@@ -130,7 +130,7 @@ if __name__=='__main__':
             kwargs = dict(run=run, time=time)
         trex(fn=fn, fct=fct, kwargs=kwargs)
 
-        # subselect Pacific data
+        # subselect Pacific data for subsequent EOF analysis
         if idx=='PMV':
             fct = DS().isolate_Pacific_SSTs
             for extent in ['38S', 'Eq', '20N']:
@@ -147,7 +147,7 @@ if __name__=='__main__':
         ts = AI().time_string(time)
         
         # area average SST indices
-        if idx in ['AMO', 'SOM', 'TPI']:
+        if idx in ['AMO', 'SOM', 'TPI', 'SMV']:
             fct = AI().derive_SST_avg_index
             kwargs = dict(run=run, index=idx, time=time)
             fn = f'{path_prace}/SST/{idx}_ds_dt_raw_{run}{ts}.nc'
