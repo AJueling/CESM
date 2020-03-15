@@ -4,3 +4,8 @@ ffmpeg -framerate 8 -start_number 278 -i SOM_plots_ann_spaeqd_%03d.png -r 8 -qsc
 
 # this works for Keynote with transparancy
 ffmpeg -framerate 12 -start_number 1870 -i SST_AMO_area_%03d.png -r 8 -vcodec png SST_AMO.mov
+
+
+ffmpeg -framerate 24 -start_number 0 -i NA_daily_SST_ctrl_black_%03d.png  -vcodec png NA_daily_SST_ctrl_black.mp4
+
+The daily sea surface temperatures in a year 2000 control simulation with the Community Earth System Model at 1/10 degree ocean resolution. Processing and plotting with @xarray_dev, @matplotlib and cartopy.
