@@ -14,6 +14,7 @@ necessary fields:
 import os
 import sys
 import numpy as np
+import pickle
 import xarray as xr
 
 from paths import CESM_filename, path_prace, path_results, file_RMASK_ocn_low, file_ex_ocn_ctrl
@@ -24,7 +25,7 @@ from aa_derivation_fields import DeriveField
 
 """ functions to create certain files """
 
-lat_bands = [(45,60), (10,45), (-10,10), (-34,10), (-34,60), (60,90)]
+lat_bands = [(-34,-10), (-10,10), (10,45), (45,60), (60,90)]
 
 def trex(fn, fct, kwargs={}):
     """  try: existence / except: create
@@ -97,15 +98,17 @@ def make_SFWF_means(run, fn):
     elif run=='lpd':  yy = 500
     for i, qs in enumerate([['EVAP_F', 'PREC_F', 'ROFF_F'],['SALT_F']]):
         name = '_'.join(qs)
+        print(f'  making mean of {name}')
         ds_list = [xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_{name}_0{y}.nc') for y in np.arange(yy,yy+30)]
         fn = f'{path_prace}/{run}/{name}_{run}_mean_{years[0]}-{years[-1]+1}.nc'
-        xr.concat(ds_list, dim='time').mean(dim='time').to_netcdf()
+        xr.concat(ds_list, dim='time').mean(dim='time').to_netcdf(fn)
     return
 
 def make_SFWF_trends(run):
     """ calculate linear trends of SFWF """
     for qs in [['EVAP_F', 'PREC_F', 'ROFF_F'],['SALT_F']]:
         name = '_'.join(qs)
+        print(f'  making trend of {name}')
         for i, (y,m,f) in enumerate(IterateOutputCESM(domain='ocn', run=run, tavg='yrly', name=name)):
             ds_ = xr.open_dataset(f, decode_times=False)
             if i==0:  ds = []
@@ -131,30 +134,30 @@ def make_SFWF_surface_int_dict():
 
     ds_ctrl = xr.open_dataset(f'{path_prace}/ctrl/EVAP_F_PREC_F_ROFF_F_ctrl_mean_200-230.nc')
     ds_lpd  = xr.open_dataset(f'{path_prace}/lpd/EVAP_F_PREC_F_ROFF_F_lpd_mean_500-530.nc')
-    Sm_ctrl = xr.open_dataset(f'{path_prace}/lpd/SALT_F_ctrl_mean_200-230.nc').SALT_F
-    Sm_lpd  = xr.open_dataset(f'{path_prace}/lpd/SALT_F_lpd_mean_500-530.nc').SALT_F
-    Et_rcp = xr.open_dataarray(f'{path_prace}/rcp/EVAP_F_yrly_trend.nc')
-    Pt_rcp = xr.open_dataarray(f'{path_prace}/rcp/PREC_F_yrly_trend.nc')
-    Rt_rcp = xr.open_dataarray(f'{path_prace}/rcp/ROFF_F_yrly_trend.nc')
-    St_rcp = xr.open_dataarray(f'{path_prace}/rcp/SALT_F_yrly_trend.nc')
-    Et_lr1 = xr.open_dataarray(f'{path_prace}/lr1/EVAP_F_yrly_trend.nc')
-    Pt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/PREC_F_yrly_trend.nc')
-    Rt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/ROFF_F_yrly_trend.nc')
-    St_lr1 = xr.open_dataarray(f'{path_prace}/lr1/SALT_F_yrly_trend.nc')
+    Sm_ctrl = xr.open_dataarray(f'{path_prace}/ctrl/SALT_F_ctrl_mean_200-230.nc')
+    Sm_lpd  = xr.open_dataarray(f'{path_prace}/lpd/SALT_F_lpd_mean_500-530.nc')
+    Et_rcp = xr.open_dataarray(f'{path_prace}/rcp/EVAP_F_yrly_trend_rcp.nc')
+    Pt_rcp = xr.open_dataarray(f'{path_prace}/rcp/PREC_F_yrly_trend_rcp.nc')
+    Rt_rcp = xr.open_dataarray(f'{path_prace}/rcp/ROFF_F_yrly_trend_rcp.nc')
+    St_rcp = xr.open_dataarray(f'{path_prace}/rcp/SALT_F_yrly_trend_rcp.nc')
+    Et_lr1 = xr.open_dataarray(f'{path_prace}/lr1/EVAP_F_yrly_trend_lr1.nc')
+    Pt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/PREC_F_yrly_trend_lr1.nc')
+    Rt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/ROFF_F_yrly_trend_lr1.nc')
+    St_lr1 = xr.open_dataarray(f'{path_prace}/lr1/SALT_F_yrly_trend_lr1.nc')
 
     for i, sim in enumerate(['HIGH', 'LOW']):
         d = {}
-        (Em, Pm, Rm) = [(ds_ctrl.EVAP_F, ds_ctrl.PREC_F, ds_ctrl.ROFF_F),
-                        (ds_lpd.EVAP_F, ds_lpd.PREC_F, ds_lpd.ROFF_F)][i]
-        (Et, Pt, Rt) = [(Et_rcp, Pt_rcp, Rt_rcp),
-                        (Et_lr1, Pt_lr1, Rt_lr1)][i]
+        (Em, Pm, Rm, Sm) = [(ds_ctrl.EVAP_F, ds_ctrl.PREC_F, ds_ctrl.ROFF_F, Sm_ctrl),
+                            (ds_lpd.EVAP_F, ds_lpd.PREC_F, ds_lpd.ROFF_F, Sm_lpd)][i]
+        (Et, Pt, Rt, St) = [(Et_rcp, Pt_rcp, Rt_rcp, St_rcp),
+                            (Et_lr1, Pt_lr1, Rt_lr1, St_lr1)][i]
         AREA = [AREA_ocn, AREA_low][i]
         RMASK = [RMASK_ocn, RMASK_low][i]
         MASK = [Atl_MASK_ocn, Atl_MASK_low][i]
 
         for (latS, latN) in lat_bands:
             if latN>60:  # + Arctic & Hudson Bay
-                MASK = MASK + RMASK.where(RMASK_ocn==10) + RMASK.where(RMASK_ocn==11)  
+                MASK = MASK + RMASK.where(RMASK==10) + RMASK.where(RMASK==11)  
             MASK_ = MASK.where(Pm.ULAT<latN).where(Pm.ULAT>latS)
             AREA_total = AREA.where(MASK_).sum()
             
@@ -162,12 +165,14 @@ def make_SFWF_surface_int_dict():
             Pmi     = (Pm.where(MASK_)*AREA).sum().values
             Emi     = (Em.where(MASK_)*AREA).sum().values
             Rmi     = (Rm.where(MASK_)*AREA).sum().values
+            Smi     = (Sm.where(MASK_)*AREA).sum().values
             d['Pmi_mmd'] = Pmi/AREA_total.values*24*3600       # [kg/s] -> [mm/d]
             d['Emi_mmd'] = Emi/AREA_total.values*24*3600
             d['Rmi_mmd'] = Rmi/AREA_total.values*24*3600
             d['Pmi_Sv']  = Pmi/1e9                             # [kg/m^2/s] -> [Sv]
             d['Emi_Sv']  = Emi/1e9
             d['Rmi_Sv']  = Rmi/1e9
+            d['Smi_kgs'] = Smi                                 # [kg/s]
             d['Tmi_mmd'] = d['Pmi_mmd'] + d['Emi_mmd'] + d['Rmi_mmd']
             d['Tmi_Sv']  = d['Pmi_Sv']  + d['Emi_Sv']  + d['Rmi_Sv']
             
@@ -175,12 +180,14 @@ def make_SFWF_surface_int_dict():
             Pti     = (Pt.where(MASK_)*AREA).sum().values
             Eti     = (Et.where(MASK_)*AREA).sum().values
             Rti     = (Rt.where(MASK_)*AREA).sum().values
+            Sti     = (St.where(MASK_)*AREA).sum().values
             d['Pti_mmd'] = Pti/AREA_total.values*24*3600*365*100  # [mm/d/100yr]
             d['Eti_mmd'] = Eti/AREA_total.values*24*3600*365*100
             d['Rti_mmd'] = Rti/AREA_total.values*24*3600*365*100
             d['Pti_Sv']  = Pti/1e9*365*100                        # [Sv/100yr]
             d['Eti_Sv']  = Eti/1e9*365*100
             d['Rti_Sv']  = Rti/1e9*365*100
+            d['Sti_kgs'] = Sti*365*100
             d['Tti_mmd'] = d['Pti_mmd'] + d['Eti_mmd'] + d['Rti_mmd']
             d['Tti_Sv']  = d['Pti_Sv']  + d['Eti_Sv']  + d['Rti_Sv']
             
@@ -191,7 +198,9 @@ def make_SFWF_surface_int_dict():
             print(f'[mm/d/100y] {d["Pti_mmd"]:5.2f} {d["Eti_mmd"]:5.2f} {d["Rti_mmd"]:5.2f} {d["Tti_mmd"]:5.4f}')
             print(f'[Sv]        {d["Pmi_Sv"]:5.2f} {d["Emi_Sv"]:5.2f} {d["Rmi_Sv"]:5.2f} {d["Tmi_Sv"]:5.4f}')
             print(f'[Sv/100y]   {d["Pti_Sv"]:5.2f} {d["Eti_Sv"]:5.2f} {d["Rti_Sv"]:5.2f} {d["Tti_Sv"]:5.4f}')
-            print(f'[%/100y]    {d["Pti_Sv"]/d["Pmi_Sv"]*100:5.1f} {d["Eti_Sv"]/d["Emi_Sv"]*100:5.1f} {d["Rti_Sv"]/d["Rmi_Sv"]*100:5.1f} {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f}')
+            print(f'[%/100y]    {d["Pti_Sv"]/d["Pmi_Sv"]*100:5.1f} {d["Eti_Sv"]/d["Emi_Sv"]*100:5.1f} {d["Rti_Sv"]/d["Rmi_Sv"]*100:5.1f} {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f}\n')
+            print(f'SALT        {d["Smi_kgs"]:5.2f} kg/s;  {d["Sti_kgs"]:5.2f} kg/s/100yr;  {d["Sti_kgs"]/d["Smi_kgs"]*100:5.1f} %/100yr')
+
             fn = f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
             save_obj(d, fn)
     return
@@ -208,7 +217,7 @@ if __name__=='__main__':
     fct = make_lat_dict
     trex(fn=fn, fct=fct)
 
-    # 1.   annually averaged files
+    print('1.   annually averaged files')
     fields_ = [['SALT','VNS','UES'],          # d/dt, transport
                ['EVAP_F','PREC_F','ROFF_F'],  # SFWF (FW)
                ['SALT_F'],                    # SFWF (SALT)
@@ -228,8 +237,8 @@ if __name__=='__main__':
             kwargs = dict(domain='ocn', fields=fields, years=years)
             trex(fn=fn, fct=fct, kwargs=kwargs)
 
-    # 2.   SFWF
-    # 2.1  CTRL means and RCP trends for surface fields
+    print('2.   SFWF')
+    print('2.1  CTRL means and RCP trends for surface fields')
     for run in ['ctrl', 'rcp', 'lpd', 'lr1']:
         if run=='ctrl':   years = np.arange(200,230)
         elif run=='lpd':  years = np.arange(500,530)
@@ -251,26 +260,26 @@ if __name__=='__main__':
                 trex(fn=fn, fct=fct, kwargs=kwargs)
 
 
-    # 2.2  surface area integrals: means and trends
+    print('2.2  surface area integrals: means and trends')
     fct = make_SFWF_surface_int_dict
     fn = []
-    for i, sim in ['HIGH', 'LOW']:
+    for sim in ['HIGH', 'LOW']:
         for (latS, latN) in lat_bands:
             fn.append(f'{path_prace}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N')
     trex(fn=fn, fct=fct)
 
 
-    # 3.   meridional transport terms
-    # 3.1  as a function of latitude
+    print('3.   meridional transport terms')
+    print('3.1  as a function of latitude')
 
 
-    # 3.2  select latitudes, transport divergence: means and trends
+    print('3.2  select latitudes, transport divergence: means and trends')
 
 
-    # 4.1  d/dt (F/S)
+    print('4.1  d/dt (F/S)')
 
 
-    # 4.2  F/S_{diff} = residual
+    print('4.2  F/S_{diff} = residual')
 
 
 """ Figures in jupyter notebooks """
