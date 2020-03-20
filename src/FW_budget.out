@@ -1,0 +1,157 @@
+The file "/projects/0/acc/cesm/cesm1_0_5/b.PI_1pic_f19g16_NESSC_control/OUTPUT/ocn/hist/monthly/b.PI_1pic_f19g16_NESSC_control.pop.h.1600-01.nc" does not exist
+The file "/projects/0/prace_imau/prace_2013081679/cesm1_0_4/spinup_pd_maxcores_f05_t12/OUTPUT/ocn/hist/daily/spinup_pd_maxcores_f05_t12.pop.h.nday1.0249-01-01.nc" does not exist
+The file "/projects/0/prace_imau/prace_2013081679/cesm1_0_4/spinup_pd_maxcores_f05_t12/OUTPUT/ocn/hist/daily/spinup_pd_maxcores_f05_t12.pop.hm.0249-01-01.nc" does not exist
+ files exists:  ion_dict_low.pkl ...
+1.   annually averaged files
+self.domain = ocn for ctrl run, some functions may require setting different domain
+ files exists:  ctrl/ocn_yrly_SALT_VNS_UES_0200.nc ...
+self.domain = ocn for rcp run, some functions may require setting different domain
+ files exists:  rcp/ocn_yrly_SALT_VNS_UES_2000.nc ...
+self.domain = ocn_low for lpd run, some functions may require setting different domain
+ files exists:  lpd/ocn_yrly_SALT_VNS_UES_0500.nc ...
+self.domain = ocn_low for lr1 run, some functions may require setting different domain
+ files exists:  lr1/ocn_yrly_SALT_VNS_UES_2000.nc ...
+self.domain = ocn for ctrl run, some functions may require setting different domain
+ files exists:  ctrl/ocn_yrly_EVAP_F_PREC_F_ROFF_F_0200.nc ...
+self.domain = ocn for rcp run, some functions may require setting different domain
+ files exists:  rcp/ocn_yrly_EVAP_F_PREC_F_ROFF_F_2000.nc ...
+self.domain = ocn_low for lpd run, some functions may require setting different domain
+ files exists:  lpd/ocn_yrly_EVAP_F_PREC_F_ROFF_F_0500.nc ...
+self.domain = ocn_low for lr1 run, some functions may require setting different domain
+ files exists:  lr1/ocn_yrly_EVAP_F_PREC_F_ROFF_F_2000.nc ...
+self.domain = ocn for ctrl run, some functions may require setting different domain
+ files exists:  ctrl/ocn_yrly_SALT_F_0200.nc ...
+self.domain = ocn for rcp run, some functions may require setting different domain
+ files exists:  rcp/ocn_yrly_SALT_F_2000.nc ...
+self.domain = ocn_low for lpd run, some functions may require setting different domain
+ files exists:  lpd/ocn_yrly_SALT_F_0500.nc ...
+self.domain = ocn_low for lr1 run, some functions may require setting different domain
+ files exists:  lr1/ocn_yrly_SALT_F_2000.nc ...
+2.   SFWF
+2.1  CTRL means and RCP trends for surface fields
+ files exists:  ctrl/EVAP_F_PREC_F_ROFF_F_ctrl_mean_200-230.nc ...
+ files exists:  rcp/EVAP_F_yrly_rcp.nc ...
+ files exists:  rcp/PREC_F_yrly_rcp.nc ...
+ files exists:  rcp/ROFF_F_yrly_rcp.nc ...
+ files exists:  rcp/SALT_F_yrly_rcp.nc ...
+ files exists:  lpd/EVAP_F_PREC_F_ROFF_F_lpd_mean_500-530.nc ...
+ files exists:  lr1/EVAP_F_yrly_lr1.nc ...
+ files exists:  lr1/PREC_F_yrly_lr1.nc ...
+ files exists:  lr1/ROFF_F_yrly_lr1.nc ...
+ files exists:  lr1/SALT_F_yrly_lr1.nc ...
+2.2  surface area integrals: means and trends
+
+-34N to -10N,   3.57E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.86 -2.97  0.32 0.2162
+[mm/d/100y]  0.20 -0.16  0.06 0.0963
+[Sv]        11.85 -12.26  1.31 0.8942
+[Sv/100y]    0.82 -0.67  0.25 0.3982
+[%/100y]      6.9   5.5  19.2  44.5
+
+SALT        766795.54 kg/s;  -409030.03 kg/s/100yr;  -53.3 %/100yr
+
+-10N to 10N,   3.65E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.42 -3.09  0.28 -0.3875
+[mm/d/100y]  0.08 -0.17  0.05 -0.0379
+[Sv]        10.21 -13.05  1.20 -1.6366
+[Sv/100y]    0.35 -0.71  0.20 -0.1600
+[%/100y]      3.4   5.4  16.7   9.8
+
+SALT        766593.58 kg/s;  -409030.03 kg/s/100yr;  -53.4 %/100yr
+
+10N to 45N,   3.46E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.92 -3.17  0.28 0.0239
+[mm/d/100y]  0.17 -0.18  0.05 0.0374
+[Sv]        11.68 -12.70  1.11 0.0957
+[Sv/100y]    0.66 -0.71  0.20 0.1495
+[%/100y]      5.7   5.6  17.9 156.2
+
+SALT        758493.31 kg/s;  -400839.25 kg/s/100yr;  -52.8 %/100yr
+
+45N to 60N,   4.12E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.87 -3.30  0.27 -0.1545
+[mm/d/100y]  0.14 -0.17  0.05 0.0171
+[Sv]        13.69 -15.73  1.30 -0.7371
+[Sv/100y]    0.66 -0.82  0.25 0.0815
+[%/100y]      4.8   5.2  19.0 -11.1
+
+SALT        694102.99 kg/s;  -352405.46 kg/s/100yr;  -50.8 %/100yr
+
+60N to 90N,   4.30E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.83 -3.20  0.28 -0.0911
+[mm/d/100y]  0.14 -0.17  0.05 0.0224
+[Sv]        14.08 -15.94  1.41 -0.4539
+[Sv/100y]    0.71 -0.86  0.26 0.1116
+[%/100y]      5.0   5.4  18.6 -24.6
+
+SALT        766795.54 kg/s;  -409030.03 kg/s/100yr;  -53.3 %/100yr
+
+-34N to -10N,   4.23E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.44 -2.51  0.26 0.1973
+[mm/d/100y]  0.13 -0.12  0.05 0.0586
+[Sv]        11.94 -12.26  1.29 0.9656
+[Sv/100y]    0.63 -0.60  0.26 0.2870
+[%/100y]      5.2   4.9  20.4  29.7
+
+SALT        490470.38 kg/s;  -215730.64 kg/s/100yr;  -44.0 %/100yr
+
+-10N to 10N,   4.29E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.09 -2.63  0.24 -0.3064
+[mm/d/100y]  0.05 -0.13  0.05 -0.0343
+[Sv]        10.37 -13.09  1.20 -1.5222
+[Sv/100y]    0.23 -0.63  0.23 -0.1706
+[%/100y]      2.2   4.8  19.4  11.2
+
+SALT        490470.38 kg/s;  -215730.64 kg/s/100yr;  -44.0 %/100yr
+
+10N to 45N,   3.96E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.57 -2.77  0.23 0.0373
+[mm/d/100y]  0.13 -0.14  0.05 0.0400
+[Sv]        11.79 -12.69  1.07 0.1708
+[Sv/100y]    0.60 -0.63  0.22 0.1835
+[%/100y]      5.1   5.0  20.0 107.4
+
+SALT        490284.15 kg/s;  -215421.47 kg/s/100yr;  -43.9 %/100yr
+
+45N to 60N,   4.71E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.54 -2.88  0.23 -0.1103
+[mm/d/100y]  0.10 -0.13  0.05 0.0127
+[Sv]        13.85 -15.71  1.26 -0.6013
+[Sv/100y]    0.53 -0.73  0.28 0.0693
+[%/100y]      3.8   4.7  21.9 -11.5
+
+SALT        434362.43 kg/s;  -169495.38 kg/s/100yr;  -39.0 %/100yr
+
+60N to 90N,   5.05E+14 m^2
+
+             PREC  EVAP  ROFF    SUM
+[mm/d]       2.44 -2.73  0.24 -0.0549
+[mm/d/100y]  0.10 -0.13  0.05 0.0166
+[Sv]        14.24 -15.94  1.38 -0.3210
+[Sv/100y]    0.57 -0.76  0.29 0.0967
+[%/100y]      4.0   4.8  20.9 -30.1
+
+SALT        490470.38 kg/s;  -215730.64 kg/s/100yr;  -44.0 %/100yr
+3.   meridional transport terms
+3.1  as a function of latitude
+3.2  select latitudes, transport divergence: means and trends
+4.1  d/dt (F/S)
+4.2  F/S_{diff} = residual
