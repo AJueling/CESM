@@ -90,6 +90,8 @@ def xr_linear_trend(x):
 
 def xr_linear_trends_2D(da, dim_names, with_nans=False):
     """ calculate linear trend of 2D field in time
+
+    ! slow, use xr_2D_trends instead
     
     input:
     da        .. 3D xr DataArray with (dim_names) dimensions
@@ -131,6 +133,19 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
     if 'allpoints_level_0' in da_trend.coords.keys():
         da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
     return da_trend
+
+def xr_2D_trends(xa):
+    """ calculates linear slope of 2D xr.DataArray `xa` """
+    (jm, im) = xa[0,:,:].shape
+    xa_slope  = xa[0,:,:].copy()
+    xa_interc = xa[0,:,:].copy()
+    Nt = xa.values.shape[0]
+    A = xa.values.reshape((Nt, im*jm))
+
+    xa_lin = np.polyfit(xa.time, A, 1)  
+    xa_slope.values = xa_lin[0,:].reshape((jm,im)) 
+    return xa_slope
+
 
 
 def ocn_field_regression(xa, run):

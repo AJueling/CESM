@@ -115,6 +115,10 @@ class DeriveField(object):
                             elif dim==3:  ds_out[field][:,:,:] += ds[field][:,:,:]/12
 
                 if m==12:  # write to new file
+                    if 'TLONG' in ds_out:  ds_out.drop('TLONG')
+                    if 'TLAT'  in ds_out:  ds_out.drop('TLAT')
+                    if 'ULONG' in ds_out:  ds_out.drop('ULONG')
+                    if 'ULAT'  in ds_out:  ds_out.drop('ULAT')
                     print(y, new_filename)
                     ds_out.to_netcdf(path=new_filename, mode='w')
 

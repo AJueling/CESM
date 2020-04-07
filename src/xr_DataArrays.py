@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
+import pop_tools
 
 from paths import file_ex_ocn_ctrl, file_ex_ocn_rect, file_ex_atm_ctrl,\
                   file_ex_ice_rcp, file_ex_atm_lpd, file_ex_ocn_lpd, file_ex_atm_lpi,\
@@ -69,9 +70,8 @@ def xr_DZ(domain, grid='T'):
     """
     assert domain in ['ocn', 'ocn_low', 'ocn_rect']
     
-    if grid=='U':  file_path = f'{path_samoc}/geometry/DZU_{domain}.nc'
-    else:          file_path = f'{path_samoc}/geometry/DZT_{domain}.nc'
-        
+    file_path = f'{path_samoc}/geometry/DZ{grid}_{domain}.nc'
+    
     if os.path.exists(file_path):
         DZ = xr.open_dataarray(file_path)
         
@@ -101,6 +101,51 @@ def xr_DZ(domain, grid='T'):
         DZ.to_netcdf(file_path)
         
     return DZ
+
+
+
+def xr_DZ_xgcm(domain, grid):
+    """ creates DZT/DZU 3D fields compatible with xgcm grids """
+
+    assert domain in ['ocn', 'ocn_low', 'ocn_rect']
+    assert grid in ['T', 'U']
+    
+    fn = f'{path_samoc}/geometry/DZ{grid}_xgcm_{domain}.nc'
+
+    try:  # file exists
+        assert os.path.exists(fn)
+        DZ = xr.open_dataarray(fn)
+        
+    except:  # create DZT/U
+        nlat_, nlon_ = f'nlat_{grid.lower()}', f'nlon_{grid.lower()}'
+        
+        if domain=='ocn':        fe = file_ex_ocn_ctrl
+        elif domain=='ocn_low':  fe = file_ex_ocn_lpd
+        ds_ = xr.open_dataset(fe, decode_times=False)
+        (grid_, ds) = pop_tools.to_xgcm_grid_dataset(ds_)
+        
+        H = ds[f'H{grid}']
+        KM = ds[f'KM{grid}']
+        DZ = xr.DataArray(data=np.tile(ds.dz.values, reps=(len(ds[nlon_].values),
+                                                           len(ds[nlat_].values), 1)), # imt,jmt,km
+                           coords={nlon_:ds[nlon_].values,
+                                   nlat_:ds[nlat_].values,
+                                   'z_t':ds['z_t'].values},
+                           dims=[nlon_, nlat_, 'z_t']).transpose() # -> km,jmt,imt
+
+        if domain=='ocn':  # in co
+            DZ[0,:,:] = xr.where(KM==-1, -1, DZ[0,:,:])
+        DZ[0,:,:] = xr.where(KM==0, np.nan, DZ[0,:,:])
+        for k in np.arange(1, len(ds['z_t'])):
+            DZ[k,:,:] = xr.where(k>=KM-1, np.nan, DZ[k,:,:])
+            DZ[k,:,:] = xr.where(k==KM-1, H-DZ.isel(z_t=slice(0,k)).sum('z_t'), DZ[k,:,:])
+            
+        # test that the total depth in DZ is the same as ds.HT/U
+
+        xr.testing.assert_allclose(DZ.sum('z_t'), H.drop([f'{grid}LONG', f'{grid}LAT']), rtol=0.01)
+        DZ.to_netcdf(fn)
+        
+    return  DZ
 
 
 
