@@ -227,8 +227,8 @@ ldstr   = 'b.e10.B2000_CAM5.f09_g16.pd_control.2xco2.001'
 # PATHS
 
 # my output (write)
-path_results = '/home/dijkbio/andre/CESM/results'
-path_data    = '/home/dijkbio/andre/CESM/data'
+path_results = '/home/ajueling/CESM/results'
+path_data    = '/home/ajueling/CESM/data'
 path_andre   = '/home/ajueling'
 path_prace   = '/projects/0/prace_imau/prace_2013081679/andre'
 path_samoc   = path_prace
