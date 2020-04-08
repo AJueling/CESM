@@ -11,9 +11,10 @@ from xr_regression import ocn_field_regression, xr_linear_trend
 
 
 lat_bounds = ['90N', '60N', '45N', '10N', '10S', '34S']
-nabla = r'$\nabla$'
-xrkw = {'decode_times':False} 
-diff = r'$_{diff}$'
+nabla, Delta, diff = r'$\nabla$', r'$\Delta$', r'$_{diff}$'
+xrkw = {'decode_times':False}              # xr.open_* keywords
+vbkw = dict(y=0, width=.1, align='edge')   # vertical bar keywords
+hbkw = dict(left=0, height=.1, align='edge')  # horizontal bar keywords
 
 def nlat_at(sim, lat):
     """ returns nlat of high or low res grid for certain latitudes """
@@ -38,6 +39,120 @@ def nlat_at(sim, lat):
     if sim=='HIGH' and lat==60:   nlat = 1867
     return nlat
 
+# term                 where is the data stored                         to improve
+# d/dt(SALT)           f'{path_results}/SALT/SALT_integrals_ctrl.nc'    use proper DZT and nlats as boundaries
+# SFWF                                                                  add other terms, use proper nlats as boundaries
+# fluxes          
+# flux divergences
+
+# colors: 
+# d/dt(SALT)           C9
+# SFWF                 C6 (P+E); C7 (R); C4 (P+E+R)
+# fluxes/divergences   C0 (ov); C1 (az); C2 (eddy); C3 (total)
+# diffusion            C5
+
+def get_ddt_SALT(sim, latS, latN):
+    """ calculate d(S)/dt term in """
+    if sim=='HIGH':   run, rcp = 'ctrl', 'rcp'
+    elif sim=='LOW':  run, rcp = 'lpd' , 'lr1'
+    salt_ctl = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_{run}.nc', **xrkw)
+    salt_rcp = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_{rcp}.nc', **xrkw)
+    assert len(salt_ctl.time)==101  # dataset contains only integrals for 101 years concurrent to rcp
+    n1 = f'SALT_0-1000m_timeseries_{latS}N_{latN}N'
+    n2 = f'SALT_below_1000m_timeseries_{latS}N_{latN}N'
+    salt_ctl_ = (salt_ctl[n1] + salt_ctl[n2])
+    salt_rcp_ = (salt_rcp[n1] + salt_rcp[n2])
+    ddtS_ctl = (salt_ctl_.isel(time=30)-salt_ctl_.isel(time=0)).values/30/365/24/3600
+    ddtS_rcp = (salt_rcp_.isel(time=-1)-salt_rcp_.isel(time=0)).values/101/365/24/3600
+    return ddtS_ctl, ddtS_rcp
+
+def get_SFWF(sim, quant, latS, latN):
+    """ reads the integrated surface freshwater fluxes between latS and latN from pickled object """
+    assert sim in ['HIGH', 'LOW'] and  quant in ['SALT', 'FW']
+    assert latS in [-34, -10, 10, 45, 60]
+    assert latN in [-10, 10, 45, 60, 90]
+
+    d = load_obj(f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N')
+    if quant=='SALT':  fac = -.00347e9  # 1e9 kg/s/Sv * salinity_factor of POP2
+    elif quant=='FW':  fac = 1.
+    mean, trend = {}, {}
+    
+    mean['PE']   = (d[f'Pmi_Sv']+d[f'Emi_Sv'])*fac
+    mean['R']    = d[f'Rmi_Sv']*fac
+    mean['PER']  = d[f'Tmi_Sv']*fac
+
+    trend['PE']  = (d[f'Pti_Sv']+d[f'Eti_Sv'])*fac
+    trend['P']   = d[f'Pti_Sv']*fac
+    trend['E']   = d[f'Eti_Sv']*fac
+    trend['R']   = d[f'Rti_Sv']*fac
+    trend['PER'] = d[f'Tti_Sv']*fac
+    return mean, trend
+
+def get_fluxes(sim, quant,lat=None, latS=None, latN=None):
+    """ fluxes at `lat` and neg. flux divergences between latS and latN"""
+    assert sim in ['HIGH', 'LOW'] and  quant in ['SALT', 'FW']
+    assert latS in [-34, -10, 10, 45, None]
+    assert latN in [-10, 10, 45, 60, None]
+    if sim=='HIGH':   run, rcp = 'ctrl', 'rcp'
+    elif sim=='LOW':  run, rcp = 'lpd', 'lr1'
+
+    dso = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{run}.nc', **xrkw)
+    dst = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{rcp}.nc', **xrkw)
+    if lat is not None:   nlat = nlat_at(sim, lat)
+    if latS is not None:  nlat_S, nlat_N =  nlat_at(sim, latS), nlat_at(sim, latN)
+    # select 30 year mean of fluxes fro branch-off year 200/500
+    if sim=='HIGH':   dso = dso.isel(time=slice(200,230)).mean('time')
+    elif sim=='LOW':  dso = dso.isel(time=slice(346,376)).mean('time')
+
+    fluxes, fac = {}, 365*100
+    if quant=='SALT' and lat is not None:
+        fluxes['ov']  = dso.Sov.isel(nlat_u=nlat)
+        fluxes['az']  = dso.Saz.isel(nlat_u=nlat)
+        fluxes['ed']  = dso.Se.isel(nlat_u=nlat)
+        fluxes['to']  = dso.St.isel(nlat_u=nlat)
+        
+        fluxes['tov'] = fac*xr_linear_trend(dst.Sov.isel(nlat_u=nlat))
+        fluxes['taz'] = fac*xr_linear_trend(dst.Saz.isel(nlat_u=nlat))
+        fluxes['ted'] = fac*xr_linear_trend(dst.Se.isel(nlat_u=nlat))
+        fluxes['tto'] = fac*xr_linear_trend(dst.St.isel(nlat_u=nlat))
+
+    elif quant=='FW' and lat is not None:
+        fluxes['ov']  = dso.Fov.isel(nlat_u=nlat)
+        fluxes['az']  = dso.Faz.isel(nlat_u=nlat)
+        fluxes['ed']  = 0
+
+        fluxes['tov'] = fac*xr_linear_trend(dst.Fov.isel(nlat_u=nlat))
+        fluxes['taz'] = fac*xr_linear_trend(dst.Faz.isel(nlat_u=nlat))
+        fluxes['ted'] = 0
+
+        fluxes['to']  = (dso.Fov+dso.Faz).isel(nlat_u=nlat)
+        fluxes['tto'] = fac*xr_linear_trend((dst.Fov+dst.Faz).isel(nlat_u=nlat))
+
+    div = {}
+    if quant=='SALT' and latS is not None:
+        div['ov']  = dso.Sov.isel(nlat_u=nlat_S) - dso.Sov.isel(nlat_u=nlat_N)
+        div['az']  = dso.Saz.isel(nlat_u=nlat_S) - dso.Saz.isel(nlat_u=nlat_N)
+        div['ed']  = dso.Se.isel(nlat_u=nlat_S)  - dso.Se.isel(nlat_u=nlat_N)
+        div['to']  = dso.St.isel(nlat_u=nlat_S)  - dso.St.isel(nlat_u=nlat_N)
+        
+        div['tov'] = fac*xr_linear_trend(dst.Sov.isel(nlat_u=nlat_S) - dst.Sov.isel(nlat_u=nlat_N))
+        div['taz'] = fac*xr_linear_trend(dst.Saz.isel(nlat_u=nlat_S) - dst.Saz.isel(nlat_u=nlat_N))
+        div['ted'] = fac*xr_linear_trend(dst.Se.isel(nlat_u=nlat_S)  - dst.Se.isel(nlat_u=nlat_N))
+        div['tto'] = fac*xr_linear_trend(dst.St.isel(nlat_u=nlat_S)  - dst.St.isel(nlat_u=nlat_N))
+        
+    elif quant=='FW' and latS is not None:
+        div['ov']  = dso.Fov.isel(nlat_u=nlat_S) - dso.Fov.isel(nlat_u=nlat_N)
+        div['az']  = dso.Faz.isel(nlat_u=nlat_S) - dso.Faz.isel(nlat_u=nlat_N)
+        div['ed']  = 0
+
+        div['tov'] = fac*xr_linear_trend(dst.Fov.isel(nlat_u=nlat_S) - dst.Fov.isel(nlat_u=nlat_N))
+        div['taz'] = fac*xr_linear_trend(dst.Faz.isel(nlat_u=nlat_S) - dst.Faz.isel(nlat_u=nlat_N))
+        div['ted'] = 0
+
+        div['to']  = (dso.Fov+dso.Faz).isel(nlat_u=nlat_S) - (dso.Fov+dso.Faz).isel(nlat_u=nlat_N)
+        div['tto'] = fac*xr_linear_trend((dst.Fov+dst.Faz).isel(nlat_u=nlat_S) - (dst.Fov+dst.Faz).isel(nlat_u=nlat_N))
+    return fluxes, div
+
 
 def FW_summary_plot(quant):
     """ plots main budget terms for certain regions
@@ -47,74 +162,54 @@ def FW_summary_plot(quant):
     if quant=='FW':      q=0
     elif quant=='SALT':  q=1
 
-    salt_ctrl = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_ctrl.nc', decode_times=False)
-    salt_rcp  = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_rcp.nc' , decode_times=False)
-    salt_lpd  = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_lpd.nc' , decode_times=False)
-    salt_lr1  = xr.open_dataset(f'{path_results}/SALT/SALT_integrals_lr1.nc' , decode_times=False)
-
     f = plt.figure(figsize=(6.4,2))
     for i in range(6):  f.text(.98-.9*i/5,.95, lat_bounds[i], va='center', ha='center', fontsize=8, color='grey')
     for i, (latS, latN) in enumerate(lat_bands):
 
-        # ss
+        #region: define axes
         ax = f.add_axes([.1+.9*i/5,.05,.8/5,.8])
         for s in ['right', 'top', 'bottom']:  ax.spines[s].set_visible(False)
         ax.xaxis.set_ticks([])
         ax.axhline(c='k', lw=.5)
-        if i==0:
-            ax.set_ylabel(f'{quant} fluxes in [{["Sv","kt/s"][q]}]')
-        else:
-            ax.yaxis.set_ticklabels([])
+        if i==0:  ax.set_ylabel(f'{quant} fluxes in [{["Sv","kt/s"][q]}]')
+        else:     ax.yaxis.set_ticklabels([])
         vert_lim = [(-2,2),(-2.5e7,2.5e7)][q]
         ax.set_xlim((-.25,1.2))
         ax.set_ylim(vert_lim)
+        #endregion
         
-        for s, sim in enumerate(['HIGH', 'LOW']):
-            run, rcp = ['ctrl','lpd'][s], ['rcp', 'lr1'][s]
+        for s, sim in enumerate(['HIGH', 'LOW']):  
 
             # d/dt
             if quant=='SALT':
-                n1 = f'SALT_0-1000m_timeseries_{latS}N_{latN}N'
-                n2 = f'SALT_below_1000m_timeseries_{latS}N_{latN}N'
-                salt = [salt_ctrl[n1]+salt_ctrl[n2], salt_lpd[n1]+salt_lpd[n2]][s]
-                ddt = (salt.isel(time=30)-salt.isel(time=0)).values/30/365/24/3600
-                ax.bar(x=s/10, y=0, width=.1, height=ddt, label=r'$\Delta_t$S')
+                ddtS_ctl, ddtS_rcp = get_ddt_SALT(sim=sim, latS=latS, latN=latN)
+                ax.bar(x=s/10, height=ddtS_ctl, **vbkw, color=mct('C9', alpha=1-.3*s), label=r'$\Delta_t$S')
+                ax.arrow(x=.05+s/10, y=0, dy=ddtS_rcp, dx=0)
+                print(ddtS_ctl)
             
             # surface fluxes
-            d = load_obj(f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N')
-            if quant=='SALT':  fac = -.00347e9  # 1e9 kg/s/Sv * salinity_factor of POP2
-            elif quant=='FW':  fac = 1.
-            sfwf = (d[f'Tmi_Sv'])*fac
-            ax.bar(x=.25+s/10 , height=sfwf, width=.1,
-                   align='edge', color=mct(color='C3', alpha=1-.3*s),
-                   label='P+E+R')
-            ax.arrow(x=.3+s/10, y=sfwf, dy=d[f'Tti_Sv']*fac, dx=0)
+            sfwf_mean, sfwf_trend = get_SFWF(sim=sim, quant=quant, latS=latS, latN=latN)
+            ax.bar(x=.25+s/10 , height=sfwf_mean['PER'], **vbkw, color=mct('C4', 1-.3*s), label='P+E+R')
+            ax.arrow(x=.3+s/10, y=sfwf_mean['PER'], dy=sfwf_trend['PER'], dx=0)
 
             # meridional flux divergences
-            dso = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{run}.nc', **xrkw)
-            dst = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{rcp}.nc', **xrkw)
-            if latN!=90:  
-                nlat_S, nlat_N = nlat_at(sim, latS), nlat_at(sim, latN)
-                if quant=='SALT':
-                    to  = dso.St.isel(nlat_u=nlat_S) - dso.St.isel(nlat_u=nlat_N)
-                    tto = dst.St.isel(nlat_u=nlat_S) - dst.St.isel(nlat_u=nlat_N)
-                elif quant=='FW':
-                    to  = (dso.Fov+dso.Faz).isel(nlat_u=nlat_S) - (dso.Fov+dso.Faz).isel(nlat_u=nlat_N)
-                    tto = (dst.Fov+dst.Faz).isel(nlat_u=nlat_S) - (dst.Fov+dst.Faz).isel(nlat_u=nlat_N)
-                ax.bar(x=.5+s/10, y=0, height=to, width=.1, align='edge',\
-                       color=mct(color='C6', alpha=.9-.3*s), label=f'-{nabla}{quant}')
-#                 ax.arrow(x=.55+s/10, y=to, dx=0, dy=xr_linear_trend(tto).values*365*100)
-            
+            if latS==60:
+                fluxes, div = get_fluxes(sim=sim, quant=quant, lat=latS, latS=None, latN=None)
+                div['to'] = fluxes['to']
+            else:
+                fluxes, div = get_fluxes(sim=sim, quant=quant, lat=latS, latS=latS, latN=latN)
+                ax.bar(x=.5+s/10, height=div['to'], **vbkw, color=mct('C3', 1-.3*s), label=f'-{nabla}{quant}')
+                ax.arrow(x=.55+s/10, y=div['to'], dx=0, dy=div['tto'])
             
             # diff term
-            if quant=='SALT':  diffusion = ddt - to - sfwf
-            elif quant=='FW':  diffusion = to - sfwf
-            ax.bar(x=.75+s/10, y=0, height=diffusion, width=.1, align='edge',\
-                   color=mct(color='C7', alpha=.9-.3*s), label=f'{quant}{diff}')
+            if quant=='SALT':  diffusion = ddtS_ctl - div['to'] - sfwf_mean['PER']
+            elif quant=='FW':  diffusion = div['to'] - sfwf_mean['PER']
+            ax.bar(x=.75+s/10, height=diffusion, **vbkw, color=mct('C5', 1-.3*s), label=f'{quant}{diff}')
             
-            if i==2 and s==0:  ax.legend(fontsize=8)
+            # legend
+            if i==2 and s==0:  ax.legend(fontsize=6)
 
-    plt.savefig(f'{path_results}/Mov/{["FW","SALT"][q]}_region_budget_total.eps')
+    # plt.savefig(f'{path_results}/Mov/{["FW","SALT"][q]}_region_budget_total.eps')
     return
 
 
@@ -123,25 +218,24 @@ def FW_region_plot(quant):
     quant .. Fw or SALT
     """
     assert quant in ['FW', 'SALT']
-    if quant=='FW':
-        q=0
-        labels = [r'$-\nabla F_{oc}$', r'$F_{oc}$', r'$\int F_{atm}$']
-    elif quant=='SALT':
-        q=1
-        labels = [r'$-\nabla S_{oc}$', r'$S_{oc}$', r'$\int S_{atm}$']
+    if quant=='FW':      q, labels =0,  [r'$-\nabla F_{oc}$', r'$F_{oc}$', r'$\int F_{atm}$']
+    elif quant=='SALT':  q, labels = 1, [r'$-\nabla S_{oc}$', r'$S_{oc}$', r'$\int S_{atm}$']
     lat_bounds = ['90N', '60N', '45N', '10N', '10S', '34S']
 
     f = plt.figure(figsize=(6.4,3))
+
+    # latitude labels
     for i in range(3):  f.text(.92, [.1,.5,.9][i], labels[i], va='center', fontsize=8, color='grey')
     for i in range(6):  f.text(.9-.8*i/5,.77, lat_bounds[i], va='center', ha='center', fontsize=8, color='grey')
 
     dd = {}
     for i, (latS, latN) in enumerate(lat_bands):
+        print(latS, latN)
+        #region: define axes
         ax = f.add_axes([.1+.8*i/5,.2,.8/5,.55])
         if i==4:  ax.spines['right'].set_visible(False)
         ax.xaxis.set_ticks([])
         ax.yaxis.set_ticks([])
-            
 
         vert_lim = [(-3.5,3.5),(-3e7,3e7)][q]
         axb = f.add_axes([.1+.8*i/5,-.05,.8/5,.5])
@@ -159,79 +253,63 @@ def FW_region_plot(quant):
             ax.patch.set_alpha(0)
             ax.axis('off')
             ax.xaxis.set_ticks([])
+        #endregion
 
         for s, sim in enumerate(['HIGH', 'LOW']):
             nlat_ = nlat_at(sim, latS)
             run, rcp = ['ctrl','lpd'][s], ['rcp', 'lr1'][s]
-            dso = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{run}.nc',\
-                                  decode_times=False).mean(dim='time').isel(nlat_u=nlat_)
-            dst = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{rcp}.nc',\
-                                  decode_times=False).isel(nlat_u=nlat_)
 
-            # meridional flux means
-            if quant=='SALT':  ov, az, ed, to = dso.Sov, dso.Saz, dso.Se, dso.Sov+dso.Saz+dso.Se
-            elif quant=='FW':  ov, az, to = dso.Fov, dso.Faz, dso.Fov+dso.Faz
-            axl.barh(y=0  +s/10, width=ov, height=.1, align='edge', color=mct(color='C4', alpha=1-.3*s))
-            axl.barh(y=.25+s/10, width=az, height=.1, align='edge', color=mct(color='C5', alpha=1-.3*s))
-            axl.barh(y=.75+s/10, width=to, height=.1, align='edge', color=mct(color='C6', alpha=1-.3*s))
-            if quant=='SALT':  axl.barh(y=.5 +s/10, width=ed, height=.1, align='edge', color=mct(color='C7', alpha=.9-.3*s))
+            # d/dt  [axb]
+            if quant=='SALT':
+                ddt = get_ddt_SALT(sim=sim, latS=latS, latN=latN)
+                axb.bar(x=s/10, height=ddt, **vbkw, color=mct('C9', alpha=1-.3*s), label=r'$\Delta_t$S')
 
-            # meridional flux trends
-            if quant=='SALT':  tov, taz, ted, tto = dst.Sov, dst.Saz, dst.Se, dst.Sov+dst.Saz+dst.Se
-            elif quant=='FW':  tov, taz, tto = dst.Fov, dst.Faz, dst.Fov+dst.Faz
-            axl.arrow(x=ov, y=.05+s/10, dx=xr_linear_trend(tov)*365*100, dy=0)
-            axl.arrow(x=az, y=.3 +s/10, dx=xr_linear_trend(taz)*365*100, dy=0)
-            axl.arrow(x=to, y=.8 +s/10, dx=xr_linear_trend(tto)*365*100, dy=0)
-            if quant=='SALT':  axl.arrow(x=ed, y=.55 +s/10, dx=xr_linear_trend(ted)*365*100, dy=0)
-            
-            # divergences
-            if i==0:  # temporarily store southern boundary values
-                dd[f'ov_{sim}'], dd[f'az_{sim}'], dd[f'to_{sim}'], ax_ = ov.values, az.values, to.values, axb
-                dd[f'tov_{sim}'], dd[f'taz_{sim}'], dd[f'tto_{sim}'] = tov.copy(), taz.copy(), tto.copy()
-                if quant=='SALT':  dd[f'ed_{sim}'], dd[f'ted_{sim}'] = ed.values, ted.copy()
-            else:
-                ax_.bar(x=0  +s/10, y=0, height=dd[f'ov_{sim}']-ov.values,\
-                        width=.1, align='edge', color=mct(color='C4', alpha=.9-.3*s))
-                ax_.bar(x=.25+s/10, y=0, height=dd[f'az_{sim}']-az.values,\
-                        width=.1, align='edge', color=mct(color='C5', alpha=.9-.3*s))
-                ax_.bar(x=.75+s/10, y=0, height=dd[f'to_{sim}']-to.values,\
-                        width=.1, align='edge', color=mct(color='C6', alpha=.9-.3*s))
-                if quant=='SALT':  ax_.bar(x=.5 +s/10, y=0, height=dd[f'ed_{sim}']-ed.values,\
-                                           width=.1, align='edge', color='C7', alpha=.9-.3*s)
-            
-                ax_.arrow(x=.05+s/10, y=dd[f'ov_{sim}']-ov.values,\
-                          dx=0, dy=xr_linear_trend(dd[f'tov_{sim}']-tov).values*365*100)
-                ax_.arrow(x=.3 +s/10, y=dd[f'az_{sim}']-az.values,\
-                          dx=0, dy=xr_linear_trend(dd[f'taz_{sim}']-taz).values*365*100)
-                ax_.arrow(x=.8 +s/10, y=dd[f'to_{sim}']-to.values,\
-                          dx=0, dy=xr_linear_trend(dd[f'tto_{sim}']-tto).values*365*100)
-                if quant=='SALT':  ax_.arrow(x=.55+s/10, y=dd[f'ed_{sim}']-ed.values,\
-                                             dx=0, dy=xr_linear_trend(dd[f'ted_{sim}']-ted).values*365*100)
+            #region: meridional flux (divergences) means/trends  [axb]
+            if latS==60:
+                fluxes, div = get_fluxes(sim=sim, quant=quant, lat=latS, latS=None, latN=None)
+                div['ov'], div['az'], div['ed'], div['to'] = fluxes['ov'], fluxes['az'], fluxes['ed'], fluxes['to']
+                div['tov'], div['taz'], div['ted'], div['tto'] = fluxes['tov'], fluxes['taz'], fluxes['ted'], fluxes['tto']
                 
-                dd[f'ov_{sim}'], dd[f'az_{sim}'], dd[f'to_{sim}'], ax_ = ov.values, az.values, to.values, axb
-                dd[f'tov_{sim}'], dd[f'taz_{sim}'], dd[f'tto_{sim}'] = tov.copy(), taz.copy(), tto.copy()
-                if quant=='SALT':  dd[f'ed_{sim}'], dd[f'ted_{sim}'] = ed.values, ted.copy()
+            else:
+                fluxes, div = get_fluxes(sim=sim, quant=quant, lat=latS, latS=latS, latN=latN)
 
-            # surface fluxes
-            d = load_obj(f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N')
-            if quant=='SALT':  fac = -.00347e9  # 1e9 kg/s/Sv * salinity_factor of POP2
+            axl.barh(y=0  +s/10, width=fluxes['ov'], **hbkw, color=mct('C0', 1-.3*s))
+            axl.barh(y=.25+s/10, width=fluxes['az'], **hbkw, color=mct('C1', 1-.3*s))
+            axl.barh(y=.5 +s/10, width=fluxes['ed'], **hbkw, color=mct('C2', 1-.3*s))
+            axl.barh(y=.75+s/10, width=fluxes['to'], **hbkw, color=mct('C3', 1-.3*s))
 
-                # axt.bar(x=.05+s/10 , height=-d[f'Smi_kgs'], width=.1, align='edge', color='C2', alpha=1-.3*s)
-                # axt.arrow(y=-d[f'Smi_kgs'], x=.05+s/10, dy=-d[f'Sti_kgs'], dx=0)
-            elif quant=='FW':  fac = 1.
-            axt.bar(x=.55+s/10, height=-(d[f'Pmi_Sv']+d[f'Emi_Sv'])*fac,\
-                    width=.1, align='edge', color=mct(color='C1', alpha=1-.3*s))
-            axt.bar(x=.3+s/10 , height=-(d[f'Rmi_Sv']             )*fac,\
-                    width=.1, align='edge', color=mct(color='C2', alpha=1-.3*s))
-            axt.bar(x=.0+s/10 , height=-(d[f'Tmi_Sv']             )*fac,\
-                    width=.1, align='edge', color=mct(color='C3', alpha=1-.3*s))
-            axt.arrow(y=-(d[f'Pmi_Sv']+d[f'Emi_Sv'])*fac, x=.6+s/10 , dy=-(d[f'Pti_Sv']+d[f'Eti_Sv'])*fac, dx=0)
-            axt.arrow(y=0                               , x=.62+s/10, dy=-d[f'Pti_Sv']*fac               , dx=0)
-            axt.arrow(y=0                               , x=.58+s/10, dy=-d[f'Eti_Sv']*fac               , dx=0)
-            axt.arrow(y=-d[f'Rmi_Sv']*fac               , x=.35+s/10, dy=-d[f'Rti_Sv']*fac               , dx=0)
-            axt.arrow(y=-d[f'Tmi_Sv']*fac               , x=.05+s/10, dy=-d[f'Tti_Sv']*fac               , dx=0)
-         
-            if i==0 and s==0:  #  labels: PER, ov/az/eddy/total
+            axl.arrow(x=fluxes['ov'], y=.05+s/10, dx=fluxes['tov'], dy=0)
+            axl.arrow(x=fluxes['az'], y=.3 +s/10, dx=fluxes['taz'], dy=0)
+            axl.arrow(x=fluxes['ed'], y=.55+s/10, dx=fluxes['ted'], dy=0)
+            axl.arrow(x=fluxes['to'], y=.8 +s/10, dx=fluxes['tto'], dy=0)
+            
+            ax.bar(x=0  +s/10, height=div['ov'], **vbkw, color=mct('C0', 1-.3*s))
+            ax.bar(x=.25+s/10, height=div['az'], **vbkw, color=mct('C1', 1-.3*s))
+            ax.bar(x=.5 +s/10, height=div['ed'], **vbkw, color=mct('C2', 1-.3*s))              
+            ax.bar(x=.75+s/10, height=div['to'], **vbkw, color=mct('C3', 1-.3*s))
+        
+            ax.arrow(x=.05+s/10, y=div['ov'], dx=0, dy=div['tov'])
+            ax.arrow(x=.3 +s/10, y=div['az'], dx=0, dy=div['taz'])
+            ax.arrow(x=.55+s/10, y=div['ed'], dx=0, dy=div['ted'])
+            ax.arrow(x=.8 +s/10, y=div['to'], dx=0, dy=div['tto'])
+            #endregion
+
+            #region: surface fluxes [axt]
+            sfwf_mean, sfwf_trend = get_SFWF(sim=sim, quant=quant, latS=latS, latN=latN)
+
+            axt.bar(x=.55+s/10, height=-sfwf_mean['PE'] , **vbkw, color=mct('C6', 1-.3*s))
+            axt.bar(x=.3+s/10 , height=-sfwf_mean['R']  , **vbkw, color=mct('C7', 1-.3*s))
+            axt.bar(x=.0+s/10 , height=-sfwf_mean['PER'], **vbkw, color=mct('C4', 1-.3*s), label='P+E+R')
+
+            axt.arrow(x=.6+s/10 , y=-sfwf_mean['PE'] , dx=0, dy=-sfwf_trend['PE'] )
+            axt.arrow(x=.62+s/10, y=0                , dx=0, dy=-sfwf_trend['P']  )
+            axt.arrow(x=.58+s/10, y=0                , dx=0, dy=-sfwf_trend['E']  )
+            axt.arrow(x=.35+s/10, y=-sfwf_mean['R']  , dx=0, dy=-sfwf_trend['R']  )
+            axt.arrow(x=.05+s/10, y=-sfwf_mean['PER'], dx=0, dy=-sfwf_trend['PER'])
+            #endregion
+
+            #  labels: PER, ov/az/eddy/total
+            if i==0 and s==0:  
                 axt.text(0.25,.95, 'P+E+R', transform=axt.transAxes, ha='center', va='top', rotation=90, fontsize=8)                
                 axt.text(0.5 ,.95, 'R'    , transform=axt.transAxes, ha='center', va='top', rotation=90, fontsize=8)                
                 axt.text(0.75,.95, 'P+E'  , transform=axt.transAxes, ha='center', va='top', rotation=90, fontsize=8)                
@@ -240,7 +318,7 @@ def FW_region_plot(quant):
                 axl.text([-.4,-1.2e8][q],.6 , ['',r'S$_{eddy}$'][q]     , va='center', fontsize=8)                
                 axl.text([-.4,-1.2e8][q],.85, ['F','S'][q]+r'$_{total}$', va='center', fontsize=8)
     
-    # legend
+    #region: axes legend
     axa = f.add_axes([0.04,.08,.125,.125])
     axa.set_xlim((0,[.5,2e2][q]))    
     axa.set_ylim((0,[3,1.5e2][q]/2))
@@ -248,7 +326,7 @@ def FW_region_plot(quant):
     axa.patch.set_alpha(0)
     axa.spines['top'].set_visible(False)
     axa.spines['right'].set_visible(False)
+    #endregion
     plt.savefig(f'{path_results}/Mov/{["FW","SALT"][q]}_region_budget.eps')
-#     ax.arrow(x=0,dx=3)
     return
 
