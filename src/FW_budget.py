@@ -6,6 +6,28 @@ figures are then generated in jupyter notebooks
 SALT bias figure creates in `SALT_bias.ipynb`
 AMOC trends in `AMOC.ipynb`
 
+from https://bb.cgd.ucar.edu/cesm/threads/which-variables-to-include-in-ocean-surface-salt-budget.2385/:
+
+##  FW formulation
+SFWF - QFLUX/latent_heat_fusion/1.e4 = PREC_F + EVAP_F + ROFF_F + IOFF_F + MELT_F 
+                                       + SALT_F*(sflux_factor/salinity_factor) 
+                                       - QFLUX/latent_heat_fusion/1.e4    
+                                       + (any weak or strong salinity restoring)
+
+MELT_F represents any FW flux computed by the ice model and sent to the ocean (associated with ice melt/growth)
+
+SALT_F represents any SALT flux computed by the ice model and sent to the ocean (associated with the fact that ice melt/growth requires that salt be added/removed from the ocean because ice has a constant salinity of ~4 psu!). This salt flux must of course be converted to appropriate units; in the above equation, it is converted from (kg SALT/m^2/s) to (kg FW/m^2/s)
+
+The QFLUX term isn't included in SFWF because it's not considered a flux exchanged between model components -- it is the FW flux associated with frazil ice formation which occurs within the ocean model!
+
+POP code in forcing_coupled.F90; specifically the line
+STF(:,:,2,iblock) = RCALCT(:,:,iblock)*(  & (PREC_F(:,:,iblock) + EVAP_F(:,:,iblock) +  &
+                    MELT_F(:,:,iblock) + ROFF_F(:,:,iblock) + IOFF_F(:,:,iblock))*salinity_factor + &
+                    SALT_F(:,:,iblock)*sflux_factor)
+
+
+##  virtual salt flux formulation:  see `POP_ConstantsMod.F90`
+
 necessary fields:
 1. SFWF: PREC, EVAP, ROFF, salt terms,
 2. meridional transport: VVEL, SALT, VNS
@@ -163,8 +185,8 @@ def make_SALT_vol_int_dict():
             MASK_ = MASK.where(MASK.TLAT<latN).where(MASK.TLAT>latS)
             for d, depth in tqdm_notebook(enumerate(['0-100m', '0-1000m', 'below_1000m'])):
                 dm_, dt_ = dm[d], dt[d]
-                tseries = (dm_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])  # m^2
-                trend = (dt_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])  # m^2
+                tseries = (dm_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])  # g/kg*m*m^2=kg
+                trend = (dt_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])
                 tseries.name = f'SALT_{depth}_timeseries_{latS}N_{latN}N'
                 trend.name = f'SALT_{depth}_trend_{latS}N_{latN}N'
                 dd[f'SALT_{depth}_timeseries_{latS}N_{latN}N'] = tseries
@@ -173,9 +195,7 @@ def make_SALT_vol_int_dict():
                 ddd.append(trend)
             # print(f'{run:4}', f'{latS:4}', f'{latN:4}', f'{salt.values:4.1e}')
             
-        fn = f'{path_results}/SALT/SALT_integrals_{run}'
-        save_obj(d, fn)
-        xr.merge(ddd).to_netcdf(fn+'.nc')
+        xr.merge(ddd).to_netcdf(f'{path_results}/SALT/SALT_integrals_{run}.nc')
     return
 
 def make_SFWF_surface_int_dict():
