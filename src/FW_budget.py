@@ -1,32 +1,12 @@
 """ Atlantic Freswater Budget under Climate Change
 
+see `../doc/SFWF_calculation.md` for explanation
+
 this script generates the freshwater budget files for the CESM HIGH and LOW simulations
 figures are then generated in jupyter notebooks
 
 SALT bias figure creates in `SALT_bias.ipynb`
 AMOC trends in `AMOC.ipynb`
-
-from https://bb.cgd.ucar.edu/cesm/threads/which-variables-to-include-in-ocean-surface-salt-budget.2385/:
-
-##  FW formulation
-SFWF - QFLUX/latent_heat_fusion/1.e4 = PREC_F + EVAP_F + ROFF_F + IOFF_F + MELT_F 
-                                       + SALT_F*(sflux_factor/salinity_factor) 
-                                       - QFLUX/latent_heat_fusion/1.e4    
-                                       + (any weak or strong salinity restoring)
-
-MELT_F represents any FW flux computed by the ice model and sent to the ocean (associated with ice melt/growth)
-
-SALT_F represents any SALT flux computed by the ice model and sent to the ocean (associated with the fact that ice melt/growth requires that salt be added/removed from the ocean because ice has a constant salinity of ~4 psu!). This salt flux must of course be converted to appropriate units; in the above equation, it is converted from (kg SALT/m^2/s) to (kg FW/m^2/s)
-
-The QFLUX term isn't included in SFWF because it's not considered a flux exchanged between model components -- it is the FW flux associated with frazil ice formation which occurs within the ocean model!
-
-POP code in forcing_coupled.F90; specifically the line
-STF(:,:,2,iblock) = RCALCT(:,:,iblock)*(  & (PREC_F(:,:,iblock) + EVAP_F(:,:,iblock) +  &
-                    MELT_F(:,:,iblock) + ROFF_F(:,:,iblock) + IOFF_F(:,:,iblock))*salinity_factor + &
-                    SALT_F(:,:,iblock)*sflux_factor)
-
-
-##  virtual salt flux formulation:  see `POP_ConstantsMod.F90`
 
 necessary fields:
 1. SFWF: PREC, EVAP, ROFF, salt terms,
@@ -39,7 +19,7 @@ import numpy as np
 import pickle
 import xarray as xr
 
-from tqdm import tqdm_notebook
+from tqdm import notebook
 from grid import find_indices_near_coordinate
 from paths import CESM_filename, path_prace, path_results, file_RMASK_ocn_low, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from timeseries import IterateOutputCESM
@@ -49,7 +29,7 @@ from aa_derivation_fields import DeriveField
 
 """ functions to create certain files """
 
-lat_bands = [(-34,-10), (-10,10), (10,45), (45,60), (60,90)]
+lat_bands = [(-34,60), (-34,-10), (-10,10), (10,45), (45,60), (60,90)]
 
 def trex(fn, fct, kwargs={}):
     """  try: existence / except: create
@@ -117,22 +97,24 @@ def make_lat_dict():
         save_obj(section_dict, f'{path_results}/sections/section_dict_{["low","high"][r]}')
     return
 
-def make_SFWF_means(run, fn):
+def make_SFWF_means(run):
     """ calculates mean of SFWF fields"""
     # ctrl: 2min 14s, lpd: 3 sec
     if run=='ctrl':  yy = 200
     elif run=='lpd':  yy = 500
-    for i, qs in enumerate([['EVAP_F', 'PREC_F', 'ROFF_F'],['SALT_F']]):
+    for i, qs in notebook.tqdm(enumerate([['EVAP_F', 'PREC_F', 'ROFF_F'],['SALT_F'], ['SFWF']])):
+        # if i<2:  continue
         name = '_'.join(qs)
         print(f'  making mean of {name}')
-        ds_list = [xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_{name}_0{y}.nc') for y in np.arange(yy,yy+30)]
-        fn = f'{path_prace}/{run}/{name}_{run}_mean_{years[0]}-{years[-1]+1}.nc'
+        fn_ = f'{path_prace}/{run}/ocn_yrly_{name}_0'
+        ds_list = [xr.open_dataset(fn_+f'{y}.nc') for y in np.arange(yy,yy+30)]
+        fn = f'{path_prace}/{run}/{name}_{run}_mean_{yy}-{yy+29}.nc'
         xr.concat(ds_list, dim='time').mean(dim='time').to_netcdf(fn)
     return
 
 def make_SFWF_trends(run):
     """ calculate linear trends of SFWF """
-    for qs in [['EVAP_F', 'PREC_F', 'ROFF_F'],['SALT_F']]:
+    for qs in [['SFWF']]:  # ['EVAP_F', 'PREC_F', 'ROFF_F']
         name = '_'.join(qs)
         print(f'  making trend of {name}')
         for i, (y,m,f) in enumerate(IterateOutputCESM(domain='ocn', run=run, tavg='yrly', name=name)):
@@ -199,75 +181,77 @@ def make_SALT_vol_int_dict():
     return
 
 def make_SFWF_surface_int_dict():
-    """ calculate SFWF surface integrals for specific regions """
+    """ calculate SFWF surface integrals for specific regions
+    E/P/R/T .. evap, precip, runoff, total
+    m/t     .. mean/trend
+    """
     RMASK_ocn = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
     RMASK_low = xr.open_dataset(file_RMASK_ocn_low, decode_times=False).REGION_MASK
     # Atlantic + Labrador + GIN, no Med
-    Atl_MASK_ocn = xr.DataArray(np.in1d(RMASK_ocn, [6,8,9]).reshape(RMASK_ocn.shape),
+    Atl_MASK_ocn = xr.DataArray(np.in1d(RMASK_ocn, [6,8,9,12]).reshape(RMASK_ocn.shape),
                                 dims=RMASK_ocn.dims, coords=RMASK_ocn.coords)
-    Atl_MASK_low = xr.DataArray(np.in1d(RMASK_low, [6,8,9]).reshape(RMASK_low.shape),
+    Atl_MASK_low = xr.DataArray(np.in1d(RMASK_low, [6,8,9,12]).reshape(RMASK_low.shape),
                                 dims=RMASK_low.dims, coords=RMASK_low.coords)
     AREA_ocn = xr_AREA(domain='ocn')
     AREA_low = xr_AREA(domain='ocn_low')
 
-    ds_ctrl = xr.open_dataset(f'{path_prace}/ctrl/EVAP_F_PREC_F_ROFF_F_ctrl_mean_200-230.nc')
-    ds_lpd  = xr.open_dataset(f'{path_prace}/lpd/EVAP_F_PREC_F_ROFF_F_lpd_mean_500-530.nc')
-    Sm_ctrl = xr.open_dataarray(f'{path_prace}/ctrl/SALT_F_ctrl_mean_200-230.nc')
-    Sm_lpd  = xr.open_dataarray(f'{path_prace}/lpd/SALT_F_lpd_mean_500-530.nc')
-    Et_rcp = xr.open_dataarray(f'{path_prace}/rcp/EVAP_F_yrly_trend_rcp.nc')
+    ds_ctrl = xr.open_dataset(f'{path_prace}/ctrl/EVAP_F_PREC_F_ROFF_F_ctrl_mean_200-229.nc')
+    ds_lpd  = xr.open_dataset(f'{path_prace}/lpd/EVAP_F_PREC_F_ROFF_F_lpd_mean_500-529.nc')
+    Tm_ctrl = xr.open_dataarray(f'{path_prace}/ctrl/SFWF_ctrl_mean_200-229.nc')
+    Tm_lpd  = xr.open_dataarray(f'{path_prace}/lpd/SFWF_lpd_mean_500-529.nc')
+    Et_rcp = xr.open_dataarray(f'{path_prace}/rcp/EVAP_F_yrly_trend_rcp.nc')  # 2D data
     Pt_rcp = xr.open_dataarray(f'{path_prace}/rcp/PREC_F_yrly_trend_rcp.nc')
     Rt_rcp = xr.open_dataarray(f'{path_prace}/rcp/ROFF_F_yrly_trend_rcp.nc')
-    St_rcp = xr.open_dataarray(f'{path_prace}/rcp/SALT_F_yrly_trend_rcp.nc')
+    Tt_rcp = xr.open_dataarray(f'{path_prace}/rcp/SFWF_yrly_trend_rcp.nc')
     Et_lr1 = xr.open_dataarray(f'{path_prace}/lr1/EVAP_F_yrly_trend_lr1.nc')
     Pt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/PREC_F_yrly_trend_lr1.nc')
     Rt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/ROFF_F_yrly_trend_lr1.nc')
-    St_lr1 = xr.open_dataarray(f'{path_prace}/lr1/SALT_F_yrly_trend_lr1.nc')
+    Tt_lr1 = xr.open_dataarray(f'{path_prace}/lr1/SFWF_yrly_trend_lr1.nc')  # for now only sum
 
     for i, sim in enumerate(['HIGH', 'LOW']):
+        print('-----', sim, '-----')
         d = {}
-        (Em, Pm, Rm, Sm) = [(ds_ctrl.EVAP_F, ds_ctrl.PREC_F, ds_ctrl.ROFF_F, Sm_ctrl),
-                            (ds_lpd.EVAP_F, ds_lpd.PREC_F, ds_lpd.ROFF_F, Sm_lpd)][i]
-        (Et, Pt, Rt, St) = [(Et_rcp, Pt_rcp, Rt_rcp, St_rcp),
-                            (Et_lr1, Pt_lr1, Rt_lr1, St_lr1)][i]
+        (Em, Pm, Rm, Tm) = [(ds_ctrl.EVAP_F, ds_ctrl.PREC_F, ds_ctrl.ROFF_F, Tm_ctrl),
+                            (ds_lpd.EVAP_F, ds_lpd.PREC_F, ds_lpd.ROFF_F, Tm_lpd)][i]
+        (Et, Pt, Rt, Tt) = [(Et_rcp, Pt_rcp, Rt_rcp, Tt_rcp),
+                            (Et_lr1, Pt_lr1, Rt_lr1, Tt_lr1)][i]
         AREA = [AREA_ocn, AREA_low][i]
         RMASK = [RMASK_ocn, RMASK_low][i]
         MASK = [Atl_MASK_ocn, Atl_MASK_low][i]
 
         for (latS, latN) in lat_bands:
             if latN>60:  # + Arctic & Hudson Bay
-                MASK = MASK + RMASK.where(RMASK==10) + RMASK.where(RMASK==11)  
-            MASK_ = MASK.where(Pm.ULAT<latN).where(Pm.ULAT>latS)
+                MASK = MASK + RMASK.where(RMASK==10).fillna(0) + RMASK.where(RMASK==11).fillna(0)
+            MASK_ = MASK.where(Pm.TLAT<latN).where(Pm.TLAT>latS).fillna(0)
             AREA_total = AREA.where(MASK_).sum()
             
             # integrals of mean
             Pmi = (Pm.where(MASK_)*AREA).sum().values
             Emi = (Em.where(MASK_)*AREA).sum().values
             Rmi = (Rm.where(MASK_)*AREA).sum().values
-            Smi = (Sm.where(MASK_)*AREA).sum().values
+            Tmi = (Tm.where(MASK_)*AREA).sum().values
             d['Pmi_mmd'] = Pmi/AREA_total.values*24*3600       # [kg/s] -> [mm/d]
             d['Emi_mmd'] = Emi/AREA_total.values*24*3600
             d['Rmi_mmd'] = Rmi/AREA_total.values*24*3600
+            d['Tmi_mmd'] = Tmi/AREA_total.values*24*3600 
             d['Pmi_Sv']  = Pmi/1e9                             # [kg/m^2/s] -> [Sv]
             d['Emi_Sv']  = Emi/1e9
             d['Rmi_Sv']  = Rmi/1e9
-            d['Smi_kgs'] = Smi                                 # [kg/s]
-            d['Tmi_mmd'] = d['Pmi_mmd'] + d['Emi_mmd'] + d['Rmi_mmd']
-            d['Tmi_Sv']  = d['Pmi_Sv']  + d['Emi_Sv']  + d['Rmi_Sv']
+            d['Tmi_Sv']  = Tmi/1e9
             
             # integrals of trends
             Pti = (Pt.where(MASK_)*AREA).sum().values
             Eti = (Et.where(MASK_)*AREA).sum().values
             Rti = (Rt.where(MASK_)*AREA).sum().values
-            Sti = (St.where(MASK_)*AREA).sum().values
+            Tti = (Tt.where(MASK_)*AREA).sum().values
             d['Pti_mmd'] = Pti/AREA_total.values*24*3600*365*100  # [mm/d/100yr]
             d['Eti_mmd'] = Eti/AREA_total.values*24*3600*365*100
             d['Rti_mmd'] = Rti/AREA_total.values*24*3600*365*100
+            d['Tti_mmd'] = Tti/AREA_total.values*24*3600*365*100
             d['Pti_Sv']  = Pti/1e9*365*100                        # [Sv/100yr]
             d['Eti_Sv']  = Eti/1e9*365*100
             d['Rti_Sv']  = Rti/1e9*365*100
-            d['Sti_kgs'] = Sti*365*100
-            d['Tti_mmd'] = d['Pti_mmd'] + d['Eti_mmd'] + d['Rti_mmd']
-            d['Tti_Sv']  = d['Pti_Sv']  + d['Eti_Sv']  + d['Rti_Sv']
+            d['Tti_Sv']  = Tti/1e9*365*100  
             
             print(f'\n{latS}N to {latN}N,   {AREA_total.values:4.2E} m^2\n')
             print('             PREC  EVAP  ROFF    SUM')
@@ -277,7 +261,7 @@ def make_SFWF_surface_int_dict():
             print(f'[Sv]        {d["Pmi_Sv"]:5.2f} {d["Emi_Sv"]:5.2f} {d["Rmi_Sv"]:5.2f} {d["Tmi_Sv"]:5.4f}')
             print(f'[Sv/100y]   {d["Pti_Sv"]:5.2f} {d["Eti_Sv"]:5.2f} {d["Rti_Sv"]:5.2f} {d["Tti_Sv"]:5.4f}')
             print(f'[%/100y]    {d["Pti_Sv"]/d["Pmi_Sv"]*100:5.1f} {d["Eti_Sv"]/d["Emi_Sv"]*100:5.1f} {d["Rti_Sv"]/d["Rmi_Sv"]*100:5.1f} {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f}\n')
-            print(f'SALT        {d["Smi_kgs"]:5.2f} kg/s;  {d["Sti_kgs"]:5.2f} kg/s/100yr;  {d["Sti_kgs"]/d["Smi_kgs"]*100:5.1f} %/100yr')
+            print(f'SALT        {d["Tmi_Sv"]:5.2f} Sv;  {d["Tti_Sv"]:5.2f} Sv/100yr;  {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f} %/100yr')
 
             fn = f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
             save_obj(d, fn)
