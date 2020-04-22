@@ -1,8 +1,15 @@
-""" Meridional Freshwater/Salt Transport
+""" Freshwater/Salt Transport
+- freshwater relative to 35 g/kg
+- taking partial bottom cells of high resolution POP grid into account
 
-calculate the freshwater and salt transport terms
-(overturning, azonal, total, and eddy)
+if called directly, this scripts calculates:
 
+(1) the total salt/volume/freshwater flux through Bering Strait and Strait of Gibraltar
+->  f'{path_prace}/Mov/FW_Med_Bering_{run}_{y:04d}.nc'
+
+(2) the Atlantic freshwater and salt meridional transport terms
+    (overturning, azonal, total, and eddy) as a function of latitude
+->  f'{path_prace}/Mov/FW_SALT_fluxes_{run}_{y:04d}.nc'
 """
 import os
 import sys
@@ -13,10 +20,10 @@ import numpy as np
 import xarray as xr
 import pop_tools
 
-from paths import file_ex_ocn_ctrl, file_ex_ocn_lpd, path_prace
-from constants import rho_sw
+from paths import file_ex_ocn_ctrl, file_ex_ocn_lpd, path_prace, path_results
 from datetime import datetime
-from xr_DataArrays import xr_DZ_xgcm
+from constants import rho_sw
+from xr_DataArrays import xr_DZ, xr_DZ_xgcm
 
 metrics = {
     ('X'): ['DXT', 'DXU', 'HTN', 'HUS'],  # X distances
@@ -29,6 +36,44 @@ coords = {
     'Y': {'center':'nlat_t', 'right':'nlat_u'},
     'Z': {'center':'z_t', 'left':'z_w_top', 'right':'z_w_bot'}
 }
+sections_high = {
+    'Bering': dict(nlon=slice(2929,2947), nlat=1979),
+    'Med'   : dict(nlon=1042, nlat=slice(1555,1559))
+}
+sections_low = {
+    'Bering': dict(nlon=slice(198 ,202 ), nlat=333),
+    'Med':    dict(nlon=32,nlat=slice(290,295))
+}
+
+
+def calc_section_transport(ds):
+    """ calculate the transport across Bering Strait and Gibraltar sections
+    section  predermined (nlon,nlat) dictionary
+    """
+    for q in ['VVEL', 'UVEL', 'VNS', 'UES', 'DXU', 'DYU', 'TAREA', 'DZT', 'DZU']:
+        assert q in ds
+        
+    if ds.TAREA.shape==(2400, 3600):  section = sections_high
+    elif ds.TAREA.shape==(384, 320):  section = sections_low
+    
+    S0 = 35.  # [g/kg]
+    
+    S_BS = (ds.VNS*ds.TAREA*ds.DZT).isel(section['Bering']).sum()/1e4  # [cm^2*m/s] -> [kg_{Salt}/s]
+    V_BS = (ds.VVEL*ds.DXU*ds.DZU).isel(section['Bering']).sum()/1e4   # [cm^2*m/s] -> [m^3/s]
+    F_BS = -1/S0*(S_BS - S0*V_BS)                                   # [m^3/s]
+    
+    S_Med = (ds.UES*ds.TAREA*ds.DZT).isel(section['Med']).sum()/1e4    # [cm^2*m/s] -> [kg_{Salt}/s]
+    V_Med = (ds.UVEL*ds.DYU*ds.DZU).isel(section['Med']).sum()/1e4     # [cm^2*m/s] -> [m^3/s]
+    F_Med = -1/S0*(S_Med - S0*V_Med)
+
+    S_BS.name, V_BS.name, F_BS.name, = 'S_BS', 'V_BS', 'F_BS'
+    S_Med.name, V_Med.name, F_Med.name, = 'S_Med', 'V_Med', 'F_Med'
+    
+    S_BS.attrs['units'], S_Med.attrs['units'] = 'kg/s', 'kg/s'
+    V_BS.attrs['units'], V_Med.attrs['units'] = 'm^3/s', 'm^3/s'
+    F_BS.attrs['units'], F_Med.attrs['units'] = 'm^3/s', 'm^3/s'
+    
+    return xr.merge([S_BS, V_BS, F_BS, S_Med, V_Med, F_Med])
 
 
 def calc_transports_pbc(grid, ds, MASK_tt, MASK_uu, S0=35.0):
@@ -91,8 +136,9 @@ def FW_SALT_flux_dataset(run):
 
 if __name__=='__main__':
     """
-    input:
+    input: {run} {ys} {ye}
     run .. file name
+
 
     output:
     ds .. dataset containing FW/SALt transport terms
@@ -109,45 +155,82 @@ if __name__=='__main__':
     elif run in ['lpd', 'lr1']:
         fe = file_ex_ocn_lpd
         domain = 'ocn_low'
+    else:
+        raise ValueError(f'`run`={run} not implemented')
     geometrics = ['TAREA', 'UAREA', 'dz', 'DXT', 'DXU', 'HTN', 'HUS', 'DYT', 'DYU', 'HTE', 'HUW', 'REGION_MASK']
     ds_geo = xr.open_dataset(fe, decode_times=False)[geometrics].drop(['TLONG','TLAT','ULONG','ULAT']).squeeze()
-    DZT = xr_DZ_xgcm(domain=domain, grid='T')
-    DZU = xr_DZ_xgcm(domain=domain, grid='U')
+    DZT = xr_DZ(domain)
+    DZU = xr_DZ(domain, grid='U')
+    DZT.name, DZU.name = 'DZT', 'DZU'
+    DZTx = xr_DZ_xgcm(domain=domain, grid='T')
+    DZUx = xr_DZ_xgcm(domain=domain, grid='U')
 
     for y in tqdm.tqdm(np.arange(ys,ye)):
+        #region: section transport
+        fn = f'{path_prace}/Mov/FW_Med_Bering_{run}_{y:04d}.nc'
+        if  1==0:# os.path.exists(fn): #
+            pass
+            print(y, fn, ' exists')
+        else:
+            da_VNS  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_VNS_{y:04d}.nc' , decode_times=False)
+            da_UES  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UES_{y:04d}.nc' , decode_times=False)
+            ds_VEL  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False)
+            
+            # some files were created without setting `decode_times` to `False`
+            # this creates a `time` variable which messes with xr.merge
+            if 'time' in da_VNS:   da_VNS  = da_VNS .drop('time')
+            if 'time' in da_UES:   da_UES  = da_UES .drop('time')
+
+            # some UES files have no name
+            # if run=='ctrl':  
+            #     da_UES  = xr.open_dataarray(f'{path_prace}/{run}/ocn_yrly_UES_{y:04d}.nc' , decode_times=False)
+            # if e:  
+            #     da_UES  = xr.open_dataarray(f'{path_prace}/{run}/ocn_yrly_UES_{y:04d}.nc' , decode_times=False)
+            
+            # print("name:   ", da_UES.name)
+            ds = xr.merge([da_VNS, da_UES, ds_VEL, ds_geo, DZT, DZU])
+            ds = calc_section_transport(ds)
+            ds.to_netcdf(fn)
+        #endregion
+
+        #region: meridional transport terms
         fn = f'{path_prace}/Mov/FW_SALT_fluxes_{run}_{y:04d}.nc'
-        if os.path.exists(fn):  print(y, fn, ' exists'); continue
-        print(y, fn)
-        da_SALT = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_SALT_{y:04d}.nc', decode_times=False)
-        da_VNS  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_VNS_{y:04d}.nc' , decode_times=False)
-        da_VVEL = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False).VVEL
-        
-        # some files were created without setting `decode_times` to `False`
-        # this creates a `time` variable which messes with xr.merge
-        if 'time' in da_SALT:  da_SALT = da_SALT.drop('time') 
-        if 'time' in da_VNS:  da_VNS = da_VNS.drop('time') 
-        
-        ds = xr.merge([da_SALT, da_VNS, da_VVEL, ds_geo])
-        ds.VNS .attrs['grid_loc'] = 3121
-        ds.VVEL.attrs['grid_loc'] = 3221
-        ds.SALT.attrs['grid_loc'] = 3111
+        if os.path.exists(fn):
+            pass
+            # print(y, fn, ' exists')
+            
+        else:
+            da_SALT = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_SALT_{y:04d}.nc', decode_times=False)
+            da_VNS  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_VNS_{y:04d}.nc' , decode_times=False)
+            da_VVEL = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False).VVEL
+            
+            # some files were created without setting `decode_times` to `False`
+            # this creates a `time` variable which messes with xr.merge
+            if 'time' in da_SALT:  da_SALT = da_SALT.drop('time') 
+            if 'time' in da_VNS:  da_VNS = da_VNS.drop('time') 
+            
+            ds = xr.merge([da_SALT, da_VNS, da_VVEL, ds_geo])
+            ds.VNS .attrs['grid_loc'] = 3121
+            ds.VVEL.attrs['grid_loc'] = 3221
+            ds.SALT.attrs['grid_loc'] = 3111
 
-        # prepare grid
-        (g_, ds_) = pop_tools.to_xgcm_grid_dataset(ds)
-        ds_['DZT'] = DZT
-        ds_['DZU'] = DZU
-        grid = xgcm.Grid(ds_, metrics=metrics, coords=coords)
+            # prepare grid
+            (g_, ds_) = pop_tools.to_xgcm_grid_dataset(ds)
+            ds_['DZT'] = DZTx
+            ds_['DZU'] = DZUx
+            grid = xgcm.Grid(ds_, metrics=metrics, coords=coords)
 
-        MASK_tt = ds_.REGION_MASK
-        Atl_MASK_tt = xr.DataArray(np.in1d(MASK_tt, [6,8,9]).reshape(MASK_tt.shape),
-                                dims=MASK_tt.dims, coords=MASK_tt.coords)
-        rn = {'nlat_t':'nlat_u', 'nlon_t':'nlon_u'}
-        ac = {'nlat_u':ds_['nlat_u'].values, 'nlon_u':ds_['nlon_u'].values}
-        Atl_MASK_uu = Atl_MASK_tt.rename(rn).assign_coords(ac)
+            MASK_tt = ds_.REGION_MASK
+            Atl_MASK_tt = xr.DataArray(np.in1d(MASK_tt, [6,8,9]).reshape(MASK_tt.shape),
+                                    dims=MASK_tt.dims, coords=MASK_tt.coords)
+            rn = {'nlat_t':'nlat_u', 'nlon_t':'nlon_u'}
+            ac = {'nlat_u':ds_['nlat_u'].values, 'nlon_u':ds_['nlon_u'].values}
+            Atl_MASK_uu = Atl_MASK_tt.rename(rn).assign_coords(ac)
 
-        # calculate transport terms
-        ds = calc_transports_pbc(grid=grid, ds=ds_, MASK_tt=Atl_MASK_tt, MASK_uu=Atl_MASK_uu)
-        ds.to_netcdf(fn)
+            # calculate transport terms
+            ds = calc_transports_pbc(grid=grid, ds=ds_, MASK_tt=Atl_MASK_tt, MASK_uu=Atl_MASK_uu)
+            ds.to_netcdf(fn)
+        #endregion
 
     print(datetime.now())
     
