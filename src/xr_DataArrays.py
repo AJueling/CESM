@@ -74,32 +74,37 @@ def xr_DZ(domain, grid='T'):
     
     if os.path.exists(file_path):
         DZ = xr.open_dataarray(file_path)
+    else:  # create file
+        if domain=='ocn':        
+            fe, imt, jmt, km = file_ex_ocn_ctrl, 3600, 2400, 42
+        elif domain=='ocn_low':  
+            fe, imt, jmt, km = file_ex_ocn_lpd, 320, 384, 60
+        ds = xr.open_dataset(fe, decode_times=False)
         
-    else:
-        DZ, C, imt, jmt, km = create_xr_DataArray(domain=domain, n=3, fill=0)
-            
-        if domain=='ocn':  # partial bottom cells
-            PBC = read_binary_2D_double(file_geometry, 3600, 2400, 1)  # [lon, lat]
-            
-            if grid=='U':
-                for k in range(km):
-                    DZ[k,:,:] = np.where(C.KMU[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
-                    # technically there should be the 
-            else:  # T-grid
-                for k in range(km):
-                    DZ[k,:,:] = np.where(C.KMT[:,:]>k , C.dz[k]/100   , DZ[k,:,:])
-                    DZ[k,:,:] = np.where(C.KMT[:,:]==k, PBC[:,:].T/100, DZ[k,:,:])
-                                
-        elif domain=='ocn_low':
-            for k in range(km):
-                DZ[k,:,:] = np.where(C.PD[0,k,:,:]>0, (C.z_w_bot[k]-C.z_w_top[k])/1e2, 0)
-            
-        elif domain=='ocn_rect':
-            for k in range(km):
-                DZ[k,:,:] = np.where(C.PD[k,:,:]>0, C.w_dep[k+1]-C.w_dep[k], DZ[k,:,:])
-        
+        H = ds[f'H{grid}']
+        KM = ds[f'KM{grid}']
+        DZ_data = np.tile(ds.dz.values/1e2, reps=(imt, jmt, 1))  # [cm] -> [m]
+        DZ_coords = {'nlon':ds['nlon'].values,
+                     'nlat':ds['nlat'].values,
+                     'z_t':ds['z_t'].values
+                    }
+        DZ_dims = ['nlon', 'nlat', 'z_t']
+        DZ = xr.DataArray(data=DZ_data, dims=DZ_dims).transpose()
+        # DZ = xr.DataArray(data=DZ_data, coords=DZ_coords, dims=DZ_dims).transpose()
+        # -> km,jmt,imt
+        DZ[0,:,:] = xr.where(KM==-1, -1, DZ[0,:,:])
+        DZ[0,:,:] = xr.where(KM==0, np.nan, DZ[0,:,:])
+
+        for k in np.arange(1,km):
+            if domain=='ocn':  # partial bottom cells
+                DZ[k,:,:] = xr.where(k>=KM-1, np.nan, DZ[k,:,:])
+                DZ[k,:,:] = xr.where(k==KM-1, H/1e2-DZ.isel(z_t=slice(0,k)).sum('z_t'), DZ[k,:,:])
+            if domain=='ocn_low':
+                DZ[k,:,:] = xr.where(k>=KM, np.nan, DZ[k,:,:])
+
+        H_coords = ['TLAT', 'TLONG', 'ULAT', 'ULONG']
+        # xr.testing.assert_allclose(DZ.sum('z_t'), H.drop(H_coords)/1e2, rtol=0.01)
         DZ.to_netcdf(file_path)
-        
     return DZ
 
 
