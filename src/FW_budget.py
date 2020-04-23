@@ -1,3 +1,4 @@
+#region: documentation
 """ Atlantic Freswater Budget under Climate Change
 
 see `../doc/SFWF_calculation.md` for explanation
@@ -11,8 +12,33 @@ AMOC trends in `AMOC.ipynb`
 necessary fields:
 1. SFWF: PREC, EVAP, ROFF, salt terms,
 2. meridional transport: VVEL, SALT, VNS
-"""
 
+## Figures in jupyter notebooks
+Fig   content                                                         where
+1:    salinity bias map, zonal average                                `SALT_bias.ipynb`
+2:    SFWF biases                                                      AMWG
+3:    FW flux inferred from models vs obs.                             AMWG
+4.    AMOC(z,y) mean and trend                                        `AMOC_sigma_space.ipynb`
+5:    AMOC(26N,1000m,t)                                               `paper3.ipynb`
+6:    SFWF mean/trend maps:                                           `SFWF.ipynb`
+7:    latitudinal dependence of transport terms:                      `M_ov.ipynb`
+        f'{path_prace}/{run}/FW_SALT_fluxes_{run}.nc'
+8:    salinity trand maps                                             `SALT_budget.ipynb`
+9:    regional budget                                                 `Atl_FW_budget.ipynb`/`FW_plots.py`
+        - SFWF integrals
+        f'{path_prace}/{ctrl/lpd}/EVAP_PREC_ROFF_{ctrl/lpd}_mean_200-230.nc' 
+        f'{path_prace}/{rcp/lr1}/{EVAP/PREC/ROFF}_yrly_trend.nc'
+        calculation of surface integrals below
+            -> f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
+        - d/dt
+        - meridional transport terms
+        - BS/Med inflow
+        - mixing terms
+10:   stability indicators time series                                `paper3.ipynb`
+"""
+#endregion
+
+#region: imports
 import os
 import sys
 import numpy as np
@@ -26,8 +52,9 @@ from timeseries import IterateOutputCESM
 from xr_DataArrays import xr_AREA
 from xr_regression import ocn_field_regression
 from aa_derivation_fields import DeriveField
+#endregion
 
-""" functions to create certain files """
+#region: functions to create files
 
 lat_bands = [(-34,60), (-34,-10), (-10,10), (10,45), (45,60), (60,90)]
 
@@ -266,7 +293,9 @@ def make_SFWF_surface_int_dict():
             fn = f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
             save_obj(d, fn)
     return
+#endregion
 
+#region: (main) FW budget pipeline to derive files for paper
 
 if __name__=='__main__':
     # 0.   geometry:  create dicts with nlat of specific latitudes
@@ -341,25 +370,4 @@ if __name__=='__main__':
 
     
     
-
-""" Figures in jupyter notebooks """
-
-# 4:  mean/trend maps:  `SFWF.ipynb`
-
-# 6:  regional budget:  `Atl_FW_budget.ipynb`
-
-# 6.1:  surface integrals
-#     f'{path_prace}/{ctrl/lpd}/EVAP_PREC_ROFF_{ctrl/lpd}_mean_200-230.nc' 
-#     f'{path_prace}/{rcp/lr1}/{EVAP/PREC/ROFF}_yrly_trend.nc'
-#     calculation of surface integrals in .ipynb 
-#         -> f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
-
-# 6.2:  d/dt
-
-# 6.3:  meridional transport
-#     f'{path_prace}/{run}/FW_SALT_fluxes_{run}.nc'
-
-# 7:  latitudinal dependence of transport terms:  `M_ov.ipynb`
-
-
-
+#endregion

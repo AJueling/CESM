@@ -18,7 +18,10 @@ import xgcm
 import dask
 import numpy as np
 import xarray as xr
+import warnings
 import pop_tools
+
+warnings.filterwarnings('ignore')
 
 from paths import file_ex_ocn_ctrl, file_ex_ocn_lpd, path_prace, path_results
 from datetime import datetime
@@ -168,9 +171,9 @@ if __name__=='__main__':
     for y in tqdm.tqdm(np.arange(ys,ye)):
         #region: section transport
         fn = f'{path_prace}/Mov/FW_Med_Bering_{run}_{y:04d}.nc'
-        if  1==0:# os.path.exists(fn): #
+        if  os.path.exists(fn): #
             pass
-            print(y, fn, ' exists')
+            # print(y, fn, ' exists')
         else:
             da_VNS  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_VNS_{y:04d}.nc' , decode_times=False)
             da_UES  = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UES_{y:04d}.nc' , decode_times=False)
@@ -195,7 +198,7 @@ if __name__=='__main__':
 
         #region: meridional transport terms
         fn = f'{path_prace}/Mov/FW_SALT_fluxes_{run}_{y:04d}.nc'
-        if os.path.exists(fn):
+        if 1==0:#os.path.exists(fn):
             pass
             # print(y, fn, ' exists')
             
@@ -221,7 +224,7 @@ if __name__=='__main__':
             grid = xgcm.Grid(ds_, metrics=metrics, coords=coords)
 
             MASK_tt = ds_.REGION_MASK
-            Atl_MASK_tt = xr.DataArray(np.in1d(MASK_tt, [6,8,9]).reshape(MASK_tt.shape),
+            Atl_MASK_tt = xr.DataArray(np.in1d(MASK_tt, [6,8,9,12]).reshape(MASK_tt.shape),
                                     dims=MASK_tt.dims, coords=MASK_tt.coords)
             rn = {'nlat_t':'nlat_u', 'nlon_t':'nlon_u'}
             ac = {'nlat_u':ds_['nlat_u'].values, 'nlon_u':ds_['nlon_u'].values}
