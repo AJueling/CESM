@@ -6,7 +6,7 @@ import xarray as xr
 from tqdm import tqdm
 from paths import path_prace
 from regions import regions_dict, boolean_mask
-from constants import rho_sw, cp_sw
+from constants import rho_sw, cp_sw, spy
 from xr_DataArrays import xr_DZ, xr_AREA, dll_dims_names
 from timeseries import IterateOutputCESM
 
@@ -156,8 +156,8 @@ class AnalyzeBudget(object):
         """ total surface heat flux into ocean basins """
         # 32:20 min ctrl
         # 1min 4s lpd
-        if run=='ctrl':   domain = 'ocn'
-        elif run=='lpd':  domain = 'ocn_low'
+        if run=='ctrl':              domain = 'ocn'
+        elif run in ['lc1', 'lpd']:  domain = 'ocn_low'
         da = xr.open_mfdataset(f'{path_prace}/{run}/ocn_yrly_SHF_0*.nc', concat_dim='time').SHF
         AREA = xr_AREA(domain=domain)
         SHF = spy*(da*AREA).sum(dim=['nlat', 'nlon'])

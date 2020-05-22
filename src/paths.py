@@ -25,9 +25,11 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
     assert run in ['ctrl',         # high res present day control run
                    'rcp',          # high res RCP8.5 run
-                   'lpd',          # low res present day control run
+                   'ptx', 'pgx',   # POP tx0.1, gx1 binary files for control runs
+                   'lpd',          # low res present day control run with CESM versions 1.12 (>1300 years)
+                   'lc1',          # present day low res CESM 1.04 (branched off at year 1000 from `lpd`)
                    'lpi',          # low res pre-industrial control run
-                   'pop',          # high res ocean only run
+                   'pop',          # high res ocean only run ocn_rect
                    'lr1', 'lr2',   # low res RCP8.5 runs
                    'hq',           # high res quadroupling run
                    'ld']           # low res doubling run
@@ -44,22 +46,7 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     # yearly output
     if m==0:  
         if domain=='ocn':
-            if run=='ctrl':
-                file = f'{path_yrly_ctrl}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='rcp':
-                file = f'{path_yrly_rcp}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='hq':
-                file = f'{path_yrly_hq}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='lpd':
-                file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='lpi':
-                file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='lr1':
-                file = f'{path_yrly_lr1}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='lr2':
-                file = f'{path_yrly_lr2}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='ld':
-                file = f'{path_yrly_ld}/ocn_yrly_{name}_{y:04}.nc'
+            file = f'{path_prace}/{run}/ocn_yrly_{name}_{y:04}.nc'
     
         elif domain=='ocn_rect':
             if run=='ctrl':
@@ -118,6 +105,8 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
             # the following are technically `ocn_low`
             elif run=='lpd':
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
+            elif run=='lc1':
+                file = f'{path_ocn_lc1}/{lc1str}.pop.h.{time}.nc'
             elif run=='lpi':
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
             elif run=='lr1':
@@ -218,6 +207,7 @@ rcpstr  = 'rcp8.5_co2_f05_t12'
 lr1str  = 'rcp8.5_co2_f09_g16'
 lr2str  = 'rcp8.5_co2_f09_g16.002'
 lpdstr  = 'spinup_B_2000_cam5_f09_g16'
+lc1str  = 'spinup_pd_maxcores_f09_g16'
 lpistr  = 'b.PI_1pic_f19g16_NESSC_control'
 popstr  = 't.t0.1_42l_nccs01'
 hqstr   = 'b.e10.B2000_CAM5.f05_t12.pd_control.4xco2.001'
@@ -237,9 +227,11 @@ path_samoc   = path_prace
 path_CESM104 = '/projects/0/prace_imau/prace_2013081679/cesm1_0_4'
 path_CESM112 = '/projects/0/acc/cesm/cesm1_1_2'
 path_CESM105 = '/projects/0/acc/cesm/cesm1_0_5'
+
 path_ctrl = f'{path_CESM104}/{spinup}'
 path_rcp  = f'{path_CESM104}/{rcpstr}'
 path_lpd  = f'{path_CESM112}/{lpdstr}'
+path_lc1  = f'{path_CESM104}/f09_g16/{lc1str}'
 path_lpi  = f'{path_CESM105}/{lpistr}'
 path_pop  = f'/projects/0/samoc/pop/tx0.1'
 path_lr1  = f'{path_CESM112}/{lr1str}'
@@ -266,6 +258,10 @@ path_ice_rcp  = f'{path_rcp}/OUTPUT/ice/hist/monthlies'
 path_ocn_lpd  = f'{path_lpd}/OUTPUT/ocn/hist/monthly'
 path_atm_lpd  = f'{path_lpd}/OUTPUT/atm/hist/yearly'
 path_ice_lpd  = f'{path_lpd}/OUTPUT/ice/hist'
+
+
+path_ocn_lc1  = f'{path_lc1}/run'
+path_atm_lc1  = f'{path_lc1}/run'
 
 path_ocn_lpi  = f'{path_lpi}/OUTPUT/ocn/hist/monthly'
 path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist/monthly'

@@ -25,7 +25,7 @@ class IterateOutputCESM:
     
     def __init__(self, domain, run, tavg, name=None):
         assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
-        assert run in ['ctrl', 'rcp', 'lpd', 'lpi', 'pop', 'lr1', 'lr2', 'hq', 'ld']
+        assert run in ['ctrl', 'rcp', 'lpd', 'lc1', 'lpi', 'pop', 'lr1', 'lr2', 'hq', 'ld']
         assert tavg in ['monthly', 'yrly', 'daily']
         
         self.domain = domain
@@ -38,6 +38,7 @@ class IterateOutputCESM:
         elif run=='rcp':  self.year = 2000
         elif run=='pop':  self.year =  125
         elif run=='lpd':  self.year =  154
+        elif run=='lc1':  self.year =    1
         elif run=='lr1':  self.year = 2000
         elif run=='lr2':  self.year = 2000
         elif run=='hq':   self.year = 2000
