@@ -88,6 +88,7 @@ def xr_linear_trend(x):
     return xr.DataArray(pf[1])
 
 
+# ! slow, use xr_2D_trends instead
 def xr_linear_trends_2D(da, dim_names, with_nans=False):
     """ calculate linear trend of 2D field in time
 
@@ -105,7 +106,7 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
 #         time_to_float = True
         
     def xr_linear_trend_with_nans(x):
-        """ function to compute a linear trend coeficient of a timeseries """
+        """ function to compute a linear trend coefficient of a timeseries """
         if np.isnan(x).any():
             x = x.dropna(dim='time')
             if x.size>1:
@@ -133,6 +134,7 @@ def xr_linear_trends_2D(da, dim_names, with_nans=False):
     if 'allpoints_level_0' in da_trend.coords.keys():
         da_trend = da_trend.rename({'allpoints_level_0':dim1, 'allpoints_level_1':dim2})
     return da_trend
+
 
 def xr_2D_trends(xa):
     """ calculates linear slope of 2D xr.DataArray `xa` """

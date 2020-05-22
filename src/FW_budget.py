@@ -88,7 +88,7 @@ def load_obj(name):
     with open(name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
-def make_lat_dict():
+def make_lat_dict():  # carful with lats at 60N
     """ creates dictionary of nlat and nlon of E-W/N-S sections """
     sections = ['Drake', 'Agulhas', 'Med', '30W', 'Bering', '34S', '10S', 'Eq', '10N', '26N', '45N', '60N', '65N']
     section_dict = {}
@@ -149,79 +149,74 @@ def make_SFWF_trends(run):
             if i==0:  ds = []
             ds.append(ds_)
         ds = xr.concat(ds, dim='time')
+        print('mfdataset created')
         for q in qs:
             ds[q].to_netcdf(f'{path_prace}/{run}/{q}_yrly_{run}.nc')
+            print('before regression')
             trend = ocn_field_regression(xa=ds[q], run=run)
+            print('after regression')
             trend[0].to_netcdf(f'{path_prace}/{run}/{q}_yrly_trend_{run}.nc')
     return
 
-def make_SALT_vol_int_dict():
+def make_Mask(run, latS, latN):
+    if run in ['ctrl', 'rcp']:  # HIGH
+        RMASK = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
+        MASK_Baltic = RMASK.where(RMASK==12).fillna(0)
+    elif run in ['lpd', 'lr1']:  # LOW
+        RMASK = xr.open_dataset(file_RMASK_ocn_low, decode_times=False).REGION_MASK
+        MASK_Baltic = RMASK.where(RMASK==-12).fillna(0)
+
+    MASK = xr.DataArray(np.in1d(RMASK, [6,8,9]).reshape(RMASK.shape),
+                        dims=RMASK.dims, coords=RMASK.coords)
+    MASK = MASK.where(MASK.TLAT<latN).where(MASK.TLAT>latS).fillna(0)
+    if latN==60:  # add Baltic
+        MASK = MASK + MASK_Baltic
+    if latN==90:  # add Arctic & Hudson Bay
+        MASK = MASK + RMASK.where(RMASK==10).fillna(0) + RMASK.where(RMASK==11).fillna(0)  
+    return MASK
+
+def make_SALT_vol_integrals(run):
     """ calculate SALT volume integrals for specific regions from depth integrated SALT*DZT maps
     [g->kg] * (SALT*DZT).sum('z_t') * rho_w * \int \int dx dy
     1kg/1000g * g_S/kg_W*m * 1000kg_W/1m^3 * m^2 = kg
 
     output:
-    dictionary with timeseries and trends for all depth levels
+    netcdf with timeseries and trends for all depth levels
     """
-    RMASK_ocn = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
-    RMASK_low = xr.open_dataset(file_RMASK_ocn_low, decode_times=False).REGION_MASK
     # Atlantic + Labrador + GIN, no Med
-    Atl_MASK_ocn = xr.DataArray(np.in1d(RMASK_ocn, [6,8,9]).reshape(RMASK_ocn.shape),
-                                dims=RMASK_ocn.dims, coords=RMASK_ocn.coords)
-    Atl_MASK_low = xr.DataArray(np.in1d(RMASK_low, [6,8,9]).reshape(RMASK_low.shape),
-                                dims=RMASK_low.dims, coords=RMASK_low.coords)
-    AREA_ocn = xr_AREA(domain='ocn')
-    AREA_low = xr_AREA(domain='ocn_low')
-    for run in ['lpd', 'lr1', 'ctrl', 'rcp']:
-        dd, ddd = {}, []
-        if run in ['ctrl', 'rcp']:  # HIGH
-            AREA = xr_AREA('ocn')
-            MASK = Atl_MASK_ocn
-            RMASK = RMASK_ocn
-        elif run in ['lpd', 'lr1']:  # LOW
-            AREA = xr_AREA('ocn_low')
-            MASK = Atl_MASK_low
-            RMASK = RMASK_low
-        dm = [xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-100m_{run}.nc'),
-              xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-1000m_{run}.nc'),
-              xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_below_1000m_{run}.nc')]
-        dt = [xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-100m_trend_{run}.nc'),
-              xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-1000m_trend_{run}.nc'),
-              xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_below_1000m_trend_{run}.nc')]
-        for j, (latS, latN) in enumerate(lat_bands):
-            if latN>60:  # + Arctic & Hudson Bay
-                MASK = MASK + RMASK.where(RMASK==10) + RMASK.where(RMASK==11)  
-            MASK_ = MASK.where(MASK.TLAT<latN).where(MASK.TLAT>latS)
-            for d, depth in tqdm_notebook(enumerate(['0-100m', '0-1000m', 'below_1000m'])):
-                dm_, dt_ = dm[d], dt[d]
-                tseries = (dm_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])  # g/kg*m*m^2=kg
-                trend = (dt_*AREA).where(MASK_==1).sum(dim=['nlat','nlon'])
-                tseries.name = f'SALT_{depth}_timeseries_{latS}N_{latN}N'
-                trend.name = f'SALT_{depth}_trend_{latS}N_{latN}N'
-                dd[f'SALT_{depth}_timeseries_{latS}N_{latN}N'] = tseries
-                dd[f'SALT_{depth}_trend_{latS}N_{latN}N'] = trend
-                ddd.append(tseries)
-                ddd.append(trend)
-            # print(f'{run:4}', f'{latS:4}', f'{latN:4}', f'{salt.values:4.1e}')
-            
-        xr.merge(ddd).to_netcdf(f'{path_results}/SALT/SALT_integrals_{run}.nc')
+    dd, ddd = {}, []
+    if run in ['ctrl', 'rcp']:   AREA = xr_AREA('ocn')
+    elif run in ['lpd', 'lr1']:  AREA = xr_AREA('ocn_low')
+    dm = [xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-100m_{run}.nc'),
+          xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-1000m_{run}.nc'),
+          xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_below_1000m_{run}.nc')]
+    dt = [xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-100m_trend_{run}.nc'),
+          xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_0-1000m_trend_{run}.nc'),
+          xr.open_dataarray(f'{path_prace}/SALT/SALT_dz_below_1000m_trend_{run}.nc')]
+    for j, (latS, latN) in enumerate(lat_bands):
+        MASK = make_Mask(run, latS, latN)
+        for d, depth in notebook.tqdm(enumerate(['0-100m', '0-1000m', 'below_1000m'])):
+            dm_, dt_ = dm[d], dt[d]
+            tseries = (dm_*AREA).where(MASK).sum(dim=['nlat','nlon'])  # g/kg*m*m^2=kg
+            trend = (dt_*AREA).where(MASK).sum(dim=['nlat','nlon'])
+            tseries.name = f'SALT_{depth}_timeseries_{latS}N_{latN}N'
+            trend.name = f'SALT_{depth}_trend_{latS}N_{latN}N'
+            dd[f'SALT_{depth}_timeseries_{latS}N_{latN}N'] = tseries
+            dd[f'SALT_{depth}_trend_{latS}N_{latN}N'] = trend
+            ddd.append(tseries)
+            ddd.append(trend)
+        # print(f'{run:4}', f'{latS:4}', f'{latN:4}', f'{salt.values:4.1e}')
+        
+    xr.merge(ddd).to_netcdf(f'{path_results}/SALT/SALT_integrals_{run}.nc')
     return
 
-def make_SFWF_surface_int_dict():
+def make_SFWF_surface_integrals():
     """ calculate SFWF surface integrals for specific regions
     E/P/R/T .. evap, precip, runoff, total
     m/t     .. mean/trend
-    """
-    RMASK_ocn = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
-    RMASK_low = xr.open_dataset(file_RMASK_ocn_low, decode_times=False).REGION_MASK
-    # Atlantic + Labrador + GIN, no Med
-    Atl_MASK_ocn = xr.DataArray(np.in1d(RMASK_ocn, [6,8,9,12]).reshape(RMASK_ocn.shape),
-                                dims=RMASK_ocn.dims, coords=RMASK_ocn.coords)
-    Atl_MASK_low = xr.DataArray(np.in1d(RMASK_low, [6,8,9,12]).reshape(RMASK_low.shape),
-                                dims=RMASK_low.dims, coords=RMASK_low.coords)
-    AREA_ocn = xr_AREA(domain='ocn')
-    AREA_low = xr_AREA(domain='ocn_low')
 
+    ! output as a pickled dictionary
+    """
     ds_ctrl = xr.open_dataset(f'{path_prace}/ctrl/EVAP_F_PREC_F_ROFF_F_ctrl_mean_200-229.nc')
     ds_lpd  = xr.open_dataset(f'{path_prace}/lpd/EVAP_F_PREC_F_ROFF_F_lpd_mean_500-529.nc')
     Tm_ctrl = xr.open_dataarray(f'{path_prace}/ctrl/SFWF_ctrl_mean_200-229.nc')
@@ -242,21 +237,17 @@ def make_SFWF_surface_int_dict():
                             (ds_lpd.EVAP_F, ds_lpd.PREC_F, ds_lpd.ROFF_F, Tm_lpd)][i]
         (Et, Pt, Rt, Tt) = [(Et_rcp, Pt_rcp, Rt_rcp, Tt_rcp),
                             (Et_lr1, Pt_lr1, Rt_lr1, Tt_lr1)][i]
-        AREA = [AREA_ocn, AREA_low][i]
-        RMASK = [RMASK_ocn, RMASK_low][i]
-        MASK = [Atl_MASK_ocn, Atl_MASK_low][i]
+        AREA = xr_AREA(domain=['ocn','ocn_low'][i])
 
         for (latS, latN) in lat_bands:
-            if latN>60:  # + Arctic & Hudson Bay
-                MASK = MASK + RMASK.where(RMASK==10).fillna(0) + RMASK.where(RMASK==11).fillna(0)
-            MASK_ = MASK.where(Pm.TLAT<latN).where(Pm.TLAT>latS).fillna(0)
-            AREA_total = AREA.where(MASK_).sum()
+            MASK = make_Mask(run=['ctrl','lpd'][i], latS=latS, latN=latN)
+            AREA_total = AREA.where(MASK).sum()
             
             # integrals of mean
-            Pmi = (Pm.where(MASK_)*AREA).sum().values
-            Emi = (Em.where(MASK_)*AREA).sum().values
-            Rmi = (Rm.where(MASK_)*AREA).sum().values
-            Tmi = (Tm.where(MASK_)*AREA).sum().values
+            Pmi = (Pm.where(MASK)*AREA).sum().values
+            Emi = (Em.where(MASK)*AREA).sum().values
+            Rmi = (Rm.where(MASK)*AREA).sum().values
+            Tmi = (Tm.where(MASK)*AREA).sum().values
             d['Pmi_mmd'] = Pmi/AREA_total.values*24*3600       # [kg/s] -> [mm/d]
             d['Emi_mmd'] = Emi/AREA_total.values*24*3600
             d['Rmi_mmd'] = Rmi/AREA_total.values*24*3600
@@ -267,10 +258,10 @@ def make_SFWF_surface_int_dict():
             d['Tmi_Sv']  = Tmi/1e9
             
             # integrals of trends
-            Pti = (Pt.where(MASK_)*AREA).sum().values
-            Eti = (Et.where(MASK_)*AREA).sum().values
-            Rti = (Rt.where(MASK_)*AREA).sum().values
-            Tti = (Tt.where(MASK_)*AREA).sum().values
+            Pti = (Pt.where(MASK)*AREA).sum().values
+            Eti = (Et.where(MASK)*AREA).sum().values
+            Rti = (Rt.where(MASK)*AREA).sum().values
+            Tti = (Tt.where(MASK)*AREA).sum().values
             d['Pti_mmd'] = Pti/AREA_total.values*24*3600*365*100  # [mm/d/100yr]
             d['Eti_mmd'] = Eti/AREA_total.values*24*3600*365*100
             d['Rti_mmd'] = Rti/AREA_total.values*24*3600*365*100
@@ -288,8 +279,8 @@ def make_SFWF_surface_int_dict():
             print(f'[Sv]        {d["Pmi_Sv"]:5.2f} {d["Emi_Sv"]:5.2f} {d["Rmi_Sv"]:5.2f} {d["Tmi_Sv"]:5.4f}')
             print(f'[Sv/100y]   {d["Pti_Sv"]:5.2f} {d["Eti_Sv"]:5.2f} {d["Rti_Sv"]:5.2f} {d["Tti_Sv"]:5.4f}')
             print(f'[%/100y]    {d["Pti_Sv"]/d["Pmi_Sv"]*100:5.1f} {d["Eti_Sv"]/d["Emi_Sv"]*100:5.1f} {d["Rti_Sv"]/d["Rmi_Sv"]*100:5.1f} {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f}\n')
-            print(f'SALT        {d["Tmi_Sv"]:5.2f} Sv;  {d["Tti_Sv"]:5.2f} Sv/100yr;  {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f} %/100yr')
-
+            print(f'total surface flux:   {d["Tmi_Sv"]:5.2f} Sv  {d["Tti_Sv"]:5.2f} Sv/100yr  {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f} %/100yr')
+            print('\n\n\n')
             fn = f'{path_results}/SFWF/Atlantic_SFWF_integrals_{sim}_{latS}N_{latN}N'
             save_obj(d, fn)
     return

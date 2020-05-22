@@ -1,6 +1,8 @@
+import sys
 import numpy as np
 import xarray as xr
 
+from paths import file_ex_ocn_ctrl, file_ex_ocn_lpd
 from regions import Drake_Passage, DP_North, WG_center
 from xr_DataArrays import xr_DYU, xr_DZ
 
@@ -49,3 +51,25 @@ def WG_transport(BSF):
     """
     WGT = BSF.sel(WG_center)
     return WGT
+
+
+if __name__=='__main__':
+
+    run = sys.argv[1]
+    # ys, ye = int(sys.argv[2]), int(sys.argv[3])
+    if run=='ctrl':              yy=np.arange(200,230)
+    elif run=='lpd':             yy=np.arange(500,530)
+    elif run in ['rcp', 'lr1']:  yy = np.arange(2000,2101)
+
+    if run in ['ctrl', 'rcp']:   
+        DZU = xr_DZ('ocn', grid='U')
+        DYU = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).DYU
+    elif run in ['lpd', 'lr1']:  
+        DZU = xr_DZ('ocn_low', grid='U')
+        DYU = xr.open_dataset(file_ex_ocn_lpd, decode_times=False).DYU
+    for i, y in enumerate(yy):
+        UVEL = xr.open_dataset(f'{path_prace}/{run}/ocn_yrly_UVEL_VVEL_{y:04d}.nc', decode_times=False).UVEL
+
+        psi_list.append( (DYU*(UVEL*DZU).sum('z_t')/1e10).cumsum('nlat'))
+    psi = xr.concat(psi_list, concat_dim='time')
+    psi.to_netcdf(f'{path_prace}/BSF/BSF_{run}.nc')

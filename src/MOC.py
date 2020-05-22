@@ -47,16 +47,18 @@ def calculate_AMOC_sigma_z(domain, ds, fn=None):
     ds_['PD'] = grid.interp(grid.interp(ds_['PD'], 'X'), 'Y')
     
     print('interpolating REGION_MASK to UU point')
-    fn_MASK = f'{path_prace}/MOC/Atl_MASK_uu_{domain}.nc'
-    if os.path.exists(fn_MASK):  Atl_MASK_uu = xr.open_dataarray(fn_MASK)
+    fn_MASK = f'{path_prace}/MOC/AMOC_MASK_uu_{domain}.nc'
+    if os.path.exists(fn_MASK):  
+        AMOC_MASK_uu = xr.open_dataarray(fn_MASK)
     else:
         MASK_uu = grid.interp(grid.interp(ds_.REGION_MASK, 'Y'), 'X')
-        Atl_MASK_uu = xr.DataArray(np.in1d(MASK_uu, [6,8,9]).reshape(MASK_uu.shape),
+        AMOC_MASK_uu = xr.DataArray(np.in1d(MASK_uu, [-12,6,7,8,9,11,12]).reshape(MASK_uu.shape),
                                 dims=MASK_uu.dims, coords=MASK_uu.coords)
+        AMOC_MASK_uu.to_netcdf(fn_MASK)
 
     print('AMOC(y,z);  [cm^3/s] -> [Sv]')
-    AMOC_yz = (grid.integrate(grid.cumint(ds_.VVEL.where(Atl_MASK_uu),'Z',boundary='fill'), 'X')/1e12)
-#     AMOC_yz = (ds_.VVEL*ds_.DZU*ds_.DXU).where(Atl_MASK_uu).sum('nlon_u').cumsum('z_t')/1e12
+    AMOC_yz = (grid.integrate(grid.cumint(ds_.VVEL.where(AMOC_MASK_uu),'Z',boundary='fill'), 'X')/1e12)
+#     AMOC_yz = (ds_.VVEL*ds_.DZU*ds_.DXU).where(AMOC_MASK_uu).sum('nlon_u').cumsum('z_t')/1e12
     AMOC_yz = AMOC_yz.rename({'z_w_top':'z_t'}).assign_coords({'z_t':ds.z_t})
     AMOC_yz.name = 'AMOC(y,z)'
 
@@ -67,7 +69,7 @@ def calculate_AMOC_sigma_z(domain, ds, fn=None):
         PD, PDbins = (ds_.PD-1)*1000, np.arange(5,33,.05)
 
     print('histogram')
-    weights = ds_.VVEL.where(Atl_MASK_uu)*ds_.DZU*ds_.DXU/1e12
+    weights = ds_.VVEL.where(AMOC_MASK_uu)*ds_.DZU*ds_.DXU/1e12
 #     ds_.PD.isel(z_t=0).plot()
     AMOC_sz = histogram(PD, bins=[PDbins], dim=['z_t'],
                          weights=weights).sum('nlon_u', skipna=True).cumsum('PD_bin').T

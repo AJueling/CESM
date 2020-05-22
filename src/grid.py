@@ -30,7 +30,7 @@ from xr_DataArrays import xr_DZ, dll_dims_names
 
 def generate_lats_lons(domain):
     """
-    genrates lats and lons fields (no shift)
+    generates lats and lons fields (no shift)
     """
     assert domain in ['ocn']
     lats = read_binary_2D_double(grid_file,imt,jmt,1)
