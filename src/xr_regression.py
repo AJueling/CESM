@@ -1,4 +1,4 @@
-# from https://gist.github.com/rabernat/bc4c6990eb20942246ce967e6c9c3dbe
+# inspiration from https://gist.github.com/rabernat/bc4c6990eb20942246ce967e6c9c3dbe
 
 import dask
 import numpy as np
@@ -20,11 +20,9 @@ def datetime_to_float(x):
         x.time.values = np.array(x.time.values - np.datetime64('0001-01-01'), dtype=np.float)
     elif type(x.time.values[0])==cftime._cftime.Datetime360Day:
         x.time.values = cftime.date2num(x.time.values, units='months since 0001-01-01', calendar='360_day')
-#         print(x.time)
     return x, time_
 
 
-# @jit(nopython=True)
 def xr_lintrend(x):
     """ linear trend timeseries of a timeseries """
     y = x
@@ -169,7 +167,7 @@ def ocn_field_regression(xa, run):
     
     if run in ['ctrl', 'rcp']:
         MASK = boolean_mask('ocn'     , 0)
-    elif run in ['lpi', 'lpd', 'lr1', 'lr2', 'ld']:
+    elif run in ['lpi', 'lpd', 'lc1', 'lr1', 'lr2', 'ld']:
         MASK = boolean_mask('ocn_low' , 0)
     (jm, im) = MASK.shape
     xa   = xa.where(MASK>0).fillna(-9999)

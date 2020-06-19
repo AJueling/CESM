@@ -1,4 +1,5 @@
 import os
+import glob
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -28,30 +29,30 @@ class DeriveSST(object):
         # ca. 4:30 min for ctrl/rcp, 1:25 for lpi
         # stacking files into one xr DataArray object
         
-        if run in ['ctrl', 'rcp', 'lpd', 'lpi']:
-            # for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
-            #     print(y)
-            #     da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-            #     da = da.drop(['z_t', 'ULONG', 'ULAT'])
-            #     da_time = int(da.time.item())
-            #     if run=='ctrl':
-            #         # years 5-50 have different TLAT/TLON grids
-            #         # somehow the non-computed boxes changed (in the continents)
-            #         if i==0:
-            #             TLAT = da['TLAT'].round(decimals=2)
-            #             TLONG = da['TLONG'].round(decimals=2)
-            #         da['TLAT'] = TLAT
-            #         da['TLONG'] = TLONG
-            #     else:
-            #         da['TLAT' ] = da['TLAT' ].round(decimals=2)
-            #         da['TLONG'] = da['TLONG'].round(decimals=2)
-            #     del da.encoding["contiguous"]
-            #     ds = t2ds(da=da, name='SST', t=da_time)
-            #     ds.to_netcdf(path=f'{path_prace}/SST/SST_yrly_{run}_{y:04}.nc', mode='w')
-            # combined = xr.open_mfdataset(f'{path_prace}/SST/SST_yrly_{run}_*.nc',
-            #                              concat_dim='time', autoclose=True, coords='minimal')
-            # combined.to_netcdf(f'{path_prace}/SST/SST_yrly_{run}.nc')
-            # self.remove_superfluous_files(f'{path_prace}/SST/SST_yrly_{run}_*.nc')
+        if run in ['ctrl', 'rcp', 'lpd', 'lc1', 'lpi', 'lr1']:
+            for i, (y,m,s) in enumerate(IterateOutputCESM('ocn', run, 'yrly', name='TEMP_PD')):
+                print(y)
+                da = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+                da = da.drop(['z_t', 'ULONG', 'ULAT'])
+                da_time = int(da.time.item())
+                if run=='ctrl':
+                    # years 5-50 have different TLAT/TLON grids
+                    # somehow the non-computed boxes changed (in the continents)
+                    if i==0:
+                        TLAT = da['TLAT'].round(decimals=2)
+                        TLONG = da['TLONG'].round(decimals=2)
+                    da['TLAT'] = TLAT
+                    da['TLONG'] = TLONG
+                else:
+                    da['TLAT' ] = da['TLAT' ].round(decimals=2)
+                    da['TLONG'] = da['TLONG'].round(decimals=2)
+                del da.encoding["contiguous"]
+                ds = t2ds(da=da, name='SST', t=da_time)
+                ds.to_netcdf(path=f'{path_prace}/SST/SST_yrly_{run}_{y:04}.nc', mode='w')
+            combined = xr.open_mfdataset(f'{path_prace}/SST/SST_yrly_{run}_*.nc',
+                                         concat_dim='time', autoclose=True, coords='minimal')
+            combined.to_netcdf(f'{path_prace}/SST/SST_yrly_{run}.nc')
+            self.remove_superfluous_files(f'{path_prace}/SST/SST_yrly_{run}_*.nc')
             
             if run=='ctrl':  # create also ocn_rect file
                 fn = f'{path_prace}/SST/SST_monthly_ctrl.nc'
@@ -94,23 +95,34 @@ class DeriveSST(object):
         return
             
             
-    def generate_monthly_SST_files(self, run):
+    def generate_monthly_SST_files(self, run, time=None):
         """ concatonate monthly files, ocn_rect for high res runs"""
         # 8 mins for 200 years of ctrl
-        if run in ['ctrl', 'rcp']:  domain = 'ocn_rect'
-        elif run in ['lpd', 'lpi']:  domain = 'ocn_low'
+        if run in ['ctrl', 'rcp', 'hq']:                 domain = 'ocn_rect'
+        elif run in ['lpd', 'lpi', 'lc1', 'lr1', 'ld']:  domain = 'ocn_low'
             
         for y,m,s in IterateOutputCESM(domain=domain, tavg='monthly', run=run):
+            if time==None:
+                pass
+            elif y<time[0] or y>=time[1]:
+                continue
             if m==1: print(y)
-            if run in ['ctrl', 'rcp']:   xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
-            if run in ['lpd', 'lpi']:    xa = xr.open_dataset(s, decode_times=False).TEMP[0,0,:,:]
+            if run in ['ctrl', 'rcp']:
+                xa = xr.open_dataset(s, decode_times=False).TEMP[0,:,:]
+            if run in ['lpd', 'lpi', 'lc1', 'lr1', 'ld']:
+                xa = xr.open_dataset(s, decode_times=False).TEMP[0,0,:,:]
             if m==1:   xa_out = xa.copy()    
             else:      xa_out = xr.concat([xa_out, xa], dim='time')
-            if m==12:  xa_out.to_netcdf(f'{path_prace}/SST/SST_monthly_{run}_{y:04}.nc')
+            drops = ['ULAT','ULONG','TLAT','TLONG']
+            if m==12:  
+                if type(xa_out)==xr.core.dataarray.Dataset:
+                    if 'z_t' in xa_out.variables:  drops.append('z_t')
+                elif 'z_t' in xa_out.coords:  drops.append('z_t')
+                xa_out.drop(drops).to_netcdf(f'{path_prace}/SST/SST_monthly_{run}_y{y:04}.nc')
             # this also means only full years are written out
                         
-        combined = xr.open_mfdataset(f'{path_prace}/SST/SST_monthly_{run}_*.nc',
-                                     concat_dim='time', decode_times=False)
+        combined = xr.open_mfdataset(f'{path_prace}/SST/SST_monthly_{run}_y*.nc',
+                                     combine='nested', concat_dim='time', decode_times=False)
         if run=='ctrl':
             time_ctrl = np.arange(1+1/24, 301, 1/12)
             combined = combined.assign_coords(time=time_ctrl)
@@ -119,17 +131,25 @@ class DeriveSST(object):
             print(f'month 99/2 is averaged; n={n}')
             combined[n] = (combined[n-1]+combined[n+1])/2
         
-        combined.to_netcdf(f'{path_prace}/SST/SST_monthly_{run}.nc')
+        if time==None:
+            fn_out = f'{path_prace}/SST/SST_monthly_{run}.nc'
+        else:
+            fn_out = f'{path_prace}/SST/SST_monthly_{run}_{time[0]}_{time[1]}.nc'
+        combined.to_netcdf(fn_out)
         combined.close()
-        self.remove_superfluous_files(f'{path_prace}/SST/SST_monthly_{run}_*.nc')
+        self.remove_superfluous_files(f'{path_prace}/SST/SST_monthly_{run}_y*.nc')
         return
     
     
     def deseasonalize_monthly_data(self, run, time=None):
         """ removes the average difference of a month to the yearly average"""
-        assert run in ['ctrl', 'lpd', 'had']
+        assert run in ['ctrl', 'lpd', 'had', 'lc1']
 
-        monthly = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}.nc', decode_times=False)
+        if time==None:
+            monthly = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}.nc', decode_times=False)
+        else:
+            monthly = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_{run}_{time[0]}_{time[1]}.nc', decode_times=False)
+            
         if run=='ctrl':
             yrly = xr.open_dataarray(f'{path_prace}/SST/SST_yrly_rect_ctrl.nc', decode_times=False)
         else:
@@ -158,7 +178,7 @@ class DeriveSST(object):
     
     def detrend_monthly_data_pointwise(self, run, time):
         """ quadratically detrend monthly fields """
-        assert run in ['ctrl', 'lpd']
+        assert run in ['ctrl', 'lpd', 'lc1']
         
         da = xr.open_dataarray(f'{path_prace}/SST/SST_monthly_ds_{run}_{time[0]}_{time[1]}.nc',
                                decode_times=False)

@@ -13,11 +13,11 @@ class DeriveField(object):
     """ functions to generate netcdf files derived from CESM output / obs. """
     
     def __init__(self, run):
-        assert run in ['ctrl', 'rcp', 'hq', 'lpd', 'lc1', 'lpi', 'lr1', 'lr2', 'ld', 'had']
+        assert run in ['ctrl', 'rcp', 'hq', 'lpd', 'lc1', 'lpi', 'lr1', 'lr2', 'ld', 'had', 'lq']
         self.run = run
         if run in ['ctrl', 'rcp', 'hq']:
             self.domain = 'ocn'
-        elif run in ['lpd', 'lpi', 'lc1', 'lr1', 'lr2', 'ld']:
+        elif run in ['lpd', 'lpi', 'lc1', 'lr1', 'lr2', 'ld', 'lq']:
             self.domain = 'ocn_low'
         elif run=='had':
             self.domain = 'ocn_had'
@@ -36,7 +36,7 @@ class DeriveField(object):
         (takes approx. 4 sec for lower res atm data for one 2D and one 3D field)
         """
         assert domain in ['ocn', 'ocn_rect', 'atm', 'ice']
-        assert self.run in ['ctrl', 'rcp', 'hq', 'lpd', 'lc1', 'lpi', 'lr1', 'lr2', 'ld']
+        assert self.run in ['ctrl', 'rcp', 'hq', 'lpd', 'lc1', 'lpi', 'lr1', 'lr2', 'ld', 'lq']
 
         print(f'yearly averaging of {self.run} {domain}')
         for field in fields:  print(f'   {field}')

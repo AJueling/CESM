@@ -158,7 +158,8 @@ class AnalyzeBudget(object):
         # 1min 4s lpd
         if run=='ctrl':              domain = 'ocn'
         elif run in ['lc1', 'lpd']:  domain = 'ocn_low'
-        da = xr.open_mfdataset(f'{path_prace}/{run}/ocn_yrly_SHF_0*.nc', concat_dim='time').SHF
+        da = xr.open_mfdataset(f'{path_prace}/{run}/ocn_yrly_SHF_0*.nc', combine='nested', concat_dim='time').SHF
+        print(len(da.time))
         AREA = xr_AREA(domain=domain)
         SHF = spy*(da*AREA).sum(dim=['nlat', 'nlon'])
         SHF.name = 'Global_Ocean'

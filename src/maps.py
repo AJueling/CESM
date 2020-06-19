@@ -116,6 +116,7 @@ def make_map(xa, domain, proj, cmap, minv, maxv, label, filename=None, text1=Non
     # colorbar
     ax.add_feature(cartopy.feature.LAND,
                        zorder=2, edgecolor='black', facecolor='w')
+    plt.colorbar(im, cax=cax, label=label, orientation='horizontal')
     
     # output
     if filename!=None: plt.savefig(filename, dpi=100)

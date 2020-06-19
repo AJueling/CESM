@@ -28,9 +28,9 @@ def GMST_timeseries(run):
     tavg   = 'yrly'
     name   = 'T_T850_U_V'
     
-    if run in ['ctrl', 'rcp']:   AREA = xr_AREA('atm')
-    elif run=='lpi':             AREA = xr_AREA('atm_f19')
-    elif run=='lpd':             AREA = xr_AREA('atm_f09')
+    if run in ['ctrl', 'rcp', 'hq']:          AREA = xr_AREA('atm')
+    elif run=='lpi':                          AREA = xr_AREA('atm_f19')
+    elif run in ['lpd', 'lc1', 'lr1', 'lq']:  AREA = xr_AREA('atm_f09')
 
     AREA_lat   = AREA.sum(dim='lon')
     AREA_total = AREA.sum(dim=('lat','lon'))
@@ -46,9 +46,9 @@ def GMST_timeseries(run):
     for i, (y, m, file) in enumerate(iterator):
         print(y)
         assert os.path.exists(file)
-        if run in ['ctrl', 'rcp', 'lpi']:
+        if run in ['ctrl', 'rcp', 'lpi', 'hq']:
             da = xr.open_dataset(file, decode_times=False)['T'][-1,:,:]
-        elif run in ['lpd']:
+        elif run in ['lpd', 'lr1', 'lq', 'ld']:
             da = xr.open_dataset(file, decode_times=False)['T'][0,-1,:,:]
         
         if i==0:  # create new xr Dataset

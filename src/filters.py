@@ -46,14 +46,14 @@ def highpass(ts, period):
     return ts_new
 
 
-def bandpass(ts, periods):
-    """ highpass filter
+def bandpass(ts, period_high, period_low):
+    """ bandpass filter
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
     ts     .. time series array with axis 0 as time axis
     period .. cutoff period
     """
     N  = 2         # Filter order
-    Wn = 1/periods  # Cutoff frequencies
+    Wn = (1/period_low, 1/period_high)  # Cutoff frequencies
     B, A = signal.butter(N, Wn, output='ba', btype='bandpass')
     filtered = signal.filtfilt(B, A, ts, axis=(0), padlen=N-1, padtype='constant')
     
