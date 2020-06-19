@@ -492,6 +492,8 @@ def FW_merid_fluxes_plot():
         ctl = ['ctrl', 'lpd'][i]
         rcp = ['rcp', 'lr1'][i]
         inflow = get_BS_Med(sim)
+        SALT_Arctic_mean, SALT_Arctic_trend = get_SFWF(sim=sim, quant='SALT', latS=60, latN=90)
+        FW_Arctic_mean, FW_Arctic_trend = get_SFWF(sim=sim, quant='FW', latS=60, latN=90)
         mask_Med = make_Med_mask([2400, 384][i], [sections_high,sections_low][i])
         yrs = [slice(200,203), slice(500-154,530-154)][i]
         ax[0,i].set_title(sim)
@@ -527,8 +529,15 @@ def FW_merid_fluxes_plot():
         ax[1,i].plot(lats, Se.where(mask_Med), c='C2', label=f'S{eddy}')
         ax[1,i].plot(lats, St.where(mask_Med), c='C3', label=f'S{tot}')
 
+        # BS inflow + Arctic SFWF
         for j, Q in enumerate(['F', 'S']):
-            ax[j,i].plot([61,61], [0,-inflow[f'{Q}_BS']/1e6], c='C8', label=f'{Q}{BS}', clip_on=False)
+            ax[j,i].plot([62,62], [0,-inflow[f'{Q}_BS']/1e6], c='C8', label=f'{Q}{BS}', clip_on=False)
+#             ax[0,i].plot([61,61], [-inflow[f'{Q}_BS']/1e6,-[FW_Arctic_mean, SALT_Arctic_mean][j]-inflow[f'{Q}_BS']/1e6],
+        FBS, SBS = -inflow['F_BS']/1e6, -inflow['S_BS']/1e6
+        ax[0,i].plot([61,61], [FBS,-FW_Arctic_mean['SFWF']+FBS],\
+                     c='C4', label=r'SFWF$_{Arctic}$', clip_on=False)
+        ax[1,i].plot([61,61], [SBS,-SALT_Arctic_mean['SFWF']/1e6+SBS],\
+                     c='C4', label=r'SFWF$_{Arctic}$', clip_on=False)
         
         # RCP
         rn = {'dim_0':'nlat_u'}
@@ -553,12 +562,12 @@ def FW_merid_fluxes_plot():
         ax[1,i].plot(lats, St_trend.where(mask_Med), c='C3', lw=.8)
         
     #     ax[1,i].set_ylim((-1.5e8,1.5e8))
-        ax[1,i].set_xlabel(r'latitude [$\!^\circ\!$N]')
+        ax[1,i].set_xlabel(r'latitude $\theta$ [$\!^\circ\!$N]')
         ax[0,i].set_ylim((-.85,.65))
-        ax[1,i].set_ylim((-8e1,2.5e1))
+        ax[1,i].set_ylim((-8.5e1,2.5e1))
         for j in range(2):
             ax[j,i].text(.01, .92, '('+['a','b','c','d'][i+2*j]+')', transform=ax[j,i].transAxes)
-            l1 = ax[j,i].legend(ncol=[1,5][j], loc=[3,4][j], fontsize=8, handlelength=.8)
+            l1 = ax[j,i].legend(ncol=[1,3][j], loc=[3,4][j], fontsize=8, handlelength=.8)
             ax[j,i].add_artist(l1)
         
             # legends CTRL + RCP

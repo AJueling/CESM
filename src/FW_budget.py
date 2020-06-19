@@ -159,20 +159,28 @@ def make_SFWF_trends(run):
     return
 
 def make_Mask(run, latS, latN):
+    assert type(latS)==int and type(latN)==int
     if run in ['ctrl', 'rcp']:  # HIGH
+        res = 'high'
         RMASK = xr.open_dataset(file_ex_ocn_ctrl, decode_times=False).REGION_MASK
-        MASK_Baltic = RMASK.where(RMASK==12).fillna(0)
+        MASK_Baltic = (RMASK.where(RMASK==12)/RMASK.where(RMASK==12)).fillna(0)
     elif run in ['lpd', 'lr1']:  # LOW
+        res = 'low'
         RMASK = xr.open_dataset(file_RMASK_ocn_low, decode_times=False).REGION_MASK
-        MASK_Baltic = RMASK.where(RMASK==-12).fillna(0)
+        MASK_Baltic = (RMASK.where(RMASK==-12)/RMASK.where(RMASK==-12)).fillna(0)
 
+    nlat_60N = load_obj(f'{path_results}/sections/section_dict_{res}')['60N']['nlat']
     MASK = xr.DataArray(np.in1d(RMASK, [6,8,9]).reshape(RMASK.shape),
                         dims=RMASK.dims, coords=RMASK.coords)
-    MASK = MASK.where(MASK.TLAT<latN).where(MASK.TLAT>latS).fillna(0)
-    if latN==60:  # add Baltic
+    if latS==60 and latN==90:  # add Arctic & Hudson Bay
+        MASK = MASK.where(MASK.nlat>nlat_60N).fillna(0)
+        MASK = MASK + (RMASK.where(RMASK==10)/RMASK.where(RMASK==10)).fillna(0) + (RMASK.where(RMASK==11)/RMASK.where(RMASK==11)).fillna(0)  
+    elif latN==60:  # add Baltic
+        MASK = MASK.where(MASK.nlat<nlat_60N).where(MASK.TLAT>latS).fillna(0)
         MASK = MASK + MASK_Baltic
-    if latN==90:  # add Arctic & Hudson Bay
-        MASK = MASK + RMASK.where(RMASK==10).fillna(0) + RMASK.where(RMASK==11).fillna(0)  
+    else:
+        MASK = MASK.where(MASK.TLAT<latN).where(MASK.TLAT>latS).fillna(0)
+        
     return MASK
 
 def make_SALT_vol_integrals(run):
