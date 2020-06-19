@@ -32,7 +32,8 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                    'pop',          # high res ocean only run ocn_rect
                    'lr1', 'lr2',   # low res RCP8.5 runs
                    'hq',           # high res quadroupling run
-                   'ld']           # low res doubling run
+                   'ld',           # low res doubling run
+                   'lq']           # low res quadroupling run
     assert type(y)==np.dtype(int) and type(m)==np.dtype(int) and type(d)==np.dtype(int)
     assert m>=0 and m<14
     assert d>=0 and d<33
@@ -45,7 +46,7 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
     
     # yearly output
     if m==0:  
-        if domain=='ocn':
+        if domain in ['ocn', 'ocn_low']:
             file = f'{path_prace}/{run}/ocn_yrly_{name}_{y:04}.nc'
     
         elif domain=='ocn_rect':
@@ -59,12 +60,6 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 elif y>=276:
                     file = f'{path_ocn_rect_pop2}/{popstr}.avg{y:04}.nc'
                     
-        elif domain=='ocn_low':
-            if run=='lpd':
-                file = f'{path_yrly_lpd}/ocn_yrly_{name}_{y:04}.nc'
-            elif run=='lpi':
-                file = f'{path_yrly_lpi}/ocn_yrly_{name}_{y:04}.nc'
-                    
         elif domain=='atm':
             if run=='ctrl':
                 file = f'{path_yrly_ctrl}/atm_yrly_{name}_{y:04}.nc'
@@ -72,9 +67,10 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_yrly_rcp}/atm_yrly_{name}_{y:04}.nc'
             elif run=='lpd':
                 if name==None:
-                    file = f'{path_atm_lpd}/{lpdstr}.cam.h0.avg{y:04}.nc'
+                    file = f'{path_atm_lpd}/yearly/{lpdstr}.cam.h0.avg{y:04}.nc'
                 else:
-                    file = f'{path_atm_lpd}/atm_yrly_{name}_{y:04}.nc'
+                    file = f'{path_atm_lpd}/yearly/atm_yrly_{name}_{y:04}.nc'
+                    # should eb path_yrly_lpd
             elif run=='lpi':
                 file = f'{path_yrly_lpi}/atm_yrly_{name}_{y:04}.nc'
             elif run=='lr1':
@@ -83,6 +79,8 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_yrly_lr2}/atm_yrly_{name}_{y:04}.nc'
             elif run=='hq':
                 file = f'{path_yrly_hq}/atm_yrly_{name}_{y:04}.nc'
+            elif run=='lq':
+                file = f'{path_yrly_lq}/atm_yrly_{name}_{y:04}.nc'
             elif run=='ld':
                 file = f'{path_yrly_ld}/atm_yrly_{name}_{y:04}.nc'
     
@@ -113,6 +111,8 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_ocn_lr1}/{lr1str}.pop.h.{time}.nc'
             elif run=='lr2':
                 file = f'{path_ocn_lr2}/{lr2str}.pop.h.{time}.nc'
+            elif run=='lq':
+                file = f'{path_ocn_lq}/{lqstr}.pop.h.{time}.nc'
             elif run=='ld':
                 file = f'{path_ocn_ld}/{ldstr}.pop.h.{time}.nc'
 
@@ -132,12 +132,16 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_ocn_lpd}/{lpdstr}.pop.h.{time}.nc'
             elif run=='lpi':
                 file = f'{path_ocn_lpi}/{lpistr}.pop.h.{time}.nc'
+            elif run=='lc1':
+                file = f'{path_ocn_lc1}/{lc1str}.pop.h.{time}.nc'
             elif run=='lr1':
                 file = f'{path_ocn_lr1}/{lr1str}.pop.h.{time}.nc'
             elif run=='lr2':
                 file = f'{path_ocn_lr2}/{lr2str}.pop.h.{time}.nc'
             elif run=='ld':
                 file = f'{path_ocn_ld}/{ldstr}.pop.h.{time}.nc'
+            elif run=='lq':
+                file = f'{path_ocn_lq}/{lqstr}.pop.h.{time}.nc'
 
         elif domain=='atm':
             if run=='ctrl':
@@ -145,7 +149,10 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
             elif run=='rcp':
                 file = f'{path_atm_rcp}/{rcpstr}.cam2.h0.{time}.nc'
             elif run=='lpd':
-                raise ValueError('monthly files are not available for lpd run!')
+                file = f'{path_atm_lpd}/monthly/{lpdstr}.cam.h0.{time}.nc'
+#                 raise ValueError('monthly files are not available for lpd run!')
+            elif run=='lc1':
+                file = f'{path_atm_lc1}/{lc1str}.cam2.h0.{time}.nc'
             elif run=='lpi':
                 file = f'{path_atm_lpi}/{lpistr}.cam2.h0.{time}.nc'
             elif run=='lr1':
@@ -156,6 +163,8 @@ def CESM_filename(domain, run, y, m, d=0, name=None):
                 file = f'{path_atm_hq}/{hqstr}.cam2.h0.{time}.nc'
             elif run=='ld':
                 file = f'{path_atm_ld}/{ldstr}.cam.h0.{time}.nc'
+            elif run=='lq':
+                file = f'{path_atm_lq}/{lqstr}.cam.h0.{time}.nc'
 
         elif domain=='ice':
             if run=='ctrl':
@@ -212,6 +221,7 @@ lpistr  = 'b.PI_1pic_f19g16_NESSC_control'
 popstr  = 't.t0.1_42l_nccs01'
 hqstr   = 'b.e10.B2000_CAM5.f05_t12.pd_control.4xco2.001'
 ldstr   = 'b.e10.B2000_CAM5.f09_g16.pd_control.2xco2.001'
+lqstr   = 'b.e10.B2000_CAM5.f09_g16.pd_control.4xco2.001'
 
 
 # PATHS
@@ -238,6 +248,7 @@ path_lr1  = f'{path_CESM112}/{lr1str}'
 path_lr2  = f'{path_CESM112}/{lr2str}'
 path_hq   = f'{path_CESM104}/{hqstr}'
 path_ld   = f'{path_CESM112}/{ldstr}'
+path_lq   = f'{path_CESM112}/{lqstr}'
 
 # grid
 path_ocn_grid = f'{path_CESM104}/inputdata/ocn/pop/tx0.1v2/grid/'
@@ -256,12 +267,12 @@ path_atm_rcp  = f'{path_rcp}/OUTPUT/atm/hist/monthly'
 path_ice_rcp  = f'{path_rcp}/OUTPUT/ice/hist/monthlies'
 
 path_ocn_lpd  = f'{path_lpd}/OUTPUT/ocn/hist/monthly'
-path_atm_lpd  = f'{path_lpd}/OUTPUT/atm/hist/yearly'
+path_atm_lpd  = f'{path_lpd}/OUTPUT/atm/hist'
 path_ice_lpd  = f'{path_lpd}/OUTPUT/ice/hist'
 
 
-path_ocn_lc1  = f'{path_lc1}/run'
-path_atm_lc1  = f'{path_lc1}/run'
+path_ocn_lc1  = f'{path_lc1}/run'#/wrong_init_TS'
+path_atm_lc1  = f'{path_lc1}/run'#/wrong_init_TS'
 
 path_ocn_lpi  = f'{path_lpi}/OUTPUT/ocn/hist/monthly'
 path_atm_lpi  = f'{path_lpi}/OUTPUT/atm/hist/monthly'
@@ -283,6 +294,9 @@ path_ice_hq   = f'{path_hq}/OUTPUT/ice/hist/monthly'
 path_ocn_ld   = f'{path_ld}/OUTPUT/ocn/hist/monthly'
 path_atm_ld   = f'{path_ld}/OUTPUT/atm/hist/monthly'
 path_ice_ld   = f'{path_ld}/OUTPUT/ice/hist/monthly'
+
+path_ocn_lq   = f'{path_lq}/OUTPUT/ocn/hist/monthly'
+path_atm_lq   = f'{path_lq}/OUTPUT/atm/hist/monthly'
 
 # interpolated to rectangular 0.4 deg grid
 path_ocn_rect_ctrl = f'{path_ctrl}/OUTPUT/ocn/hist/monthly_rect'
@@ -309,6 +323,7 @@ path_yrly_lr1  = f'{path_prace}/lr1'
 path_yrly_lr2  = f'{path_prace}/lr2'
 path_yrly_hq   = f'{path_prace}/hq'
 path_yrly_ld   = f'{path_prace}/ld'
+path_yrly_lq   = f'{path_prace}/lq'
 
 # FILES
 
@@ -318,6 +333,7 @@ grid_file  = f'{path_CESM104}/inputdata/ocn/pop/tx0.1v2/grid/horiz_grid_200709.i
 file_ex_ocn_ctrl = CESM_filename(domain='ocn', run='ctrl', y= 200, m=1)
 file_ex_ocn_rcp  = CESM_filename(domain='ocn', run='rcp' , y=2000, m=1)
 file_ex_ocn_lpd  = CESM_filename(domain='ocn', run='lpd' , y= 200, m=1)
+file_ex_ocn_lc1  = CESM_filename(domain='ocn', run='lc1' , y=   1, m=1)
 file_ex_ocn_lpi  = CESM_filename(domain='ocn', run='lpi' , y=1600, m=1)
 
 # daily data
@@ -331,6 +347,7 @@ file_ex_ocn_rect  = f'{path_ocn_rect_ctrl}/{spinup}.pop.h.0200-01.interp900x602.
 file_ex_atm_ctrl = CESM_filename(domain='atm', run='ctrl', y= 200, m=1)
 file_ex_atm_rcp  = CESM_filename(domain='atm', run='rcp' , y=2000, m=1)
 file_ex_atm_lpd  = CESM_filename(domain='atm', run='lpd' , y= 200, m=0)
+file_ex_atm_lc1  = CESM_filename(domain='atm', run='lc1' , y=   1, m=1)
 file_ex_atm_lpi  = CESM_filename(domain='atm', run='lpi' , y=3000, m=1)
 
 file_ex_ice_rcp  = f'{path_ice_rcp}/{rcpstr}.cice.h.2000-01.nc'

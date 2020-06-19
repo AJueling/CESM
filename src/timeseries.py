@@ -25,7 +25,7 @@ class IterateOutputCESM:
     
     def __init__(self, domain, run, tavg, name=None):
         assert domain in ['ocn', 'ocn_rect', 'ocn_low', 'atm', 'ice']
-        assert run in ['ctrl', 'rcp', 'lpd', 'lc1', 'lpi', 'pop', 'lr1', 'lr2', 'hq', 'ld']
+        assert run in ['ctrl', 'rcp', 'lpd', 'lc1', 'lpi', 'pop', 'lr1', 'lr2', 'hq', 'ld', 'lq']
         assert tavg in ['monthly', 'yrly', 'daily']
         
         self.domain = domain
@@ -37,12 +37,15 @@ class IterateOutputCESM:
         if run=='ctrl':   self.year =    1            
         elif run=='rcp':  self.year = 2000
         elif run=='pop':  self.year =  125
+        elif domain=='atm' and tavg=='monthly' and run=='lpd':
+            self.year = 500
         elif run=='lpd':  self.year =  154
         elif run=='lc1':  self.year =    1
         elif run=='lr1':  self.year = 2000
         elif run=='lr2':  self.year = 2000
         elif run=='hq':   self.year = 2000
         elif run=='ld':   self.year = 2000
+        elif run=='lq':   self.year = 2000
         elif run=='lpi':  
             if domain in ['ocn', 'ocn_low']:  self.year  = 1600
             if domain=='atm':                 self.year  = 2876
@@ -88,11 +91,12 @@ class IterateOutputCESM:
                 else:
                     filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=0, d=0, name=self.name)
             elif self.domain=='atm':
-                if self.run in ['ctrl', 'rcp', 'lpi']:
+                if self.run in ['ctrl', 'rcp', 'lpi', 'hq', 'lc1', 'ld', 'lq', 'lr1']:
                     filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=0, d=0, name=self.name)
                 elif self.run in ['lpd']:  # yrly files are written out already
-                    if self.name!=None:  print("name is ignored, as yearly files existed already")
-                    filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=0, d=0, name=None)
+                    filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=0, d=0, name=self.name)
+#                     if self.name!=None:  print("name is ignored, as yearly files existed already")
+#                     filename = CESM_filename(domain=self.domain, run=self.run, y=self.year, m=0, d=0, name=None)
 
         if os.path.exists(filename)==False:
             if (self.tavg=='daily' and self.run=='ctrl' and self.year<301) or \
