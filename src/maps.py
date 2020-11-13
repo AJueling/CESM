@@ -201,3 +201,20 @@ def regr_map(ds, index, run, fn=None):
     f, ax = make_map(xa=xa, domain=domain, proj=proj, cmap=cm, minv=-nv, maxv=nv,
                      label=label, filename=fn, text1=text1, text2=text2,
                      rects=rects, sig=sig, clon=clon)
+    
+def add_cyclic_POP(da):
+    """ add a cyclis point to a 2D POP output field to remove missing data line in cartopy """
+    assert 'TLAT' in da.coords
+    assert 'TLONG' in da.coords
+    lats = np.zeros((len(da.nlat),len(da.nlon)+1))
+    lons = np.zeros((len(da.nlat),len(da.nlon)+1))
+    data = np.zeros((len(da.nlat),len(da.nlon)+1))
+    lats[:,:-1] = da.TLAT
+    lons[:,:-1] = da.TLONG
+    data[:,:-1] = da.data
+    lats[:,-1]  = da.TLAT[:,0]
+    lons[:,-1]  = da.TLONG[:,0]
+    data[:,-1]  = da.data[:,0]
+    dims = ['nlat','nlon']
+    new_da = xr.DataArray(data=data, dims=dims, coords={'TLAT':(dims,lats), 'TLONG':(dims,lons)})
+    return new_da
