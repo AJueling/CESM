@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/home/dijkbio/.conda/envs/CESM/bin/python"
+    "python.pythonPath": "/home/ajueling/.conda/envs/CESM/bin/python",
+    "jupyter.jupyterServerType": "local"
 }

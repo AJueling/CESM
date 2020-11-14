@@ -14,8 +14,11 @@ src/ipynb/
 .ipynb_checkpoints/
 src/__pycache__/
 src/.ipynb_checkpoints/
+src/FW-paper/
+src/MV-paper/
 src/test/__pycache__/
 src/test/.ipynb_checkpoints/
+src/thesis/
 src/regrid/grid*
 src/regrid/TEMP*
 src/regrid/in*
