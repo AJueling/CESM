@@ -7,5 +7,6 @@ module load Miniconda3
 source activate CESM
 echo 'to access jupyter server remotely: ssh -N -f -L localhost:8890:localhost:8891 dijkbio@cartesius.surfsara.nl'
 echo 'in browser type: localhost:8890'
-jupyter lab --no-browser --port=8891
+jupyter lab --no-browser  --ip=localhost
+# --port=8891 previously used instead of ip, but this could give problems when the port number was taken already
 
