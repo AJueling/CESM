@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 03:00:00
+#SBATCH -t 03:30:00
 #SBATCH -p fat  # 256GB RAM
 #SBATCH -N 2 --ntasks-per-node=2
 newgrp imau
