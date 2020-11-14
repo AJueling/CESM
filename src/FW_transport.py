@@ -76,7 +76,7 @@ def calc_section_transport(ds):
     V_BS.attrs['units'], V_Med.attrs['units'] = 'm^3/s', 'm^3/s'
     F_BS.attrs['units'], F_Med.attrs['units'] = 'm^3/s', 'm^3/s'
     
-    return xr.merge([S_BS, V_BS, F_BS, S_Med, V_Med, F_Med])
+    return xr.merge([S_BS, V_BS, F_BS, S_Med, V_Med, F_Med]).expand_dims('time')
 
 
 def calc_transports_pbc(grid, ds, MASK_tt, MASK_uu, S0=35.0):
@@ -90,8 +90,11 @@ def calc_transports_pbc(grid, ds, MASK_tt, MASK_uu, S0=35.0):
     SALT_xmean.name = 'SALT_xmean'
     
     # VVEL terms:  weighted by cell thickness
+    VVEL_baro  = (VVEL*ds.DXU*ds.DZU).sum(['nlon_u','z_t'])/(ds.DXU*ds.DZU).where(VVEL<1000).sum(['nlon_u','z_t'])  # barotropic velocity
     VVEL_xint  = (VVEL*ds.DXU).sum('nlon_u')  # zonal integral velocity (y,z) [cm^2/s]
+    VVEL_xint_s  = ((VVEL-VVEL_baro)*ds.DXU).sum('nlon_u')  # zonal integral of pure overturning velocity (y,z) [cm^2/s]
     VVEL_xmean = (VVEL*ds.DXU).sum('nlon_u')/ds.DXU.where(VVEL<1000).sum('nlon_u')  # zonal mean velocity     (y,z) [cm/s]
+    VVEL_baro.name = 'VVEL_barotropic'
     VVEL_xmean.name = 'VVEL_xmean'
     
     SALT_prime = (SALT - SALT_xmean)  # azonal salt component (x,y,z) [g/kg]
@@ -102,6 +105,9 @@ def calc_transports_pbc(grid, ds, MASK_tt, MASK_uu, S0=35.0):
     Fov = ( -1/S0*(VVEL_xint*(SALT_xmean - S0)*ds.dz).sum(dim='z_t'))/1e12  # 1 Sv = 1e12 cm^3/s
     Sov = (VVEL_xint*SALT_xmean*ds.dz).sum(dim='z_t')*rho_sw/1e9  # 1 kg/s = rho_w * 1e-9 g/kg cm^3/s
     
+    Fovs = ( -1/S0*(VVEL_xint_s*(SALT_xmean - S0)*ds.dz).sum(dim='z_t'))/1e12  # 1 Sv = 1e12 cm^3/s
+    Sovs = (VVEL_xint_s*SALT_xmean*ds.dz).sum(dim='z_t')*rho_sw/1e9  # 1 kg/s = rho_w * 1e-9 g/kg cm^3/s
+
     vSp = (ds.DXU*ds.dz*VVEL_prime*SALT_prime).sum(dim=['nlon_u','z_t'])  # product of primed velocity and salinity [cm^3/s * g/kg]
     Saz = vSp*rho_sw/1e9
     Faz = -vSp/1e12/S0
@@ -114,7 +120,8 @@ def calc_transports_pbc(grid, ds, MASK_tt, MASK_uu, S0=35.0):
     Se = St - rho_sw/1e9*(ds.VVEL*SALT*ds.DXU*ds.DZU).sum(dim=['nlon_u','z_t'])
     
     Fov.name, Faz.name, Sov.name, Saz.name, Se.name, St.name = 'Fov', 'Faz', 'Sov', 'Saz', 'Se', 'St'
-    ds = xr.merge([SALT_xmean, VVEL_xmean, Fov, Faz, Sov, Saz, Se, St])
+    Fovs.name, Sovs.name = 'Fovs', 'Sovs'
+    ds = xr.merge([SALT_xmean, VVEL_baro, VVEL_xmean, Fov, Fovs, Faz, Sov, Sovs, Saz, Se, St])
     return ds
 
 
@@ -172,6 +179,7 @@ if __name__=='__main__':
         #region: section transport
         fn = f'{path_prace}/Mov/FW_Med_Bering_{run}_{y:04d}.nc'
         if  os.path.exists(fn): #
+            # continue 
             pass
             # print(y, fn, ' exists')
         else:

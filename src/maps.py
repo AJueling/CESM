@@ -218,3 +218,17 @@ def add_cyclic_POP(da):
     dims = ['nlat','nlon']
     new_da = xr.DataArray(data=data, dims=dims, coords={'TLAT':(dims,lats), 'TLONG':(dims,lons)})
     return new_da
+  
+def add_cyclic_rectangular(da):
+    """ add a cyclis point to a rectangular lat-lon field to remove missing data line in cartopy """
+    assert 'lat' in da.coords
+    assert 'lon' in da.coords
+    lons = np.zeros((len(da.lon)+1))
+    data = np.zeros((len(da.lat),len(da.lon)+1))
+    lons[:-1] = da.lon
+    data[:,:-1] = da.data
+    lons[-1]  = da.lon[0]
+    data[:,-1]  = da.data[:,0]
+    dims = ['lat','lon']
+    new_da = xr.DataArray(data=data, dims=dims, coords={'lat':da.lat, 'lon':lons})
+    return new_da

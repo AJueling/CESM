@@ -19,6 +19,7 @@ import xarray as xr
 import matplotlib
 import matplotlib.pyplot as plt
 
+matplotlib.rc_file('../rc_file_paper')
 from paths import path_prace, path_results
 from paths import file_ex_ocn_ctrl, file_ex_ocn_lpd, file_RMASK_ocn, file_RMASK_ocn_low
 from FW_budget import load_obj, lat_bands
@@ -201,10 +202,10 @@ def get_BS_Med(sim):
     """
     if sim=='HIGH':  ctl, rcp = 'ctrl', 'rcp'
     elif sim=='LOW':  ctl, rcp = 'lpd', 'lr1'
-
-    ds_ctl = xr.open_mfdataset(f'{path_prace}/Mov/FW_Med_Bering_{ctl}*.nc', concat_dim='time', decode_times=False)
-    ds_rcp = xr.open_mfdataset(f'{path_prace}/Mov/FW_Med_Bering_{rcp}*.nc', concat_dim='time', decode_times=False)
-
+    def add_dim(da):
+        return da.expand_dims('time')
+    ds_ctl = xr.open_mfdataset(f'{path_prace}/Mov/FW_Med_Bering_{ctl}*.nc', combine='by_coords', concat_dim='time', decode_times=False, preprocess=add_dim)
+    ds_rcp = xr.open_mfdataset(f'{path_prace}/Mov/FW_Med_Bering_{rcp}*.nc', combine='by_coords', concat_dim='time', decode_times=False, preprocess=add_dim)
     return ds_ctl.mean('time')
 
 def draw_region_labels(fig):
@@ -221,6 +222,26 @@ def make_Med_mask(length, sections):
     for i in np.arange(nlat1, nlat2):
         mask[i] = 0
     return mask
+
+def lons_lats_from_sdict(s, lat, MASK):
+    """ returns lons and lats from sdict entry """
+    if MASK.shape==(2400,3600):  sim = 'HIGH'
+    elif MASK.shape==(384,320):  sim = 'LOW'
+    TLAT, TLONG = MASK.TLAT, MASK.TLONG
+    if type(s['nlon'])==slice and type(s['nlat'])==int:  # E-W section
+        nlon1, nlon2, nlat = s['nlon'].start, s['nlon'].stop, nlat_at(sim=sim, lat=lat)
+        print(lat,nlat)
+        lats, lons = [], []
+        if nlon1>nlon2:
+            nlons = np.concatenate([np.arange(nlon1,len(TLONG[0,:])), np.arange(0, nlon2)])
+        else:
+            nlons = np.arange(nlon1, nlon2)
+        for nlon in nlons:
+            lons.append(float(TLONG[nlat, nlon].values))
+            lats.append(float(TLAT [nlat, nlon].values))
+        for i in range(len(lons)):
+            if lons[i]>180:  lons[i] -= 360
+    return lons, lats
 
 
 def Atl_lats(sim):
@@ -240,10 +261,11 @@ def FW_summary_plot(quant):
     d/dt = conv + SFWF + diffusion
     """
     assert quant in ['FW', 'SALT']
-    if quant=='FW':      q, Q = 0, 'F'
-    elif quant=='SALT':  q, Q = 1, 'S'
+    if quant=='FW':      q, Q0, Q1 = 0, 'F', 'W'
+    elif quant=='SALT':  q, Q0, Q1 = 1, 'S', 'S'
 
-    f = plt.figure(figsize=(8,2))
+    # f = plt.figure(figsize=(8,2))
+    f = plt.figure(figsize=(6.4,2))
     draw_region_labels(f)  
 
     for i, (latS, latN) in enumerate(lat_bands):
@@ -255,20 +277,22 @@ def FW_summary_plot(quant):
             ax.xaxis.set_ticks([])
             ax.axhline(c='k', lw=.5)
             # ax.set_ylabel(f'{quant} fluxes in [{["Sv","kg/s"][q]}]')
-            vert_lim = [(-1.2,1.2),(-39,39)][q]
+            vert_lim = [(-1.2,1.2),(-40,40)][q]
             ax.set_xlim((-.25,1.2))
             ax.set_ylim(vert_lim)
+            ax.set_yticks([np.arange(-1,1.2,.5),np.arange(-40,42,20)][q])
 
         else:
             ax = f.add_axes([(2*i+1)/16-1.5/16,.05,1/8,.8])
             for s in ['right', 'top', 'bottom']:  ax.spines[s].set_visible(False)
             ax.xaxis.set_ticks([])
             ax.axhline(c='k', lw=.5)
-            if i==1:  ax.set_ylabel(f'{quant} fluxes in [{["Sv","kt/s"][q]}]')
+            if i==1:  ax.set_ylabel(f'{Q1} budget terms  [{["Sv","kt/s"][q]}]')
             else:     ax.yaxis.set_ticklabels([])
             vert_lim = [(-.9,.9),(-32,32)][q]
             ax.set_xlim((-.25,1.2))
             ax.set_ylim(vert_lim)
+            ax.set_yticks([np.arange(-.8,1,.4),np.arange(-30,32,15)][q])
         #endregion
         
         for s, sim in enumerate(['HIGH', 'LOW']):  
@@ -277,13 +301,14 @@ def FW_summary_plot(quant):
             if quant=='SALT':  fac = 1e-6
             elif quant=='FW':  fac = -1e-6/S0
             ddtS_ctl, ddtS_rcp = get_ddt_SALT(sim=sim, latS=latS, latN=latN)
-            bdt = ax.bar(x=s/10, height=ddtS_ctl*fac, **vbkw, color=mct('C9', alpha=1-.3*s), label=r'$\Delta_t$S')
+            label = [r'$\Delta \bar{W}$', r'$\Delta \bar{S}$'][q]
+            bdt = ax.bar(x=s/10, height=ddtS_ctl*fac, **vbkw, color=mct('C9', alpha=1-.3*s), label=label)
             ax.arrow(x=.05+s/10, y=0, dy=ddtS_rcp*fac, dx=0)
             #endregion
             
             #region: surface fluxes
             sfwf_mean, sfwf_trend = get_SFWF(sim=sim, quant=quant, latS=latS, latN=latN)
-            bsf = ax.bar(x=.25+s/10 , height=sfwf_mean['SFWF']/[1,1e6][q], **vbkw, color=mct('C4', 1-.3*s), label='SFWF')
+            bsf = ax.bar(x=.25+s/10 , height=sfwf_mean['SFWF']/[1,1e6][q], **vbkw, color=mct('C4', 1-.3*s), label=[r'$F_{surf}$', r'$F^S_{surf}$'][q])
             ax.arrow(x=.3+s/10, y=sfwf_mean['SFWF']/[1,1e6][q], dy=sfwf_trend['SFWF']/[1,1e6][q], dx=0)
             #endregion
 
@@ -291,31 +316,35 @@ def FW_summary_plot(quant):
             inflow = get_BS_Med(sim)
             if latS==60:  # Arctic
                 fluxes, conv = get_fluxes(sim=sim, quant=quant, lat=latS, latS=None, latN=None)
-                print(f'BS  {quant}:', inflow[f'{Q}_BS'].values/1e6)
+                print(f'BS  {quant}:', inflow[f'{Q0}_BS'].values/1e6)
                 print(f'60N {quant}:', fluxes['to'].values/[1,1e6][q])
-                conv['to'] = fluxes['to']/[1,1e6][q] + inflow[f'{Q}_BS'].values/1e6  # [m^3/s] -> [Sv], [kg/s] -> [kt/s]
+                conv['to'] = fluxes['to']/[1,1e6][q] + inflow[f'{Q0}_BS'].values/1e6  # [m^3/s] -> [Sv], [kg/s] -> [kt/s]
             else:
                 fluxes, conv = get_fluxes(sim=sim, quant=quant, lat=latS, latS=latS, latN=latN)
                 conv['to'] = conv['to']/[1,1e6][q]
                 if latS<35 and latN>35:  # Med
-                    conv['to'] -= inflow[f'{Q}_Med'].values/1e6  # [m^3/s] -> [Sv], [kg/s] -> [kt/s]
+                    conv['to'] -= inflow[f'{Q0}_Med'].values/1e6  # [m^3/s] -> [Sv], [kg/s] -> [kt/s]
                 ax.arrow(x=.55+s/10, y=conv['to'], dx=0, dy=conv['tto']/[1,1e6][q])
-            bct = ax.bar(x=.5+s/10, height=conv['to'], **vbkw, color=mct('C3', 1-.3*s), label=f'-{nabla}{Q}')
+            labeln = [r'$F_{\nabla}$', r'$F^S_{\nabla}$'][q]
+            bct = ax.bar(x=.5+s/10, height=conv['to'], **vbkw, color=mct('C3', 1-.3*s), label=labeln)
             #endregion
             
             #region: mixing term
             diffusion = ddtS_ctl*fac - conv['to'] - sfwf_mean['SFWF']/[1,1e6][q]
-            bdi = ax.bar(x=.75+s/10, height=diffusion, **vbkw, color=mct('C5', 1-.3*s), label=f'{Q}{mix}')
+            bdi = ax.bar(x=.75+s/10, height=diffusion, **vbkw, color=mct('C5', 1-.3*s), label=[r'$F_{mix}$', r'$F^S_{mix}$'][q])
             #endregion
             
     #region: legend, numbering
-    ax = f.add_axes([11.1/16,.2,1/8,.55])
+    ax = f.add_axes([11.15/16,.2,1/8,.55])
     ax.axis('off')
-    ax.legend(handles=[bct, bsf, bdt, bdi], fontsize=7, loc='center')
-    f.text(.01,.85,['(a)','(x)'][q])
+    ax.legend(handles=[bdt, bsf, bct, bdi], fontsize=7, loc='center', labelspacing=.7, handlelength=1, handletextpad=.5)
+    f.text(.01,.92,'(a)')
     #endregion
 
     plt.savefig(f'{path_results}/Mov/{["FW","SALT"][q]}_region_budget_total.eps')
+    plt.savefig(f'{path_results}/FW-paper/{["FW","SALT"][q]}_region_budget_total.eps')
+    if q==0:
+        plt.savefig(f'{path_results}/FW-paper/Fig9a.eps')
     return
 
 
@@ -324,11 +353,12 @@ def FW_region_plot(quant):
     quant .. Fw or SALT
     """
     assert quant in ['FW', 'SALT']
-    if quant=='FW':      q, Q, labels = 0, 'F', [r'$-\nabla F_{oc}$', r'$F_{oc}$', r'$\int F_{atm}$']
-    elif quant=='SALT':  q, Q, labels = 1, 'S', [r'$-\nabla S_{oc}$', r'$S_{oc}$', r'$\int S_{atm}$']
+    if quant=='FW':      q, Q, Q1 = 0, 'F', 'W'
+    elif quant=='SALT':  q, Q, Q1 = 1, 'S', 'S'
     lat_bounds = ['90N', '60N', '45N', '10N', '10S', '34S']
 
     f = plt.figure(figsize=(8,3))
+    f = plt.figure(figsize=(6.4,3))
     # draw_region_labels(f)
 
     dd = {}
@@ -348,7 +378,7 @@ def FW_region_plot(quant):
 
             axa = f.add_axes([13/16,.075,1/8,1/8])
             axa.set_xlim((0,hor_lim[1]*2/[1,1e6][q]))    
-            axa.set_ylim((0,vert_lim[1]/2/[1,1e6][q]))
+            axa.set_ylim((0,vert_lim[1]*4/3/[1,1e6][q]))
             axa.patch.set_alpha(0)
             axa.spines['top'].set_visible(False)
             axa.spines['right'].set_visible(False)
@@ -361,16 +391,16 @@ def FW_region_plot(quant):
             axb = f.add_axes([(2*i+1)/16-1.5/16,-.05,1/8 ,.5 ])
             axt = f.add_axes([(2*i+1)/16-1.5/16,.5  ,1/8 ,.5 ])
             axl = f.add_axes([(2*i+1)/16-3/16  ,.2  ,3/16,.55])
-            axr = f.add_axes([(2*i+1)/16       ,.2  ,3/16,.55])
+            axr = f.add_axes([(2*i+1)/16-1/16  ,.2  ,3/16,.55])
 
             vert_lim = [(-1.5,1.5),(-4.5e7,4.5e7)][q]
             hor_lim = [(-.7,.7),(-1.2e8,1.2e8)][q]
 
             if i==1:
                 axa = f.add_axes([0.04,.075,1/8,1/8])
-                axa.text(.07,.2,['Sv\nSv/100yr','kt/s\nkt/s/100yr'][q], transform=axa.transAxes, fontsize=7)
-                axa.set_xlim((0,hor_lim[1]*2/[1,1e6][q]))    
-                axa.set_ylim((0,vert_lim[1]/2/[1,1e6][q]))
+                axa.text(.07,.2,['Sv\nSv/100yr','kt/s\nkt/s/100yr'][q], transform=axa.transAxes, fontsize=6)
+                axa.set_xlim((0,hor_lim[1]*2/[1,1e6][q]))     # dy 1/2  -> 1/8
+                axa.set_ylim((0,vert_lim[1]*4/3/[1,1e6][q]))  # dx 3/16 -> 1/8
                 axa.patch.set_alpha(0)
                 axa.spines['top'].set_visible(False)
                 axa.spines['right'].set_visible(False)
@@ -398,7 +428,8 @@ def FW_region_plot(quant):
             if quant=='SALT':  fac = 1
             elif quant=='FW':  fac = -1e-6/S0
             ddtS_ctl, ddtS_rcp = get_ddt_SALT(sim=sim, latS=latS, latN=latN)
-            bdt = axt.bar(x=.75+s/10, height=ddtS_ctl*fac, **vbkw, color=mct('C9', alpha=1-.3*s), label=r'$\Delta_t$S')
+            label = [r'$\Delta \bar{W}$', r'$\Delta \bar{S}$'][q]
+            bdt = axt.bar(x=.75+s/10, height=ddtS_ctl*fac, **vbkw, color=mct('C9', alpha=1-.3*s), label=label)
             axt.arrow(x=.8+s/10, y=0, dx=0, dy=ddtS_rcp*fac)
             #endregion
 
@@ -409,17 +440,27 @@ def FW_region_plot(quant):
                 conv['ov'], conv['az'], conv['ed'] = 0, 0, 0
                 conv['to'] = fluxes['to'] + inflow[f'{Q}_BS'].values/[1e6,1][q]  # [m^3/s] -> [Sv]
                 conv['tov'], conv['taz'], conv['ted'], conv['tto'] = 0, 0, 0, fluxes['tto']
-                bi = axb.bar(x=1+s/10, height=inflow[f'{Q}_BS'].values/[1e6,2][q], **vbkw, color=mct('C8', 1-.3*s), label=f'{["",half][q]}{Q}{BSMed}', zorder=1)
+                
+                labelb = [r'$F_{BS/Med}$',r'$F^S_{BS/Med}$'][q]
+                axr.plot([0,0], [-1.3,-.05], c='k', lw=.7)
+                axr.set_xlim(hor_lim)
+                bi = axr.barh(y=-.3+s/10, width=-inflow[f'{Q}_BS'].values/[1e6,1][q],\
+                              **hbkw, color=mct('C8', 1-.3*s), label=labelb, zorder=1)
             else:
                 fluxes, conv = get_fluxes(sim=sim, quant=quant, lat=latS, latS=latS, latN=latN)
                 if latS<35 and latN>35:  # Med
                     conv['to'] -= inflow[f'{Q}_Med'].values/[1e6,1][q]  # [m^3/s] -> [Sv] 
-                    bi = axb.bar(x=1+s/10, height=-inflow[f'{Q}_Med'].values/[1e6,2][q], **vbkw, color=mct('C8', 1-.3*s))
+                    bi = axb.bar(x=1+s/10, height=-inflow[f'{Q}_Med'].values/[1e6,2][q],\
+                                 **vbkw, color=mct('C8', 1-.3*s))
 
-            bov = axl.barh(y=.5 +s/10, width=fluxes['ov'], **hbkw, color=mct('C0', 1-.3*s), label=f'(-{nabla}){Q}{ov}')
-            baz = axl.barh(y=.25+s/10, width=fluxes['az'], **hbkw, color=mct('C1', 1-.3*s), label=f'(-{nabla}){Q}{az}')
-            bed = axl.barh(y=0  +s/10, width=fluxes['ed'], **hbkw, color=mct('C2', 1-.3*s), label=f'(-{nabla}){Q}{ed}')
-            bto = axl.barh(y=.75+s/10, width=fluxes['to'], **hbkw, color=mct('C3', 1-.3*s), label=f'(-{nabla}){Q}{to}')
+            labelo = [r'(-$\nabla$)$F_{ov}$'   ,r'(-$\nabla$)$F^S_{ov}$'][q]
+            labela = [r'(-$\nabla$)$F_{az}$'   ,r'(-$\nabla$)$F^S_{az}$'][q]
+            labele = [r'(-$\nabla$)$F_{eddy}$' ,r'(-$\nabla$)$F^S_{eddy}$'][q]
+            labelt = [r'(-$\nabla$)$F_{total}$',r'(-$\nabla$)$F^S_{total}$'][q]
+            bov = axl.barh(y=.5 +s/10, width=fluxes['ov'], **hbkw, color=mct('C0', 1-.3*s), label=labelo)
+            baz = axl.barh(y=.25+s/10, width=fluxes['az'], **hbkw, color=mct('C1', 1-.3*s), label=labela)
+            bed = axl.barh(y=0  +s/10, width=fluxes['ed'], **hbkw, color=mct('C2', 1-.3*s), label=labele)
+            bto = axl.barh(y=.75+s/10, width=fluxes['to'], **hbkw, color=mct('C3', 1-.3*s), label=labelt)
 
             axl.arrow(x=fluxes['ov'], y=.55+s/10, dx=fluxes['tov'], dy=0)
             axl.arrow(x=fluxes['az'], y=.3 +s/10, dx=fluxes['taz'], dy=0)
@@ -455,9 +496,12 @@ def FW_region_plot(quant):
             #region: surface fluxes [axt]
             sfwf_mean, sfwf_trend = get_SFWF(sim=sim, quant=quant, latS=latS, latN=latN)
 
-            bsf = axt.bar(x=.0 +s/10, height=-sfwf_mean['SFWF'], **vbkw, color=mct('C4', 1-.3*s), label='-SFWF')
-            br  = axt.bar(x=.25+s/10, height=-sfwf_mean['R']   , **vbkw, color=mct('C7', 1-.3*s), label='-R')
-            bpe = axt.bar(x=.5 +s/10, height=-sfwf_mean['PE']  , **vbkw, color=mct('C6', 1-.3*s), label='E-P')
+            labelS  = [r'- $F_{surf}$', r'- $F^S_{surf}$'][q]
+            labelR  = [r'- $F_{R}$'   , r'- $F^S_{R}$'   ][q]
+            labelEP = [r'- $F_{E-P}$' , r'- $F^S_{E-P}$' ][q]
+            bsf = axt.bar(x=.0 +s/10, height=-sfwf_mean['SFWF'], **vbkw, color=mct('C4', 1-.3*s), label=labelS)
+            br  = axt.bar(x=.25+s/10, height=-sfwf_mean['R']   , **vbkw, color=mct('C7', 1-.3*s), label=labelR)
+            bpe = axt.bar(x=.5 +s/10, height=-sfwf_mean['PE']  , **vbkw, color=mct('C6', 1-.3*s), label=labelEP)
 
             axt.arrow(x=.05+s/10, y=-sfwf_mean['SFWF'], dx=0, dy=-sfwf_trend['SFWF'])
             axt.arrow(x=.3 +s/10, y=-sfwf_mean['R']   , dx=0, dy=-sfwf_trend['R']  )
@@ -468,25 +512,31 @@ def FW_region_plot(quant):
 
             #region: diffusion [axt]
             diffusion = ddtS_ctl*fac - sfwf_mean['SFWF'] - conv['to']
-            bdi = axt.bar(x=1+s/10, height=diffusion, **vbkw, color=mct('C5', alpha=1-.3*s), label=f'{Q}{mix}')
+            labelm = [r'$F_{mix}$',r'$F^S_{mix}$'][q]
+            bdi = axt.bar(x=1+s/10, height=diffusion, **vbkw, color=mct('C5', alpha=1-.3*s), label=labelm)
             #endregion
         #endregion
 
     #region: legend, numbering, scales
-    ax = f.add_axes([10.5/16,.2,1/8,.55])
+    ax = f.add_axes([10.5/16,.2+[0.01,.06][q],1/8,.55])
     ax.axis('off')
-    l = ax.legend(handles=[bsf, br, bpe, bdt, bdi, bto, bov, baz, bed, bi], ncol=2, fontsize=7, loc='center', labelspacing=1, columnspacing=1, framealpha=0)
+    l = ax.legend(handles=[bsf, br, bpe, bdt, bdi, bto, bov, baz, bed, bi], ncol=2, fontsize=7, loc='center', labelspacing=.5, columnspacing=.7, handlelength=1, handletextpad=.5, frameon=True)
     # l.set_zorder(0)
-    f.text(.01,.85,['(b)','(c)'][q])
+    f.text(.01,.93,'(b)')
     #endregion
 
     plt.savefig(f'{path_results}/Mov/{["FW","SALT"][q]}_region_budget.eps')
+    plt.savefig(f'{path_results}/FW-paper/{["FW","SALT"][q]}_region_budget.eps')
+    if q==0:
+        plt.savefig(f'{path_results}/FW-paper/Fig9b.eps')
     return
 
 
 def FW_merid_fluxes_plot():
     """"""
-    f, ax = plt.subplots(2,2, figsize=(8,6), sharex='col', sharey='row')
+    f, ax = plt.subplots(2,2, figsize=(6.4,5), sharey='row', sharex='col', gridspec_kw={'height_ratios':[2,1]})
+    ax[0,0].set_ylabel(r'northward freshwater transport $F$  [Sv]')
+    ax[1,0].set_ylabel(r'$F$ linear trend  [Sv/100yr]')
     ov, az, eddy, tot, BS = r'$_{ov}$', r'$_{az}$', r'$_{eddy}$', r'$_{tot}$', r'$_{BS}$'
     for i, sim in enumerate(['HIGH','LOW']):
         ctl = ['ctrl', 'lpd'][i]
@@ -496,14 +546,13 @@ def FW_merid_fluxes_plot():
         FW_Arctic_mean, FW_Arctic_trend = get_SFWF(sim=sim, quant='FW', latS=60, latN=90)
         mask_Med = make_Med_mask([2400, 384][i], [sections_high,sections_low][i])
         yrs = [slice(200,203), slice(500-154,530-154)][i]
-        ax[0,i].set_title(sim)
-        ax[i,0].set_ylabel(['northward FW transport [Sv]','northward Salt transport [kt/s]'][i])
+        ax[0,i].set_title(['HR-CESM','LR-CESM'][i])
         for j in range(2):
-            ax[i,j].axhline(0, c='k', lw=.7)#, zorder=1)
-            ax[i,j].axvline(0, c='k', lw=.7)#, zorder=1)
-            ax[i,j].set_xlim((-34,60))
-            ax[i,j].set_xticks([-34,-10,0,10,45,60])
-            ax[i,j].grid()
+            ax[j,i].axhline(0, c='k', lw=.7)#, zorder=1)
+            ax[j,i].axvline(0, c='k', lw=.7)#, zorder=1)
+            ax[j,i].set_xlim((-34,60))
+            ax[j,i].set_xticks([-34,-10,0,10,45,60])
+            ax[j,i].grid(axis='x', lw=.5)
         lats = Atl_lats(sim)
         dso = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{ctl}.nc', decode_times=False).isel(time=yrs)
         dst = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{rcp}.nc', decode_times=False)
@@ -513,69 +562,112 @@ def FW_merid_fluxes_plot():
         Fe  = -dso.Se .mean('time')/35e6  # [kg/s] -> [Sv]
         Ft  = Fov+Faz+Fe
         
+        # CTRL
+        ax[0,i].plot(lats, Fov               , c='C0', label=r'$F_{ov}$')
+        ax[0,i].plot(lats, Faz               , c='C1', label=r'$F_{az}$')
+        ax[0,i].plot(lats, Fe.where(mask_Med), c='C2', label=r'$F_{eddy}$')
+        ax[0,i].plot(lats, Ft.where(mask_Med), c='C3', label=r'$F_{total}$')
+
+        # BS inflow + Arctic SFWF
+        ax[0,i].plot([62,62], [0,-inflow[f'F_BS']/1e6],    lw=2, c='C8', label=r'$F_{BS}$'         , clip_on=False)
+        ax[0,i].plot([61,61], [0,-FW_Arctic_mean['SFWF']], lw=2, c='C4', label=r'$F_{surf,Arctic}$', clip_on=False)
+        
+        # RCP
+        rn = {'dim_0':'nlat_u'}
+        Fov_trend = xr_linear_trend(dst.Fov).rename(rn)*365*100
+        Faz_trend = xr_linear_trend(dst.Faz).rename(rn)*365*100
+        Fe_trend  = xr_linear_trend(-dst.Se/35e6).rename(rn)*365*100
+        Ft_trend  = xr_linear_trend(dst.Fov+dst.Faz-dst.Se/35e6).rename(rn)*365*100
+                
+        ax[0,i].plot(lats, Fov + Fov_trend               , c='C0', ls='--', lw=.8)
+        ax[0,i].plot(lats, Faz + Faz_trend               , c='C1', ls='--', lw=.8)
+        ax[0,i].plot(lats, (Fe + Fe_trend).where(mask_Med), c='C2', ls='--', lw=.8)
+        ax[0,i].plot(lats, (Ft + Ft_trend).where(mask_Med), c='C3', ls='--', lw=.8)
+        
+        ax[1,i].plot(lats, Fov_trend               , c='C0', lw=.8)
+        ax[1,i].plot(lats, Faz_trend               , c='C1', lw=.8)
+        ax[1,i].plot(lats, Fe_trend.where(mask_Med), c='C2', lw=.8)
+        ax[1,i].plot(lats, Ft_trend.where(mask_Med), c='C3', lw=.8)
+
+        ax[1,i].set_xlabel(r'latitude $\theta$  [$\!^\circ\!$N]')
+        ax[0,i].set_ylim((-.85,.65))
+        ax[1,i].set_ylim((-.27,.12))
+        ax[0,i].text(.01, .94, '('+['a','b'][i]+')', transform=ax[0,i].transAxes)
+        ax[1,i].text(.01, .88, '('+['c','d'][i]+')', transform=ax[1,i].transAxes)
+    l1 = ax[0,0].legend(loc=3, fontsize=8, columnspacing=.7, handlelength=1, frameon=False) #ncol=2
+    ax[0,0].add_artist(l1)
+
+    # legends CTRL + RCP
+    l1, = ax[0,0].plot([],[], c='k', label=f'CTRL mean')#{[200,500][i]}-{[200,500][i]+29}')
+    l2, = ax[0,0].plot([],[], c='k', ls='--', lw=.8, label=f'RCP 2100')
+    ax[0,0].legend(handles=[l1,l2], fontsize=8, loc=1, columnspacing=.7, handlelength=1.3, frameon=False)
+    plt.savefig(f'{path_results}/Mov/FW_transports.eps', dpi=300)
+    plt.savefig(f'{path_results}/FW-paper/FW_transports.eps')
+    plt.savefig(f'{path_results}/FW-paper/Fig7.eps')
+    return
+
+
+
+def FS_merid_fluxes_plot():
+    """"""
+    f, ax = plt.subplots(1,2, figsize=(6.4,3), sharey='row')
+    ax[0].set_ylabel('northward S transport [kt/s]')
+    ov, az, eddy, tot, BS = r'$_{ov}$', r'$_{az}$', r'$_{eddy}$', r'$_{tot}$', r'$_{BS}$'
+    for i, sim in enumerate(['HIGH','LOW']):
+        ctl = ['ctrl', 'lpd'][i]
+        rcp = ['rcp', 'lr1'][i]
+        inflow = get_BS_Med(sim)
+        SALT_Arctic_mean, SALT_Arctic_trend = get_SFWF(sim=sim, quant='SALT', latS=60, latN=90)
+        mask_Med = make_Med_mask([2400, 384][i], [sections_high,sections_low][i])
+        yrs = [slice(200,203), slice(500-154,530-154)][i]
+        ax[i].set_title(['HR-CESM','LR-CESM'][i])
+        ax[i].axhline(0, c='k', lw=.7)#, zorder=1)
+        ax[i].axvline(0, c='k', lw=.7)#, zorder=1)
+        ax[i].set_xlim((-34,60))
+        ax[i].set_xticks([-34,-10,0,10,45,60])
+        ax[i].grid()
+        lats = Atl_lats(sim)
+        dso = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{ctl}.nc', decode_times=False).isel(time=yrs)
+        dst = xr.open_dataset(f'{path_prace}/Mov/FW_SALT_fluxes_{rcp}.nc', decode_times=False)
+        
         Sov = dso.Sov.mean('time')/1e6  # [kg/s] -> [kt/s]
         Saz = dso.Saz.mean('time')/1e6
         Se  = dso.Se .mean('time')/1e6
         St  = dso.St .mean('time')/1e6
         
-        # CTRL
-        ax[0,i].plot(lats, Fov, c='C0', label=f'F{ov}')
-        ax[0,i].plot(lats, Faz, c='C1', label=f'F{az}')
-        ax[0,i].plot(lats, Fe.where(mask_Med), c='C2', label=f'F{eddy}')
-        ax[0,i].plot(lats, Ft.where(mask_Med), c='C3', label=f'F{tot}')
-        
-        ax[1,i].plot(lats, Sov, c='C0', label=f'S{ov}')
-        ax[1,i].plot(lats, Saz, c='C1', label=f'S{az}')
-        ax[1,i].plot(lats, Se.where(mask_Med), c='C2', label=f'S{eddy}')
-        ax[1,i].plot(lats, St.where(mask_Med), c='C3', label=f'S{tot}')
+        # CTRL        
+        ax[i].plot(lats, Sov               , c='C0', label=r'$F^S_{ov}$')
+        ax[i].plot(lats, Saz               , c='C1', label=r'$F^S_{az}$')
+        ax[i].plot(lats, Se.where(mask_Med), c='C2', label=r'$F^S_{eddy}$')
+        ax[i].plot(lats, St.where(mask_Med), c='C3', label=r'$F^S_{total}$')
 
         # BS inflow + Arctic SFWF
-        for j, Q in enumerate(['F', 'S']):
-            ax[j,i].plot([62,62], [0,-inflow[f'{Q}_BS']/1e6], c='C8', label=f'{Q}{BS}', clip_on=False)
-#             ax[0,i].plot([61,61], [-inflow[f'{Q}_BS']/1e6,-[FW_Arctic_mean, SALT_Arctic_mean][j]-inflow[f'{Q}_BS']/1e6],
-        FBS, SBS = -inflow['F_BS']/1e6, -inflow['S_BS']/1e6
-        ax[0,i].plot([61,61], [FBS,-FW_Arctic_mean['SFWF']+FBS],\
-                     c='C4', label=r'SFWF$_{Arctic}$', clip_on=False)
-        ax[1,i].plot([61,61], [SBS,-SALT_Arctic_mean['SFWF']/1e6+SBS],\
-                     c='C4', label=r'SFWF$_{Arctic}$', clip_on=False)
-        
+        ax[i].plot([62,62], [0,-inflow[f'S_BS']/1e6]         , lw=2, c='C8', label=r'$F^S_{BS}$', clip_on=False)
+        ax[i].plot([61,61], [0,-SALT_Arctic_mean['SFWF']/1e6], lw=2, c='C4', label=r'$F^S_{surf,Arctic}$', clip_on=False)        
         # RCP
-        rn = {'dim_0':'nlat_u'}
-        Fov_trend = Fov + xr_linear_trend(dst.Fov).rename(rn)*365*100
-        Faz_trend = Faz + xr_linear_trend(dst.Faz).rename(rn)*365*100
-        Fe_trend  = Fe  + xr_linear_trend(-dst.Se/35e6).rename(rn)*365*100
-        Ft_trend  = Ft  + xr_linear_trend(dst.Fov+dst.Faz-dst.Se/35e6).rename(rn)*365*100
-        
+        rn = {'dim_0':'nlat_u'}        
         Sov_trend = Sov + xr_linear_trend(dst.Sov).rename(rn)*365*100/1e6  # [kg/s] -> [kt/s/100yr]
         Saz_trend = Saz + xr_linear_trend(dst.Saz).rename(rn)*365*100/1e6
         Se_trend  = Se  + xr_linear_trend(dst.Se ).rename(rn)*365*100/1e6
         St_trend  = St  + xr_linear_trend(dst.St ).rename(rn)*365*100/1e6
         
-        ax[0,i].plot(lats, Fov_trend, c='C0', lw=.8)
-        ax[0,i].plot(lats, Faz_trend, c='C1', lw=.8)
-        ax[0,i].plot(lats, Fe_trend.where(mask_Med), c='C2', lw=.8)
-        ax[0,i].plot(lats, Ft_trend.where(mask_Med), c='C3', lw=.8)
+        ax[i].plot(lats, Sov_trend               , c='C0', ls='--', lw=.8)
+        ax[i].plot(lats, Saz_trend               , c='C1', ls='--', lw=.8)
+        ax[i].plot(lats, Se_trend.where(mask_Med), c='C2', ls='--', lw=.8)
+        ax[i].plot(lats, St_trend.where(mask_Med), c='C3', ls='--', lw=.8)
         
-        ax[1,i].plot(lats, Sov_trend, c='C0', lw=.8)
-        ax[1,i].plot(lats, Saz_trend, c='C1', lw=.8)
-        ax[1,i].plot(lats, Se_trend.where(mask_Med), c='C2', lw=.8)
-        ax[1,i].plot(lats, St_trend.where(mask_Med), c='C3', lw=.8)
-        
-    #     ax[1,i].set_ylim((-1.5e8,1.5e8))
-        ax[1,i].set_xlabel(r'latitude $\theta$ [$\!^\circ\!$N]')
-        ax[0,i].set_ylim((-.85,.65))
-        ax[1,i].set_ylim((-8.5e1,2.5e1))
-        for j in range(2):
-            ax[j,i].text(.01, .92, '('+['a','b','c','d'][i+2*j]+')', transform=ax[j,i].transAxes)
-            l1 = ax[j,i].legend(ncol=[1,3][j], loc=[3,4][j], fontsize=8, handlelength=.8)
-            ax[j,i].add_artist(l1)
+        ax[i].set_xlabel(r'latitude $\theta$ [$\!^\circ\!$N]')
+        ax[i].set_ylim((-92,33))
+        ax[i].text(.01, .92, '('+['a','b'][i]+')', transform=ax[i].transAxes)
+        l1 = ax[i].legend(ncol=3, columnspacing=.7, loc=4, fontsize=7, handlelength=.8)
+        ax[i].add_artist(l1)
         
             # legends CTRL + RCP
-            l, = ax[j,i].plot([],[], c='k', label=f'CTRL {[200,500][i]}-{[200,500][i]+29}')
-            L = [l]
-            l, = ax[j,i].plot([],[], c='k', lw=.8, label=f'RCP linear trend')
-            L.append(l)
-            ax[j,i].legend(handles=L, fontsize=8, ncol=2, loc=9)
-    f.align_ylabels()
-    plt.savefig(f'{path_results}/Mov/Mov_lat_ctrl_lpd')
+        l, = ax[i].plot([],[], c='k', label=f'CTRL mean')#{[200,500][i]}-{[200,500][i]+29}')
+        L = [l]
+        l, = ax[i].plot([],[], c='k', ls='--', lw=.8, label=f'RCP year 2100')
+        L.append(l)
+        ax[i].legend(handles=L, fontsize=7, ncol=2, loc=1)
+    plt.savefig(f'{path_results}/Mov/FS_transports', dpi=300)
+    plt.savefig(f'{path_results}/FW-paper/FS_transports.eps')
     return
