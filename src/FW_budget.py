@@ -50,7 +50,7 @@ from grid import find_indices_near_coordinate
 from paths import CESM_filename, path_prace, path_results, file_RMASK_ocn_low, file_ex_ocn_ctrl, file_ex_ocn_lpd
 from timeseries import IterateOutputCESM
 from xr_DataArrays import xr_AREA
-from xr_regression import ocn_field_regression
+from xr_regression import ocn_field_regression, xr_regression_with_stats
 from aa_derivation_fields import DeriveField
 #endregion
 
@@ -141,21 +141,44 @@ def make_SFWF_means(run):
 
 def make_SFWF_trends(run):
     """ calculate linear trends of SFWF """
-    for qs in [['SFWF']]:  # ['EVAP_F', 'PREC_F', 'ROFF_F']
+    for qs in [['SFWF'], ['EVAP_F', 'PREC_F', 'ROFF_F']]:
         name = '_'.join(qs)
         print(f'  making trend of {name}')
-        for i, (y,m,f) in enumerate(IterateOutputCESM(domain='ocn', run=run, tavg='yrly', name=name)):
-            ds_ = xr.open_dataset(f, decode_times=False)
-            if i==0:  ds = []
-            ds.append(ds_)
-        ds = xr.concat(ds, dim='time')
-        print('mfdataset created')
-        for q in qs:
-            ds[q].to_netcdf(f'{path_prace}/{run}/{q}_yrly_{run}.nc')
-            print('before regression')
-            trend = ocn_field_regression(xa=ds[q], run=run)
-            print('after regression')
-            trend[0].to_netcdf(f'{path_prace}/{run}/{q}_yrly_trend_{run}.nc')
+        
+        # concatenating yearly fields
+        fn = f'{path_prace}/{run}/{qs[0]}_yrly_trend_{run}.nc'
+        if os.path.exists(fn):
+            pass
+        else:
+            for i, (y,m,f) in enumerate(IterateOutputCESM(domain='ocn', run=run, tavg='yrly', name=name)):
+                ds_ = xr.open_dataset(f, decode_times=False)
+                if i==0:  ds = []
+                ds.append(ds_)
+            ds = xr.concat(ds, dim='time')
+            print('mfdataset created')
+            for q in qs:
+                ds[q].to_netcdf(f'{path_prace}/{run}/{q}_yrly_{run}.nc')
+
+        # regression
+        for i, q in enumerate(qs):
+            if i<1:  continue
+            fn = f'{path_prace}/{run}/{q}_yrly_trend_{run}.nc'
+            if os.path.exists(fn):
+                pass
+            else:
+                print('before regression')
+                ds = xr.open_dataarray(f'{path_prace}/{run}/{q}_yrly_{run}.nc', decode_times=False)
+                trend = ocn_field_regression(xa=ds, run=run)
+                print('after regression')
+                trend[0].to_netcdf(fn)
+
+            fn_stats = f'{path_prace}/{run}/{q}_yrly_trend_stats_{run}.nc'
+            if os.path.exists(fn_stats):
+                pass
+            else:
+                ds = xr.open_dataarray(f'{path_prace}/{run}/{q}_yrly_{run}.nc', decode_times=False)
+                print('creating {q} scipy stats linregress')
+                xr_regression_with_stats(ds, fn=fn_stats)
     return
 
 def make_Mask(run, latS, latN):
@@ -280,12 +303,12 @@ def make_SFWF_surface_integrals():
             d['Tti_Sv']  = Tti/1e9*365*100  
             
             print(f'\n{latS}N to {latN}N,   {AREA_total.values:4.2E} m^2\n')
-            print('             PREC  EVAP  ROFF    SUM')
+            print('             PREC  EVAP  ROFF  TOTAL   DIFF')
 
-            print(f'[mm/d]      {d["Pmi_mmd"]:5.2f} {d["Emi_mmd"]:5.2f} {d["Rmi_mmd"]:5.2f} {d["Tmi_mmd"]:5.4f}')
-            print(f'[mm/d/100y] {d["Pti_mmd"]:5.2f} {d["Eti_mmd"]:5.2f} {d["Rti_mmd"]:5.2f} {d["Tti_mmd"]:5.4f}')
-            print(f'[Sv]        {d["Pmi_Sv"]:5.2f} {d["Emi_Sv"]:5.2f} {d["Rmi_Sv"]:5.2f} {d["Tmi_Sv"]:5.4f}')
-            print(f'[Sv/100y]   {d["Pti_Sv"]:5.2f} {d["Eti_Sv"]:5.2f} {d["Rti_Sv"]:5.2f} {d["Tti_Sv"]:5.4f}')
+            print(f'[mm/d]      {d["Pmi_mmd"]:5.2f} {d["Emi_mmd"]:5.2f} {d["Rmi_mmd"]:5.2f} {d["Tmi_mmd"]:7.4f} {d["Tmi_mmd"]-(d["Pmi_mmd"]+d["Emi_mmd"]+d["Rmi_mmd"]):7.4f}')
+            print(f'[mm/d/100y] {d["Pti_mmd"]:5.2f} {d["Eti_mmd"]:5.2f} {d["Rti_mmd"]:5.2f} {d["Tti_mmd"]:7.4f} {d["Tti_mmd"]-(d["Pti_mmd"]+d["Eti_mmd"]+d["Rti_mmd"]):7.4f}')
+            print(f'[Sv]        {d["Pmi_Sv"]:5.2f} {d["Emi_Sv"]:5.2f} {d["Rmi_Sv"]:5.2f} {d["Tmi_Sv"]:7.4f} {d["Tmi_Sv"]-(d["Pmi_Sv"]+d["Emi_Sv"]+d["Rmi_Sv"]):7.4f}')
+            print(f'[Sv/100y]   {d["Pti_Sv"]:5.2f} {d["Eti_Sv"]:5.2f} {d["Rti_Sv"]:5.2f} {d["Tti_Sv"]:7.4f} {d["Tti_Sv"]-(d["Pti_Sv"]+d["Eti_Sv"]+d["Rti_Sv"]):7.4f}')
             print(f'[%/100y]    {d["Pti_Sv"]/d["Pmi_Sv"]*100:5.1f} {d["Eti_Sv"]/d["Emi_Sv"]*100:5.1f} {d["Rti_Sv"]/d["Rmi_Sv"]*100:5.1f} {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f}\n')
             print(f'total surface flux:   {d["Tmi_Sv"]:5.2f} Sv  {d["Tti_Sv"]:5.2f} Sv/100yr  {d["Tti_Sv"]/d["Tmi_Sv"]*100:5.1f} %/100yr')
             print('\n\n\n')
