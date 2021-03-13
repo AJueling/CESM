@@ -80,7 +80,7 @@
 VTN = [DXZU(i-1)*VVEL(i-1) + DXZU(i)*VVEL(i) ]/2
 
 # half the northward rate at (nlon_t,nlat_u) with TVOL = DZT*TAREA  [1/s]
-# FVN = VTN/TVOL/2
+FVN = VTN/TVOL/2
 
 # northward advection of Salt at (nlon_t,nlat_u)  [g/kg/s]
-# VNS = FVN*(SALT(j)+SALT(j+1))
+VNS = FVN*(SALT(j)+SALT(j+1))
